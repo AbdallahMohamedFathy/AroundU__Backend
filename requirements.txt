@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg
+
+alembic
+pydantic<2.0
+python-multipart
+greenlet
+pyjwt
+passlib
