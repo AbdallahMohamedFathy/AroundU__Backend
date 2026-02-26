@@ -1,7 +1,7 @@
 // API Service for AroundU Backend
 class ApiService {
     constructor() {
-        this.baseUrl = 'http://127.0.0.1:8000/api';
+        this.baseUrl = 'http://localhost:8000/api/docs';
     }
 
     // Token Management
@@ -51,7 +51,7 @@ class ApiService {
 
     // Auth Endpoints
     async register(email, password, fullName) {
-        const data = await this.request('/auth/register', {
+        const data = await this.request('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify({
                 email,
@@ -65,7 +65,7 @@ class ApiService {
     }
 
     async login(email, password) {
-        const data = await this.request('/auth/login', {
+        const data = await this.request('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({
                 email,
@@ -78,7 +78,7 @@ class ApiService {
     }
 
     async getProfile() {
-        return await this.request('/auth/profile');
+        return await this.request('/api/auth/profile');
     }
 
     logout() {
@@ -88,13 +88,13 @@ class ApiService {
 
     // Categories Endpoints
     async getCategories(skip = 0, limit = 100) {
-        return await this.request(`/categories?skip=${skip}&limit=${limit}`, {
+        return await this.request(`/api/categories?skip=${skip}&limit=${limit}`, {
             skipAuth: true,
         });
     }
 
     async createCategory(name, description, icon) {
-        return await this.request('/categories', {
+        return await this.request('/api/categories', {
             method: 'POST',
             body: JSON.stringify({
                 name,

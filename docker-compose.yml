@@ -1,0 +1,158 @@
+# ─────────────────────────────────────────────────────────────
+#  AroundU Backend — Docker Compose
+#
+#  Services:
+#    db      → PostgreSQL 15
+#    redis   → Redis 7 (caching / rate-limiting)
+#    api     → FastAPI application
+#
+#  Usage:
+#    docker compose up --build          # first run
+#    docker compose up -d               # background
+#    docker compose down                # stop & remove containers
+#    docker compose down -v             # also wipe volumes (fresh DB)
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: aroundu_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aroundu
+      POSTGRES_USER: aroundu_user
+      POSTGRES_PASSWORD: aroundu_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # expose to host for tools like DBeaver / pgAdmin
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U aroundu_user -d aroundu" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aroundu_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI ─────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: aroundu_api
+    restart: unless-stopped
+    # Use our entrypoint script: waits for DB → runs migrations → starts server
+    command: [ "/bin/bash", "/app/scripts/start.sh" ]
+    environment:
+      # Application
+      PROJECT_NAME: "AroundU API"
+      ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-please-32-chars}
+      API_V1_STR: /api
+
+      # Database — points to the db service above
+      DATABASE_URL: postgresql://aroundu_user:aroundu_pass@db:5432/aroundu
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      ENABLE_REDIS: "true"
+
+      # File uploads
+      UPLOAD_FOLDER: /app/uploads
+      MAX_UPLOAD_SIZE: "5242880"
+
+      # CORS — change to your frontend origin in production
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+
+      # Email (optional — leave blank to disable)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-noreply@aroundu.com}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+
+      # Seed sample data on first start (set to false after first run)
+      SEED_DB: ${SEED_DB:-true}
+      WORKERS: ${WORKERS:-2}
+
+      # Logging
+      LOG_LEVEL: info
+    volumes:
+      - uploads_data:/app/uploads # persistent image storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── AI Service (Microservice) ──────────────────────────────
+  ai_service:
+    build:
+      context: .
+      dockerfile: ai_service/Dockerfile
+    container_name: aroundu_ai_service
+    restart: unless-stopped
+    environment:
+      PROJECT_NAME: "AroundU AI Service"
+      ENVIRONMENT: production
+      BACKEND_URL: "http://api:8000/api"
+      PORT: 8001
+      LOG_LEVEL: info
+    ports:
+      - "8001:8001"
+    depends_on:
+      - api
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Adminer (Web-based DB Management) ──────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: aroundu_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+# ─────────────────────────────────────────────────────────────
+#  Volumes — named so data survives container recreation
+# ─────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads_data:
+    driver: local

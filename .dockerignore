@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment files (never bake secrets into image)
+.env
+.env.*
+!.env.example
+
+# Local database file
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads (mounted as Docker volume)
+uploads/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docs / markdown (not needed in container)
+*.md
+docs/
+
+# Test files
+tests/
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+logs/
+
+# Docker files themselves (no need to copy)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Frontend demo (backend container only)
+frontend/

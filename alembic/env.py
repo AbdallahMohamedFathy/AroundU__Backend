@@ -21,8 +21,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set sqlalchemy.url from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set sqlalchemy.url from settings, rewriting to psycopg3 dialect when needed
+_alembic_url = settings.DATABASE_URL
+if _alembic_url.startswith("postgresql://"):
+    _alembic_url = "postgresql+psycopg://" + _alembic_url[len("postgresql://"):]
+elif _alembic_url.startswith("postgres://"):
+    _alembic_url = "postgresql+psycopg://" + _alembic_url[len("postgres://"):]
+config.set_main_option("sqlalchemy.url", _alembic_url)
 
 target_metadata = Base.metadata
 
