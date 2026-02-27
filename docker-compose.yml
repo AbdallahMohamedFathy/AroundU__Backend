@@ -60,7 +60,7 @@ services:
     container_name: aroundu_api
     restart: unless-stopped
     # Use our entrypoint script: waits for DB → runs migrations → starts server
-    command: [ "/bin/bash", "/app/scripts/start.sh" ]
+    command: [ "/bin/sh", "/app/start.sh" ]
     environment:
       # Application
       PROJECT_NAME: "AroundU API"
@@ -106,7 +106,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
