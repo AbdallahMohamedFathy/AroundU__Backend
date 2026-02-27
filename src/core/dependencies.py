@@ -7,7 +7,11 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from src.core.config import settings
-from src.core.database import get_db
+from src.core.database import SessionLocal, get_db
+from src.core.unit_of_work import UnitOfWork
+def get_uow():
+    with UnitOfWork(SessionLocal) as uow:
+        yield uow
 from src.core.exceptions import APIException
 from src.core.unit_of_work import UnitOfWork
 
@@ -79,15 +83,10 @@ def get_message_repository(db: Session = Depends(get_db)):
 def get_search_repository(db: Session = Depends(get_db)):
     return SearchRepository(db)
 
-
-# =========================================================
-# Unit of Work Provider
-# =========================================================
-
+# provider for unit of work
 def get_uow():
-    with UnitOfWork() as uow:
+    with UnitOfWork(SessionLocal) as uow:
         yield uow
-
 
 # =========================================================
 # OAuth2
