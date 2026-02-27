@@ -16,13 +16,13 @@ class Settings(BaseSettings):
 
     # Security
     # In production, this MUST be set via environment variable
-    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+    SECRET_KEY: str = Field(..., env="SECRET_KEY")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes as per requirements
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7    # 7 days as per requirements
 
     # Database
-    DATABASE_URL: str = "sqlite:///./aroundu.db"
+    DATABASE_URL: str = Field(..., env="DATABASE_URL")
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30
@@ -68,25 +68,6 @@ class Settings(BaseSettings):
     AI_SERVICE_URL: str = "http://ai_service:8001"
     AI_TIMEOUT_SECONDS: float = 3.0
     AI_MAX_RETRIES: int = 3
-
-    @validator("SECRET_KEY", pre=True, always=True)
-    def validate_secret_key(cls, v, values):
-        if not v or len(v) < 32:
-            if values.get("ENVIRONMENT") == "production":
-                raise ValueError("In production, SECRET_KEY must be at least 32 characters long and provided via ENV.")
-        return v
-
-    @validator("DATABASE_URL", pre=True, always=True)
-    def validate_database_url(cls, v, values):
-        if values.get("ENVIRONMENT") == "production" and not v:
-            raise ValueError("In production, DATABASE_URL must be provided via ENV.")
-        return v
-        
-    @validator("REDIS_URL", pre=True, always=True)
-    def validate_redis_url(cls, v, values):
-        if values.get("ENVIRONMENT") == "production" and not v:
-            raise ValueError("In production, REDIS_URL must be provided via ENV.")
-        return v
 
     def get_cors_origins(self) -> list:
         if self.CORS_ORIGINS == "*":
