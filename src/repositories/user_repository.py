@@ -9,6 +9,10 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, session: Session):
         super().__init__(User, session)
 
+    def add(self, user: User):
+        """Add a user instance to the session."""
+        self.session.add(user)
+
     def get_by_email(self, email: str) -> Optional[User]:
         return self.session.query(User).filter(User.email == email).first()
 

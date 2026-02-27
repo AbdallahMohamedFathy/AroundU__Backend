@@ -18,19 +18,20 @@ def register_user(uow: UnitOfWork, user_in: UserCreate):
         if existing_user:
             raise APIException("Email already registered", code=status.HTTP_400_BAD_REQUEST)
         
-        from src.models.user import User # Lazy import
+        from src.models.user import User
         new_user = User(
             email=user_in.email,
             full_name=user_in.full_name,
             password_hash=get_password_hash(user_in.password),
             verification_token=secrets.token_urlsafe(32),
         )
+
         uow.user_repository.add(new_user)
-        uow.session.flush() # Ensure new_user.id is populated for token generation
-        
+        uow.session.flush()
+
         access_token = create_access_token(subject=new_user.id)
         refresh_token = create_refresh_token(subject=new_user.id)
-        
+
         new_user.hashed_refresh_token = get_password_hash(refresh_token)
         uow.commit()
 
