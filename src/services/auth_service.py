@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from src.core.unit_of_work import UnitOfWork
 from src.repositories.user_repository import UserRepository
-from src.schemas.user import UserCreate, UserLogin
+from src.schemas.user import UserCreate, UserLogin, UserResponse
 from src.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from src.core.exceptions import APIException
 from fastapi import status
@@ -35,11 +35,13 @@ def register_user(uow: UnitOfWork, user_in: UserCreate):
         new_user.hashed_refresh_token = get_password_hash(refresh_token)
         uow.commit()
 
+        user_response = UserResponse.model_validate(new_user)
+
         return {
             "access_token": access_token, 
             "refresh_token": refresh_token,
             "token_type": "bearer", 
-            "user": new_user
+            "user": user_response
         }
 
 def authenticate_user(uow: UnitOfWork, user_in: UserLogin):
@@ -57,26 +59,14 @@ def authenticate_user(uow: UnitOfWork, user_in: UserLogin):
         user.hashed_refresh_token = get_password_hash(refresh_token)
         uow.commit()
         
+        user_response = UserResponse.model_validate(user)
+
         return {
             "access_token": access_token, 
             "refresh_token": refresh_token,
             "token_type": "bearer", 
-            "user": user
+            "user": user_response
         }
-    if not user or not verify_password(user_in.password, user.password_hash):
-        raise APIException("Incorrect email or password", code=status.HTTP_401_UNAUTHORIZED)
-    
-    if not user.is_active:
-        raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
-    
-    access_token = create_access_token(subject=user.id)
-    refresh_token = create_refresh_token(subject=user.id)
-    return {
-        "access_token": access_token, 
-        "refresh_token": refresh_token,
-        "token_type": "bearer", 
-        "user": user
-    }
 
 def refresh_access_token(uow: UnitOfWork, user_id: str, refresh_token: str):
     with uow:
