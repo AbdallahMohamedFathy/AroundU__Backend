@@ -51,6 +51,24 @@ class PlaceResponse(PlaceBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class NearbyPlaceResponse(BaseModel):
+    id: int
+    name: str = Field(..., min_length=1, max_length=200)
+    category: str
+    description: Optional[str] = None
+    distance: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NearbyPlaceListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    items: List[NearbyPlaceResponse]
+
+
 class PlaceListResponse(BaseModel):
     total: int
     page: int

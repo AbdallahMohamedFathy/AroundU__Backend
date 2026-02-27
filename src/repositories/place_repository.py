@@ -1,6 +1,6 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 from src.models.place import Place
 from src.repositories.base_repository import BaseRepository
 
@@ -24,32 +24,58 @@ class PlaceRepository(BaseRepository[Place]):
         category_id: Optional[int] = None,
         limit: int = 20,
         offset: int = 0
-    ) -> List[Place]:
+    ) -> List[dict]:
         """
-        Retrieves places within a bounding box (SQL FILTERING).
-        This is significantly faster than calculating Haversine distance for all rows.
+        Retrieves places using PostGIS ST_Distance and ST_DWithin.
+        Uses the <-> operator for high-performance index-assisted sorting.
         """
-        # Roughly 1 degree of latitude is 111km
-        lat_delta = radius_km / 111.0
-        # Longitude delta depends on latitude
-        import math
-        lng_delta = radius_km / (111.0 * math.cos(math.radians(latitude)))
+        # Convert radius to meters
+        radius_m = radius_km * 1000
 
-        min_lat, max_lat = latitude - lat_delta, latitude + lat_delta
-        min_lng, max_lng = longitude - lng_delta, longitude + lng_delta
+        query_str = """
+            SELECT 
+                p.id, 
+                p.name, 
+                p.description,
+                c.name as category_name,
+                ST_Distance(p.location, ref_point.pt) as distance_meters
+            FROM places p
+            JOIN categories c ON p.category_id = c.id
+            CROSS JOIN (
+                SELECT ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography as pt
+            ) AS ref_point
+            WHERE p.is_active = true
+            AND ST_DWithin(p.location, ref_point.pt, :radius_m)
+        """
 
-        query = self.session.query(Place).options(joinedload(Place.category))
-        
-        # SQL-level bounding box filtering
-        query = query.filter(
-            Place.latitude.between(min_lat, max_lat),
-            Place.longitude.between(min_lng, max_lng)
-        )
+        params = {
+            "lat": latitude,
+            "lng": longitude,
+            "radius_m": radius_m,
+            "limit": limit,
+            "offset": offset
+        }
 
         if category_id:
-            query = query.filter(Place.category_id == category_id)
+            query_str += " AND p.category_id = :category_id"
+            params["category_id"] = category_id
 
-        return query.offset(offset).limit(limit).all()
+        # Use index-assisted NN sorting
+        query_str += " ORDER BY p.location <-> ref_point.pt LIMIT :limit OFFSET :offset"
+
+        results = self.session.execute(text(query_str), params).fetchall()
+        
+        # Format results into dictionaries
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "category": r.category_name,
+                "description": r.description,
+                "distance": r.distance_meters
+            }
+            for r in results
+        ]
 
     def get_paginated(
         self,

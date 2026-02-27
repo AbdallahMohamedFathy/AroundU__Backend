@@ -47,8 +47,7 @@ def get_nearby_places(
     page: int = 1,
     page_size: int = 20,
 ):
-    """Return places within radius_km using SQL-level bounding box in repository."""
-    # Rule 7: Service must NOT calculate distance.
+    """Return places within radius_km using PostGIS for precise spatial search."""
     items = repo.get_nearby(
         latitude=latitude,
         longitude=longitude,
@@ -58,10 +57,8 @@ def get_nearby_places(
         offset=(page - 1) * page_size
     )
 
-    # Note: For exact sorting/distance labels, the repo could return them, 
-    # but for now we follow the bounding box requirement.
     return {
-        "total": len(items), # Simplified for Phase D
+        "total": len(items),
         "page": page,
         "page_size": page_size,
         "total_pages": 1, 

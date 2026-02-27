@@ -28,7 +28,8 @@ def list_places(
 
 
 # ─── NEARBY  GET /places/nearby ─────────────────────────────────────────────
-@router.get("/nearby", response_model=PlaceListResponse)
+from src.schemas.place import NearbyPlaceListResponse
+@router.get("/nearby", response_model=NearbyPlaceListResponse)
 def nearby_places(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),

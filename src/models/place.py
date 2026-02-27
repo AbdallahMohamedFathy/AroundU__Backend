@@ -17,6 +17,8 @@ class Place(Base):
     review_count = Column(Integer, default=0)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
+    from geoalchemy2 import Geography
+    location = Column(Geography(geometry_type='POINT', srid=4326), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

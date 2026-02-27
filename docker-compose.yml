@@ -17,7 +17,7 @@ services:
 
   # ── PostgreSQL ──────────────────────────────────────────────
   db:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.3
     container_name: aroundu_db
     restart: unless-stopped
     environment:
