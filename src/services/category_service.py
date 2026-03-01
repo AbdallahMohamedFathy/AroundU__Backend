@@ -40,7 +40,8 @@ def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBa
             conflict = uow.category_repository.get_by_name(category_data.name)
             if conflict:
                 raise APIException("Category with this name already exists", code=status.HTTP_400_BAD_REQUEST)
-        
+        return CategoryResponse.model_validate(cat)
+
         if category_data.name is not None:
             cat.name = category_data.name
         if category_data.icon is not None:

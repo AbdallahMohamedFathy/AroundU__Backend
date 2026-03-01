@@ -5,8 +5,10 @@ class CategoryBase(BaseModel):
     name: str
     icon: Optional[str] = None
 
-class CategoryResponse(CategoryBase):
+class CategoryResponse(BaseModel):
     id: int
+    name: str
+    icon: str | None
 
     model_config = ConfigDict(from_attributes=True)
 
