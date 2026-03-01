@@ -7,6 +7,7 @@ from src.repositories.category_repository import CategoryRepository
 from src.schemas.category import CategoryBase
 from src.core.exceptions import APIException
 from fastapi import status
+from src.schemas.category import CategoryResponse
 
 def get_categories(repo: CategoryRepository, skip: int = 0, limit: int = 100):
     return repo.get_all(skip=skip, limit=limit)
@@ -27,7 +28,7 @@ def create_category(uow: UnitOfWork, category: CategoryBase):
         db_category = Category(name=category.name, icon=category.icon)
         uow.category_repository.create(db_category)
         uow.commit()
-        return db_category
+        return CategoryResponse.model_validate(db_category)
 
 def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBase):
     with uow:
