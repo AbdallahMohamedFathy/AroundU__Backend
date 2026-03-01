@@ -9,7 +9,7 @@ from src.core.exceptions import APIException
 from fastapi import status
 
 def get_categories(repo: CategoryRepository, skip: int = 0, limit: int = 100):
-    return repo.list(limit=limit, offset=skip)
+    return repo.get_all(skip=skip, limit=limit)
 
 def get_category_by_id(repo: CategoryRepository, category_id: int):
     cat = repo.get_by_id(category_id)
@@ -25,7 +25,7 @@ def create_category(uow: UnitOfWork, category: CategoryBase):
         
         from src.models.category import Category # Lazy import
         db_category = Category(name=category.name, icon=category.icon)
-        uow.category_repository.add(db_category)
+        uow.category_repository.create(db_category)
         uow.commit()
         return db_category
 
@@ -53,6 +53,6 @@ def delete_category(uow: UnitOfWork, category_id: int):
         cat = uow.category_repository.get_by_id(category_id)
         if not cat:
             raise APIException("Category not found", code=status.HTTP_404_NOT_FOUND)
-        uow.category_repository.delete(category_id)
+        uow.category_repository.delete(cat)
         uow.commit()
         return True
