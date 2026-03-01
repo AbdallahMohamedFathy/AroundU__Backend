@@ -18,9 +18,9 @@ class BaseRepository(Generic[T]):
         return self.session.query(self.model).offset(skip).limit(limit).all()
 
     def create(self, obj_in: Any) -> T:
-        # Note: We don't commit here as per UoW requirements
         self.session.add(obj_in)
         self.session.flush()
+        self.session.refresh(obj_in)   # 👈 دي المهمة
         return obj_in
 
     def update(self, db_obj: T, obj_in: Any) -> T:
