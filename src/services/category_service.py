@@ -28,7 +28,6 @@ def create_category(uow: UnitOfWork, category: CategoryBase):
         uow.category_repository.create(db_category)
         uow.commit()
         return db_category
-    print("CREATE CATEGORY NEW VERSION")
 
 def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBase):
     with uow:
