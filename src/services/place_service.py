@@ -1,6 +1,10 @@
 from typing import Optional, List, Any
 from math import ceil
 from fastapi import HTTPException, status
+from src.models.place import Place
+from src.schemas.place import PlaceResponse
+from sqlalchemy import text
+
 # Rule 2: No SQLAlchemy or Model imports. 
 # We import types ONLY for type-hinting if absolutely necessary, but here we use the repo ones.
 
@@ -69,14 +73,38 @@ def get_nearby_places(
 # ─── WRITE OPERATIONS (Rule 4: MUST use UnitOfWork) ──────────────────────────
 
 def create_place(uow: Any, place_data: Any):
-    """Create and return a new place using UnitOfWork."""
     with uow as uow:
-        # Business logic: category validation would ideally be in CategoryRepository
-        # For Phase D, we assume the repository handles basic existence or we delegate.
-        # However, to maintain compatibility, we'll keep it simple:
-        db_place = uow.place_repository.create(place_data)
+
+        db_place = Place(
+            name=place_data.name,
+            description=place_data.description,
+            latitude=place_data.latitude,
+            longitude=place_data.longitude,
+            category_id=place_data.category_id,
+            address=place_data.address,
+            is_active=True
+        )
+
+        db_place = uow.place_repository.create(db_place)
+        
+        uow.session.execute(
+            text("""
+                UPDATE places
+                SET location = ST_SetSRID(
+                    ST_MakePoint(:lng, :lat), 4326
+                )::geography
+                WHERE id = :id
+            """),
+            {
+                "lng": place_data.longitude,
+                "lat": place_data.latitude,
+                "id": db_place.id
+            }
+        )
+
         uow.commit()
-        return db_place
+
+        return PlaceResponse.model_validate(db_place)
 
 
 def update_place(uow: Any, place_id: int, place_data: Any):
