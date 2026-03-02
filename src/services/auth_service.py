@@ -10,6 +10,7 @@ from src.schemas.user import UserCreate, UserLogin, UserResponse
 from src.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from src.core.exceptions import APIException
 from fastapi import status
+from datetime import datetime, timezone, timedelta
 
 
 def register_user(uow: UnitOfWork, user_in: UserCreate):
@@ -102,15 +103,15 @@ def request_password_reset(uow: UnitOfWork, email: str) -> str:
         
         token = secrets.token_urlsafe(32)
         user.reset_token = token
-        user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=30)
         uow.commit()
         return token
 
 def reset_password(uow: UnitOfWork, token: str, new_password: str):
     with uow:
         user = uow.user_repository.get_by_reset_token(token)
-        if not user or (user.reset_token_expires and user.reset_token_expires < datetime.utcnow()):
-            raise APIException("Invalid or expired reset token", code=status.HTTP_400_BAD_REQUEST)
+        if user.reset_token_expires < datetime.now(timezone.utc):
+            raise APIException("Invalid or expired reset token")
         
         user.password_hash = get_password_hash(new_password)
         user.reset_token = None
