@@ -1,5 +1,6 @@
 from typing import Optional, List, Any
 from math import ceil
+from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from src.models.place import Place
 from src.schemas.place import PlaceResponse
@@ -115,6 +116,13 @@ def update_place(uow: Any, place_id: int, place_data: Any):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
         
         updated_place = uow.place_repository.update(place, place_data)
+
+        # Stamp updated_at on all favorites that reference this place
+        uow.session.execute(
+            text("UPDATE favorites SET updated_at = :now WHERE place_id = :place_id"),
+            {"now": datetime.now(timezone.utc), "place_id": place_id}
+        )
+
         uow.commit()
         return updated_place
 

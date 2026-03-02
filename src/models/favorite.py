@@ -11,6 +11,7 @@ class Favorite(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     place_id = Column(Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Ensure one user can't favorite the same place multiple times
     __table_args__ = (
