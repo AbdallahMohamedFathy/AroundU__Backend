@@ -59,7 +59,7 @@ def update_place_review(
     current_user: User = Depends(get_current_user),
 ):
     """Update your own review (rating and/or comment)."""
-    return review_service.update_review(uow, review_id, current_user.id, data)
+    return review_service.update_review(uow, review_id, current_user, data)
 
 
 # ─── DELETE  DELETE /reviews/{id} ───────────────────────────────────────────
@@ -69,5 +69,5 @@ def delete_place_review(
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete your own review."""
-    review_service.delete_review(uow, review_id, current_user.id)
+    """Delete a review. Authorized for reviewer, place owner, or admin."""
+    review_service.delete_review(uow, review_id, current_user)

@@ -17,7 +17,7 @@ class ItemService:
         if not place:
             raise ValueError("Place not found")
 
-        # permission check
+        # permission check: Only place owner or admin can create items
         require_place_owner_or_admin(current_user, place)
 
         item = Item(**item_in.model_dump(), place_id=place_id)

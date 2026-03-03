@@ -71,11 +71,14 @@ def get_nearby_places(
     }
 
 
-from src.core.permissions import require_place_owner_or_admin
+from src.core.permissions import require_place_owner_or_admin, require_owner_or_admin
 
 # ─── WRITE OPERATIONS (Rule 4: MUST use UnitOfWork) ──────────────────────────
 
 def create_place(uow: Any, place_data: Any, current_user: Any):
+    # Only ADMIN or OWNER role can create places
+    require_owner_or_admin(current_user)
+    
     with uow as uow:
 
         db_place = Place(

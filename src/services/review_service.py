@@ -7,6 +7,7 @@ from src.repositories.review_repository import ReviewRepository
 from src.repositories.place_repository import PlaceRepository
 from src.schemas.review import ReviewCreate, ReviewUpdate
 from src.core.exceptions import APIException
+from src.core.permissions import require_place_owner_or_admin
 from fastapi import status
 
 def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
@@ -62,13 +63,14 @@ def get_review_by_id(repo: ReviewRepository, review_id: int):
         raise APIException("Review not found", code=status.HTTP_404_NOT_FOUND)
     return review
 
-def update_review(uow: UnitOfWork, review_id: int, user_id: int, review_data: ReviewUpdate):
+def update_review(uow: UnitOfWork, review_id: int, current_user: Any, review_data: ReviewUpdate):
     with uow:
         review = uow.review_repository.get_by_id(review_id)
         if not review:
             raise APIException("Review not found", code=status.HTTP_404_NOT_FOUND)
         
-        if review.user_id != user_id:
+        # Only the reviewer can update their own review
+        if review.user_id != current_user.id:
             raise APIException("Not authorized", code=status.HTTP_403_FORBIDDEN)
 
         if review_data.rating is not None:
@@ -81,14 +83,21 @@ def update_review(uow: UnitOfWork, review_id: int, user_id: int, review_data: Re
         uow.commit()
         return uow.review_repository.get_by_id(review_id)
 
-def delete_review(uow: UnitOfWork, review_id: int, user_id: int):
+def delete_review(uow: UnitOfWork, review_id: int, current_user: Any):
     with uow:
         review = uow.review_repository.get_by_id(review_id)
         if not review:
             raise APIException("Review not found", code=status.HTTP_404_NOT_FOUND)
         
-        if review.user_id != user_id:
-            raise APIException("Not authorized", code=status.HTTP_403_FORBIDDEN)
+        # Authorization check:
+        # A review can be deleted by: 
+        # 1. The original reviewer
+        # 2. The place owner (or admin)
+        if review.user_id != current_user.id:
+            place = uow.place_repository.get_by_id(review.place_id)
+            if not place:
+                 raise APIException("Place not found", code=status.HTTP_404_NOT_FOUND)
+            require_place_owner_or_admin(current_user, place)
 
         place_id = review.place_id
         uow.review_repository.delete(review_id)
