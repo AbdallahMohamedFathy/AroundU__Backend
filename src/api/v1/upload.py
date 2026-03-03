@@ -37,10 +37,10 @@ async def upload_place_image(
             image_url=image_url,
             is_primary=is_primary,
         )
-        uow.place_image_repository.add(db_image)
+        db_image = uow.place_image_repository.create(db_image)
         uow.commit()
 
-        return db_image
+    return db_image
 
 
 # ─── LIST  GET /upload/place/{place_id}/images ──────────────────────────────
@@ -90,5 +90,5 @@ def delete_place_image(
         relative_path = image.image_url.lstrip("/uploads/")
         delete_file(relative_path)
 
-        uow.place_image_repository.delete(image_id)
+        uow.place_image_repository.delete(image)
         uow.commit()
