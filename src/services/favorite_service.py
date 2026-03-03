@@ -23,7 +23,7 @@ def add_favorite(uow: UnitOfWork, user_id: int, favorite_data: FavoriteCreate):
         # Create favorite
         from src.models.favorite import Favorite # Lazy import
         new_favorite = Favorite(user_id=user_id, place_id=favorite_data.place_id)
-        uow.favorite_repository.add(new_favorite)
+        uow.favorite_repository.create(new_favorite)
         
         uow.commit()
         return new_favorite
