@@ -29,7 +29,7 @@ def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
             rating=review_data.rating,
             comment=review_data.comment
         )
-        uow.review_repository.add(new_review)
+        uow.review_repository.create(new_review)
         uow.session.flush() # Ensure ID is generated for stats if needed (though not needed for stats)
 
         # Update place rating
