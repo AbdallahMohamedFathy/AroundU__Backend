@@ -12,16 +12,20 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
 
 # Routers
-from src.api.v1 import auth
-from src.api.v1 import places
-from src.api.v1 import reviews
-from src.api.v1 import chat
-from src.api.v1 import categories
-from src.api.v1 import search
-from src.api.v1 import favorites
-from src.api.v1 import upload
-from src.api.v1 import items
-from src.api.v1 import admin
+from src.api.mobile import auth as mobile_auth
+from src.api.mobile import places as mobile_places
+from src.api.mobile import reviews as mobile_reviews
+from src.api.mobile import chat as mobile_chat
+from src.api.mobile import categories as mobile_categories
+from src.api.mobile import search as mobile_search
+from src.api.mobile import favorites as mobile_favorites
+from src.api.mobile import items as mobile_items
+
+from src.api.dashboard import places as dashboard_places
+from src.api.dashboard import items as dashboard_items
+from src.api.dashboard import upload as dashboard_upload
+from src.api.dashboard import categories as dashboard_categories
+from src.api.dashboard import admin as dashboard_admin
 
 # Core
 from src.core.config import settings
@@ -122,18 +126,22 @@ app.mount(
 # ROUTERS
 # ─────────────────────────────────────────────
 
-_p = settings.API_V1_STR
+# ─── MOBILE API ─────────────────────────────────────────────
+app.include_router(mobile_auth.router, prefix="/api/mobile/auth", tags=["Mobile - Auth"])
+app.include_router(mobile_places.router, prefix="/api/mobile/places", tags=["Mobile - Places"])
+app.include_router(mobile_categories.router, prefix="/api/mobile/categories", tags=["Mobile - Categories"])
+app.include_router(mobile_search.router, prefix="/api/mobile/search", tags=["Mobile - Search"])
+app.include_router(mobile_chat.router, prefix="/api/mobile/chat", tags=["Mobile - Chat"])
+app.include_router(mobile_favorites.router, prefix="/api/mobile/favorites", tags=["Mobile - Favorites"])
+app.include_router(mobile_reviews.router, prefix="/api/mobile/reviews", tags=["Mobile - Reviews"])
+app.include_router(mobile_items.router, prefix="/api/mobile/items", tags=["Mobile - Items"])
 
-app.include_router(auth.router, prefix=f"{_p}/auth", tags=["Auth"])
-app.include_router(categories.router, prefix=f"{_p}/categories", tags=["Categories"])
-app.include_router(places.router, prefix=f"{_p}/places", tags=["Places"])
-app.include_router(search.router, prefix=f"{_p}/search", tags=["Search"])
-app.include_router(chat.router, prefix=f"{_p}/chat", tags=["Chat"])
-app.include_router(favorites.router, prefix=f"{_p}/favorites", tags=["Favorites"])
-app.include_router(reviews.router, prefix=f"{_p}/reviews", tags=["Reviews"])
-app.include_router(upload.router, prefix=f"{_p}/upload", tags=["Upload"])
-app.include_router(items.router, prefix=f"{_p}/items", tags=["Items"])
-app.include_router(admin.router, prefix=f"{_p}/admin", tags=["Admin"])
+# ─── DASHBOARD API ──────────────────────────────────────────
+app.include_router(dashboard_places.router, prefix="/api/dashboard/places", tags=["Dashboard - Places"])
+app.include_router(dashboard_items.router, prefix="/api/dashboard/items", tags=["Dashboard - Items"])
+app.include_router(dashboard_upload.router, prefix="/api/dashboard/upload", tags=["Dashboard - Upload"])
+app.include_router(dashboard_categories.router, prefix="/api/dashboard/categories", tags=["Dashboard - Categories"])
+app.include_router(dashboard_admin.router, prefix="/api/dashboard/admin", tags=["Dashboard - Admin"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

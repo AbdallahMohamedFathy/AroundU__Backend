@@ -1,14 +1,12 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-
-from src.core.database import get_db
-from src.core.dependencies import get_current_user
+from src.core.dependencies import get_db, get_current_user
 from src.schemas.item import ItemCreate, ItemUpdate, ItemResponse
 from src.services.item_service import ItemService
 from src.models.user import User
+from src.core.permissions import require_dashboard_access
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_dashboard_access)])
 
 @router.post("/", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(
@@ -23,20 +21,6 @@ def create_item(
     """
     service = ItemService(db)
     return service.create_item(place_id=place_id, item_in=item_in, current_user=current_user)
-
-
-@router.get("/place/{place_id}", response_model=List[ItemResponse])
-def list_place_items(
-    place_id: int,
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """
-    Get all items for a specific place.
-    """
-    service = ItemService(db)
-    return service.get_items_by_place(place_id=place_id, skip=skip, limit=limit)
 
 
 @router.put("/{item_id}", response_model=ItemResponse)

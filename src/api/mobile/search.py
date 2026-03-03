@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, status, Query
 from typing import List, Optional
-from src.core.dependencies import get_search_repository, get_uow
-from src.schemas.place import PlaceResponse
-from src.api.v1.auth import get_current_user
+from src.core.dependencies import get_search_repository, get_uow, get_current_user
 from src.models.user import User
 from src.services import search_service
 

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status
-from src.core.dependencies import get_review_repository, get_uow
-from src.api.v1.auth import get_current_user
+from src.core.dependencies import get_review_repository, get_uow, get_current_user
 from src.models.user import User
 from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse
 from src.services import review_service

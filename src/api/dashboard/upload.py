@@ -1,15 +1,13 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
-from src.core.dependencies import get_place_image_repository, get_uow
-from src.api.v1.auth import get_current_user
+from src.core.dependencies import get_place_image_repository, get_uow, get_current_user
 from src.models.user import User
 from src.schemas.place_image import PlaceImageResponse
 from src.utils.file_upload import save_upload_file, delete_file
 from src.core.exceptions import APIException
+from src.core.permissions import require_dashboard_access, require_place_owner_or_admin
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_dashboard_access)])
 
-
-from src.core.permissions import require_place_owner_or_admin
 
 # ─── UPLOAD  POST /upload/place-image ───────────────────────────────────────
 @router.post("/place-image", response_model=PlaceImageResponse, status_code=status.HTTP_201_CREATED)
@@ -20,7 +18,7 @@ async def upload_place_image(
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Upload an image for a place with resilience."""
+    """Upload an image for a place. Requires OWNER or ADMIN."""
     with uow:
         # Permission check
         place = uow.place_repository.get_by_id(place_id)
@@ -33,9 +31,6 @@ async def upload_place_image(
     image_url = f"/uploads/{file_path}"
 
     with uow:
-        # Re-fetch or use session to ensure consistency if needed, 
-        # but here we just need to commit the new record.
-        
         # If setting as primary, demote current primary
         if is_primary:
             existing_primary = uow.place_image_repository.get_primary_for_place(place_id)

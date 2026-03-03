@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from src.core.dependencies import get_uow, get_current_user
 from src.schemas.user import UserResponse
 from src.schemas.admin import UserPromotion
 from src.services import admin_service
+from src.core.permissions import require_admin
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_admin)])
 
 @router.post("/promote/{user_id}", response_model=UserResponse)
 def promote_user(

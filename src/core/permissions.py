@@ -4,6 +4,12 @@ def require_admin(user):
         raise PermissionError("Admin access required")
 
 
+def require_dashboard_access(user):
+    """Raise PermissionError if user is neither an admin nor an owner."""
+    if user.role not in ["ADMIN", "OWNER"]:
+        raise PermissionError("Dashboard access required")
+
+
 def require_owner_or_admin(user):
     """Raise PermissionError if user is neither an admin nor an owner."""
     if user.role not in ["ADMIN", "OWNER"]:

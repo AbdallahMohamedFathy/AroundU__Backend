@@ -1,33 +1,12 @@
 from fastapi import APIRouter, Depends, status
-from typing import List
-from src.core.dependencies import get_category_repository, get_uow
-from src.api.v1.auth import get_current_user
+from src.core.dependencies import get_uow, get_current_user
 from src.models.user import User
 from src.schemas.category import CategoryBase, CategoryResponse
 from src.services import category_service
-
-router = APIRouter()
-
-
-# ─── LIST  GET /categories ──────────────────────────────────────────────────
-@router.get("/", response_model=List[CategoryResponse])
-def list_categories(
-    skip: int = 0, 
-    limit: int = 100, 
-    repo=Depends(get_category_repository)
-):
-    """Return all categories."""
-    return category_service.get_categories(repo, skip=skip, limit=limit)
-
-
-# ─── GET ONE  GET /categories/{id} ─────────────────────────────────────────
-@router.get("/{category_id}", response_model=CategoryResponse)
-def get_category(category_id: int, repo=Depends(get_category_repository)):
-    """Retrieve a single category by ID."""
-    return category_service.get_category_by_id(repo, category_id)
-
-
 from src.core.permissions import require_admin
+
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_admin)])
+
 
 # ─── CREATE  POST /categories ───────────────────────────────────────────────
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
@@ -37,7 +16,6 @@ def create_new_category(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new category. Requires ADMIN role."""
-    require_admin(current_user)
     return category_service.create_category(uow, category)
 
 
@@ -50,7 +28,6 @@ def update_existing_category(
     current_user: User = Depends(get_current_user),
 ):
     """Update a category. Requires ADMIN role."""
-    require_admin(current_user)
     return category_service.update_category(uow, category_id, category_data)
 
 
@@ -62,5 +39,4 @@ def remove_category(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a category. Requires ADMIN role."""
-    require_admin(current_user)
     category_service.delete_category(uow, category_id)

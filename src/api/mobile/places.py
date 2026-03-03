@@ -1,12 +1,9 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query
 from typing import Optional
-from src.core.dependencies import get_place_repository, get_uow
-from src.api.v1.auth import get_current_user
-from src.models.user import User
-from src.schemas.place import PlaceCreate, PlaceUpdate, PlaceResponse, PlaceListResponse
+from src.core.dependencies import get_place_repository
+from src.schemas.place import PlaceResponse, PlaceListResponse, NearbyPlaceListResponse
 from src.services.place_service import (
     get_places, get_place_by_id, get_nearby_places,
-    create_place, update_place, delete_place,
 )
 
 router = APIRouter()
@@ -28,7 +25,6 @@ def list_places(
 
 
 # ─── NEARBY  GET /places/nearby ─────────────────────────────────────────────
-from src.schemas.place import NearbyPlaceListResponse
 @router.get("/nearby", response_model=NearbyPlaceListResponse)
 def nearby_places(
     latitude: float = Query(..., ge=-90, le=90),
@@ -49,37 +45,3 @@ def nearby_places(
 def get_place(place_id: int, repo = Depends(get_place_repository)):
     """Retrieve a single place by ID."""
     return get_place_by_id(repo, place_id)
-
-
-# ─── CREATE  POST /places ───────────────────────────────────────────────────
-@router.post("/", response_model=PlaceResponse, status_code=status.HTTP_201_CREATED)
-def create_new_place(
-    place: PlaceCreate,
-    uow = Depends(get_uow),
-    current_user: User = Depends(get_current_user),
-):
-    """Create a new place. Requires authentication."""
-    return create_place(uow, place, current_user)
-
-
-# ─── UPDATE  PUT /places/{id} ───────────────────────────────────────────────
-@router.put("/{place_id}", response_model=PlaceResponse)
-def update_existing_place(
-    place_id: int,
-    place_data: PlaceUpdate,
-    uow = Depends(get_uow),
-    current_user: User = Depends(get_current_user),
-):
-    """Partially update a place. Requires owner or admin."""
-    return update_place(uow, place_id, place_data, current_user)
-
-
-# ─── DELETE  DELETE /places/{id} ────────────────────────────────────────────
-@router.delete("/{place_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_place(
-    place_id: int,
-    uow = Depends(get_uow),
-    current_user: User = Depends(get_current_user),
-):
-    """Hard-delete a place. Requires owner or admin."""
-    delete_place(uow, place_id, current_user)
