@@ -40,3 +40,4 @@ def delete_item(
 ):
     service = ItemService(db)
     return service.delete_item(item_id=item_id, current_user=current_user)
+    
