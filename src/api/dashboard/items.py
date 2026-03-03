@@ -6,7 +6,9 @@ from src.services.item_service import ItemService
 from src.models.user import User
 from src.core.permissions import require_dashboard_access
 
-router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_dashboard_access)])
+router = APIRouter(
+    dependencies=[Depends(require_dashboard_access)]
+)
 
 @router.post("/", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(
@@ -15,10 +17,6 @@ def create_item(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Create a new item for a specific place.
-    Only the place owner or an admin can perform this action.
-    """
     service = ItemService(db)
     return service.create_item(place_id=place_id, item_in=item_in, current_user=current_user)
 
@@ -30,10 +28,6 @@ def update_item(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Update an existing item.
-    Only the place owner or an admin can perform this action.
-    """
     service = ItemService(db)
     return service.update_item(item_id=item_id, item_in=item_in, current_user=current_user)
 
@@ -44,9 +38,5 @@ def delete_item(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Delete an item (soft delete).
-    Only the place owner or an admin can perform this action.
-    """
     service = ItemService(db)
     return service.delete_item(item_id=item_id, current_user=current_user)
