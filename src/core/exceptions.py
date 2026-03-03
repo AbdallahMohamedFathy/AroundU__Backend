@@ -79,6 +79,21 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
+async def permission_exception_handler(request: Request, exc: PermissionError):
+    """Handle standard Python PermissionError consistently."""
+    logger.warning(f"Permission Denied: {str(exc)}", extra={"path": request.url.path})
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={
+            "success": False,
+            "data": None,
+            "error": {
+                "message": str(exc),
+                "code": status.HTTP_403_FORBIDDEN
+            }
+        }
+    )
+
 from slowapi.errors import RateLimitExceeded
 
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):

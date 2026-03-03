@@ -1,4 +1,4 @@
-from .user import User, UserRole
+from .user import User
 from .category import Category
 from .place import Place
 from .search_history import SearchHistory

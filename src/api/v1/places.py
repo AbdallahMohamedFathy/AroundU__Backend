@@ -59,7 +59,7 @@ def create_new_place(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new place. Requires authentication."""
-    return create_place(uow, place)
+    return create_place(uow, place, current_user)
 
 
 # ─── UPDATE  PUT /places/{id} ───────────────────────────────────────────────
@@ -70,8 +70,8 @@ def update_existing_place(
     uow = Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Partially update a place. Requires authentication."""
-    return update_place(uow, place_id, place_data)
+    """Partially update a place. Requires owner or admin."""
+    return update_place(uow, place_id, place_data, current_user)
 
 
 # ─── DELETE  DELETE /places/{id} ────────────────────────────────────────────
@@ -81,5 +81,5 @@ def remove_place(
     uow = Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Hard-delete a place. Requires authentication."""
-    delete_place(uow, place_id)
+    """Hard-delete a place. Requires owner or admin."""
+    delete_place(uow, place_id, current_user)

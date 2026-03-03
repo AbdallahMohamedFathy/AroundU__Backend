@@ -20,6 +20,7 @@ class Place(Base):
     from geoalchemy2 import Geography
     location = Column(Geography(geometry_type='POINT', srid=4326), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -33,6 +34,7 @@ class Place(Base):
 
     # Relationships
     category = relationship("Category", back_populates="places")
+    owner = relationship("User", backref="places")
     images = relationship("PlaceImage", back_populates="place", cascade="all, delete-orphan")
     favorites = relationship("Favorite", back_populates="place", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="place", cascade="all, delete-orphan")

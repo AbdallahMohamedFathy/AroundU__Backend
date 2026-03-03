@@ -21,6 +21,7 @@ from src.api.v1 import search
 from src.api.v1 import favorites
 from src.api.v1 import upload
 from src.api.v1 import items
+from src.api.v1 import admin
 
 # Core
 from src.core.config import settings
@@ -34,7 +35,8 @@ from src.core.exceptions import (
     http_exception_handler,
     validation_exception_handler,
     global_exception_handler,
-    rate_limit_handler
+    rate_limit_handler,
+    permission_exception_handler
 )
 
 # ─────────────────────────────────────────────
@@ -88,6 +90,7 @@ app.add_exception_handler(FastAPIHTTPException, http_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(PermissionError, permission_exception_handler)
 
 # ─────────────────────────────────────────────
 # CORS
@@ -130,6 +133,7 @@ app.include_router(favorites.router, prefix=f"{_p}/favorites", tags=["Favorites"
 app.include_router(reviews.router, prefix=f"{_p}/reviews", tags=["Reviews"])
 app.include_router(upload.router, prefix=f"{_p}/upload", tags=["Upload"])
 app.include_router(items.router, prefix=f"{_p}/items", tags=["Items"])
+app.include_router(admin.router, prefix=f"{_p}/admin", tags=["Admin"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

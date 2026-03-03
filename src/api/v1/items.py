@@ -22,12 +22,8 @@ def create_item(
     Only the place owner or an admin can perform this action.
     """
     service = ItemService(db)
-    try:
-        return service.create_item(place_id=place_id, item_in=item_in, current_user=current_user)
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return service.create_item(place_id=place_id, item_in=item_in, current_user=current_user)
+
 
 @router.get("/place/{place_id}", response_model=List[ItemResponse])
 def list_place_items(
@@ -42,6 +38,7 @@ def list_place_items(
     service = ItemService(db)
     return service.get_items_by_place(place_id=place_id, skip=skip, limit=limit)
 
+
 @router.put("/{item_id}", response_model=ItemResponse)
 def update_item(
     item_id: int,
@@ -54,14 +51,8 @@ def update_item(
     Only the place owner or an admin can perform this action.
     """
     service = ItemService(db)
-    try:
-        return service.update_item(item_id=item_id, item_in=item_in, current_user=current_user)
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return service.update_item(item_id=item_id, item_in=item_in, current_user=current_user)
+
 
 @router.delete("/{item_id}", response_model=ItemResponse)
 def delete_item(
@@ -74,11 +65,4 @@ def delete_item(
     Only the place owner or an admin can perform this action.
     """
     service = ItemService(db)
-    try:
-        return service.delete_item(item_id=item_id, current_user=current_user)
-    except PermissionError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return service.delete_item(item_id=item_id, current_user=current_user)

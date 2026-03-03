@@ -9,6 +9,8 @@ from src.core.exceptions import APIException
 router = APIRouter()
 
 
+from src.core.permissions import require_place_owner_or_admin
+
 # ─── UPLOAD  POST /upload/place-image ───────────────────────────────────────
 @router.post("/place-image", response_model=PlaceImageResponse, status_code=status.HTTP_201_CREATED)
 async def upload_place_image(
@@ -19,11 +21,21 @@ async def upload_place_image(
     current_user: User = Depends(get_current_user),
 ):
     """Upload an image for a place with resilience."""
+    with uow:
+        # Permission check
+        place = uow.place_repository.get_by_id(place_id)
+        if not place:
+            raise APIException("Place not found", code=status.HTTP_404_NOT_FOUND)
+        require_place_owner_or_admin(current_user, place)
+
     # Save file to disk
     file_path = await save_upload_file(file, subfolder="places")
     image_url = f"/uploads/{file_path}"
 
     with uow:
+        # Re-fetch or use session to ensure consistency if needed, 
+        # but here we just need to commit the new record.
+        
         # If setting as primary, demote current primary
         if is_primary:
             existing_primary = uow.place_image_repository.get_primary_for_place(place_id)
@@ -63,6 +75,10 @@ def set_primary_image(
         if not image:
             raise APIException("Image not found", code=status.HTTP_404_NOT_FOUND)
 
+        # Permission check
+        place = uow.place_repository.get_by_id(image.place_id)
+        require_place_owner_or_admin(current_user, place)
+
         # Demote any current primary for this place
         existing_primary = uow.place_image_repository.get_primary_for_place(image.place_id)
         for img in existing_primary:
@@ -85,6 +101,10 @@ def delete_place_image(
         image = uow.place_image_repository.get_by_id(image_id)
         if not image:
             raise APIException("Image not found", code=status.HTTP_404_NOT_FOUND)
+
+        # Permission check
+        place = uow.place_repository.get_by_id(image.place_id)
+        require_place_owner_or_admin(current_user, place)
 
         # Remove from disk (strip leading /uploads/)
         relative_path = image.image_url.lstrip("/uploads/")

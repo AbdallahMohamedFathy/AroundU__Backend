@@ -27,6 +27,8 @@ def get_category(category_id: int, repo=Depends(get_category_repository)):
     return category_service.get_category_by_id(repo, category_id)
 
 
+from src.core.permissions import require_admin
+
 # ─── CREATE  POST /categories ───────────────────────────────────────────────
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 def create_new_category(
@@ -34,7 +36,8 @@ def create_new_category(
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new category. Requires authentication."""
+    """Create a new category. Requires ADMIN role."""
+    require_admin(current_user)
     return category_service.create_category(uow, category)
 
 
@@ -46,7 +49,8 @@ def update_existing_category(
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Update a category. Requires authentication."""
+    """Update a category. Requires ADMIN role."""
+    require_admin(current_user)
     return category_service.update_category(uow, category_id, category_data)
 
 
@@ -57,5 +61,6 @@ def remove_category(
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a category. Requires authentication."""
+    """Delete a category. Requires ADMIN role."""
+    require_admin(current_user)
     category_service.delete_category(uow, category_id)

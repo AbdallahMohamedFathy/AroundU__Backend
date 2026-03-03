@@ -71,9 +71,11 @@ def get_nearby_places(
     }
 
 
+from src.core.permissions import require_place_owner_or_admin
+
 # ─── WRITE OPERATIONS (Rule 4: MUST use UnitOfWork) ──────────────────────────
 
-def create_place(uow: Any, place_data: Any):
+def create_place(uow: Any, place_data: Any, current_user: Any):
     with uow as uow:
 
         db_place = Place(
@@ -83,6 +85,7 @@ def create_place(uow: Any, place_data: Any):
             longitude=place_data.longitude,
             category_id=place_data.category_id,
             address=place_data.address,
+            owner_id=current_user.id,
             is_active=True
         )
 
@@ -108,12 +111,15 @@ def create_place(uow: Any, place_data: Any):
         return PlaceResponse.model_validate(db_place)
 
 
-def update_place(uow: Any, place_id: int, place_data: Any):
+def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
     """Partially update a place using UnitOfWork."""
     with uow as uow:
         place = uow.place_repository.get_by_id(place_id)
         if not place:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+        
+        # Permission check
+        require_place_owner_or_admin(current_user, place)
         
         updated_place = uow.place_repository.update(place, place_data)
 
@@ -127,22 +133,29 @@ def update_place(uow: Any, place_id: int, place_data: Any):
         return updated_place
 
 
-def delete_place(uow: Any, place_id: int):
+def delete_place(uow: Any, place_id: int, current_user: Any):
     """Hard-delete a place using UnitOfWork."""
     with uow as uow:
         place = uow.place_repository.get_by_id(place_id)
         if not place:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+        
+        # Permission check
+        require_place_owner_or_admin(current_user, place)
+        
         uow.place_repository.delete(place)
         uow.commit()
 
 
-def deactivate_place(uow: Any, place_id: int):
+def deactivate_place(uow: Any, place_id: int, current_user: Any):
     """Soft-delete (deactivate) a place using UnitOfWork."""
     with uow as uow:
         place = uow.place_repository.get_by_id(place_id)
         if not place:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+        
+        # Permission check
+        require_place_owner_or_admin(current_user, place)
         
         place.is_active = False
         uow.commit()
