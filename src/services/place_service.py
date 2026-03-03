@@ -82,12 +82,7 @@ def create_place(uow: Any, place_data: Any, current_user: Any):
     with uow as uow:
 
         db_place = Place(
-            name=place_data.name,
-            description=place_data.description,
-            latitude=place_data.latitude,
-            longitude=place_data.longitude,
-            category_id=place_data.category_id,
-            address=place_data.address,
+            **place_data.model_dump(),
             owner_id=current_user.id,
             is_active=True
         )
