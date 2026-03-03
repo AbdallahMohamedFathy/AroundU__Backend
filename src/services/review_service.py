@@ -1,7 +1,4 @@
-"""
-Service layer for managing place reviews (Refactored for Phase D)
-"""
-from typing import List, Optional, Tuple, Dict
+from typing import Any, List, Optional, Tuple, Dict
 from src.core.unit_of_work import UnitOfWork
 from src.repositories.review_repository import ReviewRepository
 from src.repositories.place_repository import PlaceRepository
