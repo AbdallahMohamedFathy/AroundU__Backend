@@ -36,3 +36,4 @@ class Place(Base):
     images = relationship("PlaceImage", back_populates="place", cascade="all, delete-orphan")
     favorites = relationship("Favorite", back_populates="place", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="place", cascade="all, delete-orphan")
+    items = relationship('Item', back_populates='place', cascade='all, delete-orphan')

@@ -20,6 +20,7 @@ from src.api.v1 import categories
 from src.api.v1 import search
 from src.api.v1 import favorites
 from src.api.v1 import upload
+from src.api.v1 import items
 
 # Core
 from src.core.config import settings
@@ -128,6 +129,7 @@ app.include_router(chat.router, prefix=f"{_p}/chat", tags=["Chat"])
 app.include_router(favorites.router, prefix=f"{_p}/favorites", tags=["Favorites"])
 app.include_router(reviews.router, prefix=f"{_p}/reviews", tags=["Reviews"])
 app.include_router(upload.router, prefix=f"{_p}/upload", tags=["Upload"])
+app.include_router(items.router, prefix=f"{_p}/items", tags=["Items"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

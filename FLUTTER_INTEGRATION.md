@@ -4,25 +4,9 @@
 
 ### Base URL
 ```
-http://127.0.0.1:8000
+https://aroundubackend-production.up.railway.app/api
 ```
 
-> ⚠️ **ملحوظة مهمة**: لما تشغل الـ Backend على جهازك وتحب تتصل بيه من الموبايل/إيميوليتور:
-> - **Android Emulator**: استخدم `http://10.0.2.2:8000`
-> - **iOS Simulator**: استخدم `http://127.0.0.1:8000`
-> - **Physical Device**: استخدم IP address بتاع جهازك على الشبكة (مثال: `http://192.168.1.100:8000`)
-
-### API Version
-```
-/api
-```
-
-### Full Base URL
-```
-http://127.0.0.1:8000/api
-```
-
----
 
 ## 🔐 Authentication
 
