@@ -1,7 +1,7 @@
 """
 Service layer for managing categories (Refactored for Phase D)
 """
-from typing import List, Optional
+from typing import List, Optional, Any
 from src.core.unit_of_work import UnitOfWork
 from src.repositories.category_repository import CategoryRepository
 from src.schemas.category import CategoryBase
@@ -44,7 +44,6 @@ def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBa
             conflict = uow.category_repository.get_by_name(category_data.name)
             if conflict:
                 raise APIException("Category with this name already exists", code=status.HTTP_400_BAD_REQUEST)
-        return CategoryResponse.model_validate(cat)
 
         if category_data.name is not None:
             cat.name = category_data.name
@@ -52,7 +51,7 @@ def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBa
             cat.icon = category_data.icon
             
         uow.commit()
-        return cat
+        return CategoryResponse.model_validate(cat)
 
 def delete_category(uow: UnitOfWork, category_id: int, current_user: Any):
     require_admin(current_user)
