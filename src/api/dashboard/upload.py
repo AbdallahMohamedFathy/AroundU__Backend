@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
-from src.core.dependencies import get_place_image_repository, get_uow
+from src.core.dependencies import get_current_user, get_uow, get_place_image_repository
 from src.models.user import User
 from src.schemas.place_image import PlaceImageResponse
 from src.utils.file_upload import save_upload_file, delete_file
@@ -7,102 +7,97 @@ from src.core.exceptions import APIException
 from src.core.permissions import require_place_owner_or_admin
 from src.api.dashboard.dependencies import dashboard_guard
 
-router = APIRouter(dependencies=[Depends(dashboard_guard)])
+router = APIRouter(
+    dependencies=[Depends(dashboard_guard)]
+)
 
-
-# ─── UPLOAD  POST /upload/place-image ───────────────────────────────────────
+# ─── UPLOAD ─────────────────────────────
 @router.post("/place-image", response_model=PlaceImageResponse, status_code=status.HTTP_201_CREATED)
 async def upload_place_image(
-    place_id: int = Form(..., description="ID of the place this image belongs to"),
-    is_primary: bool = Form(False, description="Set as the primary/cover image"),
-    file: UploadFile = File(..., description="Image file (jpg, jpeg, png, gif, webp)"),
+    place_id: int = Form(...),
+    is_primary: bool = Form(False),
+    file: UploadFile = File(...),
     uow=Depends(get_uow),
-    current_user: User = Depends(dashboard_guard),
+    current_user: User = Depends(get_current_user),
 ):
-    """Upload an image for a place. Requires OWNER or ADMIN."""
     with uow:
-        # Permission check
         place = uow.place_repository.get_by_id(place_id)
         if not place:
             raise APIException("Place not found", code=status.HTTP_404_NOT_FOUND)
+
         require_place_owner_or_admin(current_user, place)
 
-    # Save file to disk
     file_path = await save_upload_file(file, subfolder="places")
     image_url = f"/uploads/{file_path}"
 
     with uow:
-        # If setting as primary, demote current primary
         if is_primary:
             existing_primary = uow.place_image_repository.get_primary_for_place(place_id)
             for img in existing_primary:
                 img.is_primary = False
 
-        # Create DB record
-        from src.models.place_image import PlaceImage # Lazy import
+        from src.models.place_image import PlaceImage
         db_image = PlaceImage(
             place_id=place_id,
             image_url=image_url,
             is_primary=is_primary,
         )
+
         db_image = uow.place_image_repository.create(db_image)
         uow.commit()
 
     return db_image
 
 
-# ─── LIST  GET /upload/place/{place_id}/images ──────────────────────────────
+# ─── LIST ─────────────────────────────
 @router.get("/place/{place_id}/images")
-def list_place_images(place_id: int, repo=Depends(get_place_image_repository)):
-    """Return all images for a given place."""
+def list_place_images(
+    place_id: int,
+    repo=Depends(get_place_image_repository)
+):
     return repo.get_by_place(place_id)
 
 
-# ─── SET PRIMARY  PUT /upload/image/{id}/primary ────────────────────────────
+# ─── SET PRIMARY ───────────────────────
 @router.put("/image/{image_id}/primary", response_model=PlaceImageResponse)
 def set_primary_image(
     image_id: int,
     uow=Depends(get_uow),
-    current_user: User = Depends(dashboard_guard),
+    current_user: User = Depends(get_current_user),
 ):
-    """Set a specific image as the primary image for its place."""
     with uow:
         image = uow.place_image_repository.get_by_id(image_id)
         if not image:
             raise APIException("Image not found", code=status.HTTP_404_NOT_FOUND)
 
-        # Permission check
         place = uow.place_repository.get_by_id(image.place_id)
         require_place_owner_or_admin(current_user, place)
 
-        # Demote any current primary for this place
         existing_primary = uow.place_image_repository.get_primary_for_place(image.place_id)
         for img in existing_primary:
             img.is_primary = False
 
         image.is_primary = True
         uow.commit()
+
         return image
 
 
-# ─── DELETE  DELETE /upload/image/{id} ──────────────────────────────────────
+# ─── DELETE ─────────────────────────────
 @router.delete("/image/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_place_image(
     image_id: int,
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete an image record and its file from disk."""
     with uow:
         image = uow.place_image_repository.get_by_id(image_id)
         if not image:
             raise APIException("Image not found", code=status.HTTP_404_NOT_FOUND)
 
-        # Permission check
         place = uow.place_repository.get_by_id(image.place_id)
         require_place_owner_or_admin(current_user, place)
 
-        # Remove from disk (strip leading /uploads/)
         relative_path = image.image_url.lstrip("/uploads/")
         delete_file(relative_path)
 
