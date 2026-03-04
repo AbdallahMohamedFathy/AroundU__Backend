@@ -71,19 +71,38 @@ def get_nearby_places(
     }
 
 
-from src.core.permissions import require_place_owner_or_admin, require_owner_or_admin
+from src.core.permissions import require_place_owner_or_admin, require_admin
 
 # ─── WRITE OPERATIONS (Rule 4: MUST use UnitOfWork) ──────────────────────────
 
-def create_place(uow: Any, place_data: Any, current_user: Any):
-    # Only ADMIN or OWNER role can create places
-    require_owner_or_admin(current_user)
+from src.core.exceptions import APIException
+
+def create_place(uow: Any, request_data: Any, current_user: Any):
+    # Only ADMIN can create places in this new architecture
+    require_admin(current_user)
     
     with uow as uow:
+        # 1. Fetch the target owner
+        target_user = uow.user_repository.get_by_id(request_data.owner_user_id)
+        if not target_user:
+            raise APIException("Target owner not found", code=status.HTTP_404_NOT_FOUND)
+            
+        # 2. Ensure target is a standard USER
+        if target_user.role != "USER":
+            raise APIException("Place must be assigned to a standard USER account", code=status.HTTP_400_BAD_REQUEST)
+            
+        # 3. Prevent duplicate ownership
+        existing_place = uow.place_repository.get_by_owner_id(request_data.owner_user_id)
+        if existing_place:
+            raise APIException("User already owns a place", code=status.HTTP_400_BAD_REQUEST)
+            
+        # 4. Promote target user to OWNER
+        target_user.role = "OWNER"
 
+        # 5. Create Place
         db_place = Place(
-            **place_data.model_dump(),
-            owner_id=current_user.id,
+            **request_data.place_data.model_dump(),
+            owner_id=target_user.id,
             is_active=True
         )
 
@@ -98,8 +117,8 @@ def create_place(uow: Any, place_data: Any, current_user: Any):
                 WHERE id = :id
             """),
             {
-                "lng": place_data.longitude,
-                "lat": place_data.latitude,
+                "lng": request_data.place_data.longitude,
+                "lat": request_data.place_data.latitude,
                 "id": db_place.id
             }
         )

@@ -16,6 +16,9 @@ class PlaceRepository(BaseRepository[Place]):
             .options(joinedload(Place.category))\
             .filter(Place.id == place_id).first()
 
+    def get_by_owner_id(self, owner_id: int) -> Optional[Place]:
+        return self.session.query(Place).filter(Place.owner_id == owner_id).first()
+
     def get_nearby(
         self, 
         latitude: float, 

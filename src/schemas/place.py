@@ -17,6 +17,9 @@ class PlaceBase(BaseModel):
 class PlaceCreate(PlaceBase):
     pass
 
+class PlaceCreateRequest(BaseModel):
+    place_data: PlaceCreate
+    owner_user_id: int
 
 class PlaceUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)

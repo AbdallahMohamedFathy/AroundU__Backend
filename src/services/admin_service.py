@@ -23,9 +23,9 @@ def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
             raise APIException("User not found", code=status.HTTP_404_NOT_FOUND)
         
         # 4. Validate role
-        valid_roles = ["ADMIN", "OWNER", "USER"]
+        valid_roles = ["ADMIN", "USER"]
         if new_role.upper() not in valid_roles:
-            raise APIException(f"Invalid role. Must be one of {valid_roles}", code=status.HTTP_400_BAD_REQUEST)
+            raise APIException(f"Invalid role. Must be one of {valid_roles}. OWNER role is assigned automatically when creating a place.", code=status.HTTP_400_BAD_REQUEST)
         
         # 5. Apply change
         user.role = new_role.upper()
