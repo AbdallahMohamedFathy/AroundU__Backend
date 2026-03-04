@@ -25,7 +25,7 @@ def validate_image(file: UploadFile) -> bool:
         HTTPException: If file is invalid
     """
     # Check file extension
-    allowed = settings.get_allowed_extensions()
+    allowed = settings.ALLOWED_EXTENSIONS
     file_ext = file.filename.split('.')[-1].lower()
     if file_ext not in allowed:
         raise HTTPException(

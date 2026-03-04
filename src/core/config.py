@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     # File Upload
     MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024  # 5MB
     UPLOAD_FOLDER: str = "./uploads"
-    ALLOWED_EXTENSIONS: str = "jpg,jpeg,png,gif,webp"
+    ALLOWED_EXTENSIONS: list[str] = ["jpg", "jpeg", "png", "webp"]
 
     # CORS
     CORS_ORIGINS: str = "*" # Default for dev
