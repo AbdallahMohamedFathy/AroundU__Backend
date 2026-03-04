@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
-from src.core.dependencies import get_place_image_repository, get_uow, get_current_user
+from src.core.dependencies import get_place_image_repository, get_uow
 from src.models.user import User
 from src.schemas.place_image import PlaceImageResponse
 from src.utils.file_upload import save_upload_file, delete_file
 from src.core.exceptions import APIException
-from src.core.permissions import require_dashboard_access, require_place_owner_or_admin
+from src.core.permissions import require_place_owner_or_admin
+from src.api.dashboard.dependencies import dashboard_guard
 
-router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_dashboard_access)])
+router = APIRouter(dependencies=[Depends(dashboard_guard)])
 
 
 # ─── UPLOAD  POST /upload/place-image ───────────────────────────────────────
@@ -16,7 +17,7 @@ async def upload_place_image(
     is_primary: bool = Form(False, description="Set as the primary/cover image"),
     file: UploadFile = File(..., description="Image file (jpg, jpeg, png, gif, webp)"),
     uow=Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(dashboard_guard),
 ):
     """Upload an image for a place. Requires OWNER or ADMIN."""
     with uow:
@@ -62,7 +63,7 @@ def list_place_images(place_id: int, repo=Depends(get_place_image_repository)):
 def set_primary_image(
     image_id: int,
     uow=Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(dashboard_guard),
 ):
     """Set a specific image as the primary image for its place."""
     with uow:

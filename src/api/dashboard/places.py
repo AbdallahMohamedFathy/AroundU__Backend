@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, status
-from src.core.dependencies import get_uow, get_current_user
+from src.core.dependencies import get_uow
 from src.models.user import User
 from src.schemas.place import PlaceCreate, PlaceUpdate, PlaceResponse
 from src.services.place_service import create_place, update_place, delete_place
-from src.core.permissions import require_dashboard_access
 from src.core.unit_of_work import UnitOfWork
+from src.api.dashboard.dependencies import dashboard_guard
 
 router = APIRouter(
-    dependencies=[Depends(require_dashboard_access)]
+    dependencies=[Depends(dashboard_guard)]
 )
 
 # ─── CREATE ─────────────────────────────
@@ -15,7 +15,7 @@ router = APIRouter(
 def create_new_place(
     place: PlaceCreate,
     uow: UnitOfWork = Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(dashboard_guard),
 ):
     return create_place(uow, place, current_user)
 
@@ -26,7 +26,7 @@ def update_existing_place(
     place_id: int,
     place_data: PlaceUpdate,
     uow: UnitOfWork = Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(dashboard_guard),
 ):
     return update_place(uow, place_id, place_data, current_user)
 
@@ -36,6 +36,6 @@ def update_existing_place(
 def remove_place(
     place_id: int,
     uow: UnitOfWork = Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(dashboard_guard),
 ):
     delete_place(uow, place_id, current_user)

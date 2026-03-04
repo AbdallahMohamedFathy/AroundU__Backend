@@ -18,7 +18,10 @@ def get_category_by_id(repo: CategoryRepository, category_id: int):
         raise APIException("Category not found", code=status.HTTP_404_NOT_FOUND)
     return cat
 
-def create_category(uow: UnitOfWork, category: CategoryBase):
+from src.core.permissions import require_admin
+
+def create_category(uow: UnitOfWork, category: CategoryBase, current_user: Any):
+    require_admin(current_user)
     with uow:
         existing = uow.category_repository.get_by_name(category.name)
         if existing:
@@ -30,7 +33,8 @@ def create_category(uow: UnitOfWork, category: CategoryBase):
         uow.commit()
         return CategoryResponse.model_validate(db_category)
 
-def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBase):
+def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBase, current_user: Any):
+    require_admin(current_user)
     with uow:
         cat = uow.category_repository.get_by_id(category_id)
         if not cat:
@@ -50,7 +54,8 @@ def update_category(uow: UnitOfWork, category_id: int, category_data: CategoryBa
         uow.commit()
         return cat
 
-def delete_category(uow: UnitOfWork, category_id: int):
+def delete_category(uow: UnitOfWork, category_id: int, current_user: Any):
+    require_admin(current_user)
     with uow:
         cat = uow.category_repository.get_by_id(category_id)
         if not cat:

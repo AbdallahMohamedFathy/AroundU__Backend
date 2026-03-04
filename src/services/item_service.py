@@ -1,54 +1,55 @@
-from typing import List
-from sqlalchemy.orm import Session
-
+from typing import List, Any
+from src.core.unit_of_work import UnitOfWork
 from src.models.item import Item
-from src.models.place import Place
-from src.schemas.item import ItemCreate, ItemUpdate
-from src.repositories.item_repository import ItemRepository
+from src.schemas.item import ItemCreate, ItemUpdate, ItemResponse
 from src.core.permissions import require_place_owner_or_admin
+from src.core.exceptions import APIException
+from fastapi import status
 
-class ItemService:
-    def __init__(self, session: Session):
-        self.repo = ItemRepository(session)
+def get_items_by_place(repo: Any, place_id: int, skip: int = 0, limit: int = 100):
+    """Return all items for a given place."""
+    return repo.get_by_place(place_id, skip, limit)
 
-    def create_item(self, place_id: int, item_in: ItemCreate, current_user) -> Item:
-        # get place
-        place = self.repo.session.query(Place).filter(Place.id == place_id).first()
+def create_item(uow: UnitOfWork, place_id: int, item_in: ItemCreate, current_user: Any):
+    """Create a new item if user is place owner or admin."""
+    with uow:
+        # Fetch place to check ownership
+        place = uow.place_repository.get_by_id(place_id)
         if not place:
-            raise ValueError("Place not found")
-
-        # permission check: Only place owner or admin can create items
+            raise APIException("Place not found", code=status.HTTP_404_NOT_FOUND)
+        
+        # Enforce Ownership
         require_place_owner_or_admin(current_user, place)
+        
+        db_item = Item(**item_in.model_dump(), place_id=place_id)
+        uow.item_repository.create(db_item)
+        uow.commit()
+        return ItemResponse.model_validate(db_item)
 
-        item = Item(**item_in.model_dump(), place_id=place_id)
-        return self.repo.create(item)
-
-    def get_items_by_place(self, place_id: int, skip: int = 0, limit: int = 100) -> List[Item]:
-        return self.repo.get_by_place(place_id, skip, limit)
-
-    def update_item(self, item_id: int, item_in: ItemUpdate, current_user) -> Item:
-        db_item = self.repo.session.query(Item).filter(Item.id == item_id).first()
+def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, current_user: Any):
+    """Update item if user is place owner or admin."""
+    with uow:
+        db_item = uow.item_repository.get_by_id(item_id)
         if not db_item:
-            raise ValueError("Item not found")
-
+            raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
+            
         place = db_item.place
         require_place_owner_or_admin(current_user, place)
+        
+        uow.item_repository.update(db_item, item_in)
+        uow.commit()
+        return ItemResponse.model_validate(db_item)
 
-        update_data = item_in.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_item, field, value)
-
-        self.repo.session.flush()
-        return db_item
-
-    def delete_item(self, item_id: int, current_user) -> Item:
-        db_item = self.repo.session.query(Item).filter(Item.id == item_id).first()
+def delete_item(uow: UnitOfWork, item_id: int, current_user: Any):
+    """Delete (deactivate) item if user is place owner or admin."""
+    with uow:
+        db_item = uow.item_repository.get_by_id(item_id)
         if not db_item:
-            raise ValueError("Item not found")
-
+            raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
+            
         place = db_item.place
         require_place_owner_or_admin(current_user, place)
-
-        db_item.is_active = False
-        self.repo.session.flush()
-        return db_item
+        
+        uow.item_repository.delete(db_item)
+        uow.commit()
+        return True

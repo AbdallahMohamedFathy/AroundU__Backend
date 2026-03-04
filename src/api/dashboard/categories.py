@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, status
-from src.core.dependencies import get_uow, get_current_user
+from src.core.dependencies import get_uow
 from src.models.user import User
 from src.schemas.category import CategoryBase, CategoryResponse
 from src.services import category_service
-from src.core.permissions import require_admin
+from src.api.dashboard.dependencies import admin_guard
 
-router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_admin)])
+router = APIRouter(dependencies=[Depends(admin_guard)])
 
 
 # ─── CREATE  POST /categories ───────────────────────────────────────────────
@@ -13,10 +13,10 @@ router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_admi
 def create_new_category(
     category: CategoryBase,
     uow=Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(admin_guard),
 ):
     """Create a new category. Requires ADMIN role."""
-    return category_service.create_category(uow, category)
+    return category_service.create_category(uow, category, current_user)
 
 
 # ─── UPDATE  PUT /categories/{id} ───────────────────────────────────────────
@@ -25,10 +25,10 @@ def update_existing_category(
     category_id: int,
     category_data: CategoryBase,
     uow=Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(admin_guard),
 ):
     """Update a category. Requires ADMIN role."""
-    return category_service.update_category(uow, category_id, category_data)
+    return category_service.update_category(uow, category_id, category_data, current_user)
 
 
 # ─── DELETE  DELETE /categories/{id} ────────────────────────────────────────
@@ -36,7 +36,7 @@ def update_existing_category(
 def remove_category(
     category_id: int,
     uow=Depends(get_uow),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(admin_guard),
 ):
     """Delete a category. Requires ADMIN role."""
-    category_service.delete_category(uow, category_id)
+    category_service.delete_category(uow, category_id, current_user)
