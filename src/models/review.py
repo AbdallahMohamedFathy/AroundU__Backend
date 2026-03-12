@@ -12,6 +12,7 @@ class Review(Base):
     place_id = Column(Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
     rating = Column(Float, nullable=False)
     comment = Column(Text, nullable=True)
+    sentiment = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

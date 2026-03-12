@@ -19,13 +19,18 @@ def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
         if existing:
             raise APIException("You have already reviewed this place", code=status.HTTP_400_BAD_REQUEST)
 
+        # Analyze sentiment
+        from src.services.sentiment_service import analyze_sentiment
+        sentiment_result = analyze_sentiment(review_data.comment) if review_data.comment else None
+
         # Create review
         from src.models.review import Review # Lazy import to avoid model dependency in signature
         new_review = Review(
             user_id=user_id,
             place_id=review_data.place_id,
             rating=review_data.rating,
-            comment=review_data.comment
+            comment=review_data.comment,
+            sentiment=sentiment_result
         )
         uow.review_repository.create(new_review)
         uow.session.flush() # Ensure ID is generated for stats if needed (though not needed for stats)

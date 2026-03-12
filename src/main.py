@@ -26,6 +26,7 @@ from src.api.dashboard import items as dashboard_items
 from src.api.dashboard import upload as dashboard_upload
 from src.api.dashboard import categories as dashboard_categories
 from src.api.dashboard import admin as dashboard_admin
+from src.api.dashboard import owner as dashboard_owner
 
 # Core
 from src.core.config import settings
@@ -142,6 +143,7 @@ app.include_router(dashboard_items.router, prefix="/api/dashboard/items", tags=[
 app.include_router(dashboard_upload.router, prefix="/api/dashboard/upload", tags=["Dashboard - Upload"])
 app.include_router(dashboard_categories.router, prefix="/api/dashboard/categories", tags=["Dashboard - Categories"])
 app.include_router(dashboard_admin.router, prefix="/api/dashboard/admin", tags=["Dashboard - Admin"])
+app.include_router(dashboard_owner.router, prefix="/api/owner", tags=["Dashboard - Owner"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

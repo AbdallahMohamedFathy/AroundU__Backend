@@ -1,0 +1,379 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import numpy as np
+from streamlit_option_menu import option_menu
+from datetime import datetime, timedelta
+import requests
+import os
+
+# --- PAGE SETUP ---
+st.set_page_config(page_title="AroundU | Owner Dashboard", layout="wide")
+
+st.markdown("""
+<style>
+
+.stApp {
+    background-color: #FFFFFF;
+}
+
+h1, h2, h3 {
+    color: #1D3143;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #1D3143;
+}
+
+section[data-testid="stSidebar"] * {
+    color: white;
+}
+
+/* KPI Cards */
+.kpi-card {
+    background: #FFFFFF;
+    padding: 22px;
+    border-radius: 14px;
+    border-left: 6px solid #2F5C85;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.kpi-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    border-left: 6px solid #61A3BB;
+}
+
+.kpi-title { font-size: 14px; color: #65797E; }
+.kpi-value { font-size: 34px; font-weight: bold; color: #1D3143; }
+.kpi-delta { font-size: 14px; color: #61A3BB; }
+
+/* DATE INPUT */
+[data-baseweb="input"] input {
+    color: #1D3143 !important;
+    font-weight: 500 !important;
+}
+div[data-baseweb="input"] span {
+    color: #1D3143 !important;
+}
+
+/* CALENDAR - أسماء أيام الأسبوع */
+[data-baseweb="calendar"] [role="columnheader"] {
+    color: #65797E !important;
+    font-weight: 600 !important;
+}
+
+/* اليوم الحالي */
+[data-baseweb="calendar"] [aria-current="date"] {
+    border: 2px solid #2F5C85 !important;
+    border-radius: 50% !important;
+}
+
+/* إزالة outline */
+button:focus, button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# --- CONFIGURATION ---
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000/api")
+
+
+# --- DATA FETCHING ---
+@st.cache_data(ttl=30)
+def fetch_dashboard_data(start_date, end_date):
+    try:
+        response = requests.get(f"{BACKEND_BASE_URL}/owner/dashboard", params={'start_date': start_date, 'end_date': end_date})
+        response.raise_for_status()
+        return response.json()
+    except:
+        st.error("Backend API unavailable: dashboard")
+        return {"visits": 0, "orders": 0, "saves": 0, "calls": 0, "directions": 0}
+
+@st.cache_data(ttl=30)
+def fetch_analytics_data(start_date, end_date):
+    try:
+        response = requests.get(f"{BACKEND_BASE_URL}/owner/analytics", params={'start_date': start_date, 'end_date': end_date})
+        response.raise_for_status()
+        data = response.json()
+        df = pd.DataFrame(data)
+        if not df.empty:
+            df.columns = [col.capitalize() for col in df.columns]
+            if 'Date' in df.columns:
+                df['Date'] = pd.to_datetime(df['Date'])
+        return df
+    except:
+        st.error("Backend API unavailable: analytics")
+        return pd.DataFrame(columns=['Date', 'Visits', 'Orders', 'Saves', 'Directions', 'Calls', 'Review_sentiment'])
+
+@st.cache_data(ttl=30)
+def fetch_chatbot_stats(start_date, end_date):
+    try:
+        response = requests.get(f"{BACKEND_BASE_URL}/owner/chatbot-stats", params={'start_date': start_date, 'end_date': end_date})
+        response.raise_for_status()
+        return response.json()
+    except:
+        st.error("Backend API unavailable: chatbot-stats")
+        return {"queries": 0, "success_rate": 0.0}
+
+@st.cache_data(ttl=30)
+def fetch_review_data(start_date, end_date):
+    try:
+        response = requests.get(f"{BACKEND_BASE_URL}/owner/reviews", params={'start_date': start_date, 'end_date': end_date})
+        response.raise_for_status()
+        return response.json()
+    except:
+        st.error("Backend API unavailable: reviews")
+        return {"positive": 0, "negative": 0}
+
+@st.cache_data(ttl=30)
+def fetch_location_data():
+    try:
+        response = requests.get(f"{BACKEND_BASE_URL}/owner/location-heatmap")
+        response.raise_for_status()
+        df = pd.DataFrame(response.json())
+        return df
+    except:
+        st.error("Backend API unavailable: location-heatmap")
+        return pd.DataFrame(columns=['lat', 'lon', 'Intensity'])
+
+
+# =========================
+# SIDEBAR
+# =========================
+with st.sidebar:
+    st.title("🏙️ AroundU")
+    st.caption("Beni Suef Business Intelligence")
+
+    selected = option_menu(
+        "Main Menu",
+        ["Dashboard", "Customer Insights", "Operations", "Location Logic"],
+        icons=['speedometer2', 'chat-heart', 'clock-history', 'geo-alt'],
+        menu_icon="cast",
+        default_index=0,
+        styles={
+            "container": {"background-color": "#1D3143", "padding": "5px"},
+            "menu-title": {"color": "#FFFFFF", "font-weight": "bold", "font-size": "15px"},
+            "icon": {"color": "#61A3BB", "font-size": "18px"},
+            "nav-link": {
+                "color": "white", "font-size": "16px",
+                "text-align": "left", "margin": "2px",
+                "--hover-color": "#619FB8",
+            },
+            "nav-link-selected": {
+                "background-color": "#2F5C85",
+                "color": "white", "font-weight": "bold"
+            }
+        }
+    )
+
+    st.markdown("---")
+    st.write(f"Logged in as: **Puffy and Fluffy**")
+
+    st.markdown("### 📅 Select Date Range")
+    today = datetime.today()
+
+    date_range = st.date_input(
+        "Choose period:",
+        value=(today - timedelta(days=30), today),
+        max_value=today
+    )
+
+# =========================
+# FILTER LOGIC
+# =========================
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    start_date_str = date_range[0].strftime("%Y-%m-%d")
+    end_date_str = date_range[1].strftime("%Y-%m-%d")
+    
+    # Calculate previous period for growth comparison
+    start_dt = pd.to_datetime(date_range[0])
+    end_dt = pd.to_datetime(date_range[1])
+    period_days = (end_dt - start_dt).days + 1
+    
+    prev_start_dt = start_dt - timedelta(days=period_days)
+    prev_end_dt = start_dt - timedelta(days=1)
+    
+    prev_start_str = prev_start_dt.strftime("%Y-%m-%d")
+    prev_end_str = prev_end_dt.strftime("%Y-%m-%d")
+else:
+    st.warning("Please select a valid date range in the sidebar.")
+    st.stop()
+
+
+# =========================
+# 1️⃣ DASHBOARD
+# =========================
+if selected == "Dashboard":
+    st.title("📊 Business Performance Overview")
+
+    m1, m2, m3, m4 = st.columns(4)
+
+    curr_dashboard_data = fetch_dashboard_data(start_date_str, end_date_str)
+    prev_dashboard_data = fetch_dashboard_data(prev_start_str, prev_end_str)
+
+    def get_delta_val(key):
+        curr = curr_dashboard_data.get(key, 0)
+        prev = prev_dashboard_data.get(key, 0)
+        if prev == 0 and curr == 0:
+            return "0%"
+        elif prev == 0:
+            return "+100%"
+        diff = ((curr - prev) / prev) * 100
+        return f"{int(diff)}%"
+
+    m1.markdown(f"""<div class="kpi-card"><div class="kpi-title">Total Visits</div>
+    <div class="kpi-value">{int(curr_dashboard_data.get('visits', 0))}</div>
+    <div class="kpi-delta">{get_delta_val('visits')}</div></div>""", unsafe_allow_html=True)
+
+    m2.markdown(f"""<div class="kpi-card"><div class="kpi-title">Place Saved</div>
+    <div class="kpi-value">{int(curr_dashboard_data.get('saves', 0))}</div>
+    <div class="kpi-delta">{get_delta_val('saves')}</div></div>""", unsafe_allow_html=True)
+
+    m3.markdown(f"""<div class="kpi-card"><div class="kpi-title">Direction Clicks</div>
+    <div class="kpi-value">{int(curr_dashboard_data.get('directions', 0))}</div>
+    <div class="kpi-delta">{get_delta_val('directions')}</div></div>""", unsafe_allow_html=True)
+
+    m4.markdown(f"""<div class="kpi-card"><div class="kpi-title">Call Clicks</div>
+    <div class="kpi-value">{int(curr_dashboard_data.get('calls', 0))}</div>
+    <div class="kpi-delta">{get_delta_val('calls')}</div></div>""", unsafe_allow_html=True)
+
+    st.markdown("---")
+    col_left, col_right = st.columns([2, 1])
+
+    with col_left:
+        st.subheader("🚀 Growth Analysis (Current vs Previous Period)")
+        metrics = ['visits', 'orders', 'saves', 'calls']
+        capitalized_metrics = [m.capitalize() for m in metrics]
+        
+        curr_vals = [curr_dashboard_data.get(m, 0) for m in metrics]
+        prev_vals = [prev_dashboard_data.get(m, 0) for m in metrics]
+        
+        growth_data = pd.DataFrame({
+            'Metric': capitalized_metrics * 2,
+            'Value': curr_vals + prev_vals,
+            'Period': ['Selected Period'] * 4 + ['Previous Period'] * 4
+        })
+        fig_growth = px.bar(growth_data, x='Metric', y='Value', color='Period',
+            barmode='group', text='Value', text_auto='.2s',
+            color_discrete_map={'Selected Period': '#2F5C85', 'Previous Period': '#61A3BB'},
+            template="plotly_white")
+        fig_growth.update_traces(textposition='outside')
+        fig_growth.update_layout(yaxis_title='Total Count', xaxis_title='Metric',
+            margin=dict(t=40, b=40, l=40, r=40))
+        st.plotly_chart(fig_growth, use_container_width=True)
+
+    with col_right:
+        st.subheader("🤖 Chatbot Stats")
+        bot_stats = fetch_chatbot_stats(start_date_str, end_date_str)
+        st.metric("Bot Resolution Rate", f"{bot_stats.get('success_rate', 0.0):.1f}%")
+        
+        # Use simple fixed query types for dashboard UI structure as API doesn't specify query breakdown
+        query_types = pd.DataFrame({'Type': ['Menu', 'Hours', 'Location', 'Pricing'], 'Val': [40, 30, 20, 10]})
+        fig_pie = px.pie(query_types, values='Val', names='Type', hole=0.5, color='Type',
+            color_discrete_map={'Menu': '#2F5C85', 'Hours': '#61A3BB', 'Location': '#65797E', 'Pricing': '#1D3143'})
+        fig_pie.update_traces(textinfo='percent+label', textfont_size=14,
+            pull=[0.02, 0.04, 0.02, 0.04], marker=dict(line=dict(color='#FFFFFF', width=2)))
+        fig_pie.update_layout(legend_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+
+# =========================
+# 2️⃣ CUSTOMER INSIGHTS
+# =========================
+elif selected == "Customer Insights":
+    st.title("🤖 Customer & Review Analysis")
+    c1, c2 = st.columns(2)
+    
+    analytics_df = fetch_analytics_data(start_date_str, end_date_str)
+    reviews_data = fetch_review_data(start_date_str, end_date_str)
+    
+    with c1:
+        st.subheader("Customer Reviews: Positive vs Negative")
+        
+        if not analytics_df.empty and 'Review_sentiment' in analytics_df.columns and 'Date' in analytics_df.columns:
+            fig_reviews = px.bar(analytics_df, x='Date', y='Visits', color='Review_sentiment',
+                color_discrete_map={'Positive': '#61A3BB', 'Negative': '#65797E'},
+                barmode='stack', template="plotly_white")
+        else:
+            # Fallback bar chart mapping to single positive/negative counts from endpoint
+            positive_count = reviews_data.get('positive', 0)
+            negative_count = reviews_data.get('negative', 0)
+            
+            sentiment_df = pd.DataFrame({
+                'Sentiment': ['Positive', 'Negative'],
+                'Count': [positive_count, negative_count]
+            })
+            fig_reviews = px.bar(sentiment_df, x='Sentiment', y='Count', color='Sentiment',
+                color_discrete_map={'Positive': '#61A3BB', 'Negative': '#65797E'},
+                template="plotly_white")
+        
+        st.plotly_chart(fig_reviews, use_container_width=True)
+        
+    with c2:
+        st.subheader("Review Ratings Distribution")
+        
+        positive_count = reviews_data.get('positive', 0)
+        negative_count = reviews_data.get('negative', 0)
+        
+        # Heuristically mapping sentiment to start rating mock structure to keep the UI
+        dist = [5] * int(positive_count * 0.8) + [4] * int(positive_count * 0.2) + \
+               [2] * int(negative_count * 0.5) + [1] * int(negative_count * 0.5)
+               
+        if not dist:
+            dist = [0]
+            
+        fig_rate = px.histogram(x=dist, nbins=5, color_discrete_sequence=['#2F5C85'], template="plotly_white")
+        fig_rate.update_layout(xaxis_title="Star Rating", yaxis_title="Count")
+        st.plotly_chart(fig_rate, use_container_width=True)
+
+
+# =========================
+# 3️⃣ OPERATIONS
+# =========================
+elif selected == "Operations":
+    st.title("⏰ Operational Efficiency")
+    hours = [f"{i}:00" for i in range(24)]
+    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    
+    # Keeping heatmap UI structural logic with dummy zeros, representing a no-API stub 
+    # as instructions do not define an operations endpoint.
+    heat_data = np.zeros((7, 24))
+    
+    fig_heat = px.imshow(heat_data, x=hours, y=days,
+        color_continuous_scale=["#ECECEC", "#61A3BB", "#2F5C85"],
+        aspect="auto", template="plotly_white")
+    st.plotly_chart(fig_heat, use_container_width=True)
+
+# =========================
+# 4️⃣ LOCATION LOGIC
+# =========================
+elif selected == "Location Logic":
+    st.title("📍 Location Analysis: Beni Suef")
+    BS_LAT, BS_LON = 29.0661, 31.0994
+    
+    location_df = fetch_location_data()
+    
+    if location_df.empty:
+        location_df = pd.DataFrame({'lat': [BS_LAT], 'lon': [BS_LON], 'Intensity': [0]})
+    else:
+        BS_LAT = location_df['lat'].mean()
+        BS_LON = location_df['lon'].mean()
+        
+    fig_map = px.density_mapbox(location_df, lat='lat', lon='lon', z='Intensity',
+        radius=15, center=dict(lat=BS_LAT, lon=BS_LON), zoom=12.5,
+        mapbox_style="open-street-map", height=700)
+        
+    fig_map.update_layout(
+        coloraxis_colorbar=dict(title="Intensity",
+            title_font=dict(color="#1D3143"), tickfont=dict(color="#1D3143")),
+        margin={"r":0,"t":0,"l":0,"b":0})
+        
+    st.plotly_chart(fig_map, use_container_width=True)
