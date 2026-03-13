@@ -156,8 +156,11 @@ def fetch_my_place():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/owner/my-place", headers=get_headers())
         if res.status_code == 200: return res.json()
+        if res.status_code != 401:
+            st.error(f"Backend returned {res.status_code}: {res.text}")
         handle_api_error(res)
-    except: pass
+    except Exception as e:
+        st.error(f"Connection error: {e}")
     return None
 
 def update_place_details(place_id, data):
