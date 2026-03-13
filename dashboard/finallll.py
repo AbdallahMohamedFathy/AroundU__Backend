@@ -326,10 +326,7 @@ if selected == "Dashboard":
             color_discrete_map={'Menu': '#2F5C85', 'Hours': '#61A3BB', 'Location': '#65797E', 'Pricing': '#1D3143'})
         fig_pie.update_traces(textinfo='percent+label', textfont_size=14,
             pull=[0.02, 0.04, 0.02, 0.04], marker=dict(line=dict(color='#FFFFFF', width=2)))
-        fig_pie.update_layout(legend_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-# =========================
+        fig_pie.update_layout(legend_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)# =========================
 # 2️⃣ CUSTOMER INSIGHTS
 # =========================
 elif selected == "Customer Insights":
@@ -339,37 +336,47 @@ elif selected == "Customer Insights":
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Customer Sentiment Overview")
-        sentiment_df = pd.DataFrame({
-            'Sentiment': ['Positive', 'Negative'],
-            'Count': [reviews['positive'], reviews['negative']]
-        })
-        fig_reviews = px.bar(sentiment_df, x='Sentiment', y='Count', 
-            color='Sentiment',
-            color_discrete_map={'Positive': '#61A3BB', 'Negative': '#65797E'},
-            template="plotly_white")
-        st.plotly_chart(fig_reviews, use_container_width=True)
+        if reviews['positive'] > 0 or reviews['negative'] > 0:
+            sentiment_df = pd.DataFrame({
+                'Sentiment': ['Positive', 'Negative'],
+                'Count': [reviews['positive'], reviews['negative']]
+            })
+            fig_reviews = px.bar(sentiment_df, x='Sentiment', y='Count', 
+                color='Sentiment',
+                color_discrete_map={'Positive': '#61A3BB', 'Negative': '#65797E'},
+                template="plotly_white")
+            st.plotly_chart(fig_reviews, use_container_width=True)
+        else:
+            st.info("No review data available for this period.")
         
     with c2:
-        st.subheader("Review Ratings Distribution")
-        # Fallback to random if not in API yet, or use review count
-        ratings = np.random.choice([1, 2, 3, 4, 5], size=100, p=[0.05, 0.05, 0.1, 0.3, 0.5])
-        fig_rate = px.histogram(x=ratings, nbins=5, color_discrete_sequence=['#2F5C85'], template="plotly_white")
-        fig_rate.update_layout(xaxis_title="Star Rating", yaxis_title="Count")
-        st.plotly_chart(fig_rate, use_container_width=True)
+        st.subheader("Review Ratings Overview")
+        st.markdown(f"""
+        <div style="background:#F8F9FA; padding:20px; border-radius:10px; border-left:5px solid #2F5C85;">
+            <p style="color:#65797E; margin-bottom:5px;">Total Reviews in period</p>
+            <h2 style="color:#1D3143; margin:0;">{reviews['positive'] + reviews['negative']}</h2>
+        </div>
+        """, unsafe_allow_html=True)
 
 # =========================
 # 3️⃣ OPERATIONS
 # =========================
 elif selected == "Operations":
     st.title("⏰ Operational Efficiency")
-    st.info("Analytics data visualization based on hourly traffic")
-    hours = [f"{i}:00" for i in range(24)]
-    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    heat_data = np.random.randint(10, 100, size=(7, 24))
-    fig_heat = px.imshow(heat_data, x=hours, y=days,
-        color_continuous_scale=["#ECECEC", "#61A3BB", "#2F5C85"],
-        aspect="auto", template="plotly_white")
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.info("Operational analytics based on historical interaction patterns.")
+    
+    df = fetch_analytics_data(start_date, end_date)
+    if not df.empty and 'Date' in df.columns:
+        df['Hour'] = df['Date'].dt.hour
+        df['Day'] = df['Date'].dt.day_name()
+        
+        st.subheader("Hourly Interaction Volume")
+        fig_line = px.line(df, x='Date', y=['Visits', 'Calls'], 
+            color_discrete_sequence=['#2F5C85', '#61A3BB'],
+            title="Interaction Trends Over Time")
+        st.plotly_chart(fig_line, use_container_width=True)
+    else:
+        st.warning("Insufficient data to display operational trends.")
 
 # =========================
 # 4️⃣ LOCATION LOGIC
@@ -381,7 +388,7 @@ elif selected == "Location Logic":
     BS_LAT, BS_LON = 29.0661, 31.0994
     if not map_data.empty:
         fig_map = px.density_mapbox(map_data, lat='lat', lon='lon', z='intensity',
-            radius=15, center=dict(lat=BS_LAT, lon=BS_LON), zoom=12.5,
+            radius=15, center=dict(lat=BS_LAT, lon=BS_LON), zoom=15,
             mapbox_style="open-street-map", height=700)
         fig_map.update_layout(
             coloraxis_colorbar=dict(title="Intensity",
@@ -389,4 +396,6 @@ elif selected == "Location Logic":
             margin={"r":0,"t":0,"l":0,"b":0})
         st.plotly_chart(fig_map, use_container_width=True)
     else:
+        st.warning("No location interaction data available for this selection.")
+else:
         st.warning("No location data available for the current selection.")
