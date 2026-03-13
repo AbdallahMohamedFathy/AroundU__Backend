@@ -78,8 +78,10 @@ def update_review(uow: UnitOfWork, review_id: int, current_user: Any, review_dat
 
         if review_data.rating is not None:
             review.rating = review_data.rating
-        if review_data.comment is not None:
+
+        if review_data.comment is not None and review_data.comment != review.comment:
             review.comment = review_data.comment
+            review.sentiment = analyze_sentiment(review_data.comment)
 
         _update_place_rating_internal(uow, review.place_id)
         
