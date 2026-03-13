@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class ReviewBase(BaseModel):
-    rating: float = Field(..., ge=1, le=5, description="Rating between 1 and 5")
+    rating: float = Field(..., ge=1, le=5)
     comment: Optional[str] = Field(None, max_length=1000)
 
 
@@ -13,7 +13,7 @@ class ReviewCreate(ReviewBase):
 
 
 class ReviewUpdate(BaseModel):
-    rating: Optional[float] = Field(None, ge=1, le=5, description="Rating between 1 and 5")
+    rating: Optional[float] = Field(None, ge=1, le=5)
     comment: Optional[str] = Field(None, max_length=1000)
 
 
@@ -21,6 +21,7 @@ class ReviewResponse(ReviewBase):
     id: int
     user_id: int
     place_id: int
+    sentiment: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -28,6 +29,6 @@ class ReviewResponse(ReviewBase):
 
 
 class ReviewWithUser(ReviewResponse):
-    user_name: str  # We'll populate this from the user relationship
+    user_name: str
 
     model_config = ConfigDict(from_attributes=True)
