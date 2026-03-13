@@ -14,14 +14,14 @@ def analyze_sentiment(comment: str) -> str | None:
 
     try:
         response = requests.post(
-settings.AI_SENTIMENT_URL,
+            settings.AI_SENTIMENT_URL,
             json={"text": comment},
             timeout=settings.AI_TIMEOUT_SECONDS
         )
         response.raise_for_status()
         
         data = response.json()
-        sentiment = data.get("sentiment")
+        sentiment = data.get("sentiment") or data.get("label")
         
         if sentiment in ("positive", "negative"):
             return sentiment
