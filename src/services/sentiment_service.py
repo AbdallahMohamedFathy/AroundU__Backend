@@ -21,8 +21,13 @@ def analyze_sentiment(comment: str) -> str | None:
         response.raise_for_status()
         
         data = response.json()
+        logger.info(f"AI response: {data}")
+
         sentiment = data.get("sentiment") or data.get("label")
         
+        if sentiment:
+            sentiment = sentiment.lower()
+            
         if sentiment in ("positive", "negative"):
             return sentiment
         
