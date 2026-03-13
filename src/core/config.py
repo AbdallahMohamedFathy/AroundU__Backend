@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     AI_TIMEOUT_SECONDS: float = 3.0
     AI_MAX_RETRIES: int = 3
 
+    # Ai sentiment service
+    AI_SENTIMENT_URL: str = "https://mazenmaher26-aroundu-sentiment.hf.space/predict"
+    AI_SENTIMENT_TIMEOUT_SECONDS: float = 3.0
+    AI_SENTIMENT_MAX_RETRIES: int = 3
+
     def get_cors_origins(self) -> list:
         if self.CORS_ORIGINS == "*":
             return ["*"]

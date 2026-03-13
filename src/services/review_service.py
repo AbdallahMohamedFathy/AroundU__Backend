@@ -6,6 +6,7 @@ from src.schemas.review import ReviewCreate, ReviewUpdate
 from src.core.exceptions import APIException
 from src.core.permissions import require_place_owner_or_admin
 from fastapi import status
+from src.services.sentiment_service import analyze_sentiment
 
 def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
     with uow:

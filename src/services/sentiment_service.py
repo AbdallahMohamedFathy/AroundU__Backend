@@ -14,7 +14,7 @@ def analyze_sentiment(comment: str) -> str | None:
 
     try:
         response = requests.post(
-            f"{settings.AI_SERVICE_URL}/sentiment",
+settings.AI_SENTIMENT_URL,
             json={"text": comment},
             timeout=settings.AI_TIMEOUT_SECONDS
         )
