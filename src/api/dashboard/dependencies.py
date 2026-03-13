@@ -18,3 +18,11 @@ def admin_guard(current_user: User = Depends(get_current_user)) -> User:
     """
     require_admin(current_user)
     return current_user
+
+def owner_guard(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner access required"
+        )
+    return current_user
