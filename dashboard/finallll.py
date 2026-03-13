@@ -90,7 +90,7 @@ def login_user(email, password):
     try:
         response = requests.post(
             f"{BACKEND_BASE_URL}/mobile/auth/login",
-            json={"email": email, "password": password}
+            data={"username": email, "password": password}
         )
         if response.status_code == 200:
             return response.json().get("access_token")
