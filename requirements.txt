@@ -39,6 +39,7 @@ python-dotenv>=1.0.0
 
 # HTTP Requests
 httpx>=0.25.2
+requests>=2.31.0
 
 # Logging
 python-json-logger>=2.0.7
