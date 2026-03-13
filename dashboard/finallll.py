@@ -152,6 +152,25 @@ def fetch_chatbot_stats(start_date, end_date):
     except: pass
     return {"queries": 0, "success_rate": 0.0}
 
+def fetch_my_place():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/my-place", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return None
+
+def update_place_details(place_id, data):
+    try:
+        res = requests.put(f"{BACKEND_BASE_URL}/dashboard/places/{place_id}", json=data, headers=get_headers())
+        if res.status_code == 200:
+            st.success("✅ Place updated successfully!")
+            return True
+        st.error(f"❌ Failed to update: {res.text}")
+    except Exception as e:
+        st.error(f"Error: {e}")
+    return False
+
 @st.cache_data(ttl=30)
 def fetch_review_data(start_date, end_date):
     try:
@@ -207,8 +226,8 @@ with st.sidebar:
 
     selected = option_menu(
         "Main Menu",
-        ["Dashboard", "Customer Insights", "Operations", "Location Logic"],
-        icons=['speedometer2', 'chat-heart', 'clock-history', 'geo-alt'],
+        options=["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"],
+        icons=['speedometer2', 'chat-square-text', 'clock-history', 'geo-alt', 'gear'],
         menu_icon="cast",
         default_index=0,
         styles={
@@ -359,8 +378,42 @@ elif selected == "Customer Insights":
         """, unsafe_allow_html=True)
 
 # =========================
-# 3️⃣ OPERATIONS
+# 5️⃣ MANAGE PLACE
 # =========================
+elif selected == "Manage Place":
+    st.title("⚙️ Manage Your Place")
+    st.info("Update your business details visible to customers.")
+    
+    place = fetch_my_place()
+    if place:
+        with st.form("edit_place_form"):
+            name = st.text_input("Business Name", value=place.get("name", ""))
+            description = st.text_area("Description", value=place.get("description", ""), height=150)
+            address = st.text_input("Address", value=place.get("address", ""))
+            phone = st.text_input("Phone", value=place.get("phone", ""))
+            website = st.text_input("Website", value=place.get("website", ""))
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                lat = st.number_input("Latitude", value=place.get("latitude", 0.0), format="%.6f")
+            with c2:
+                lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
+            
+            submit = st.form_submit_button("Save Changes")
+            if submit:
+                update_data = {
+                    "name": name,
+                    "description": description,
+                    "address": address,
+                    "phone": phone,
+                    "website": website,
+                    "latitude": lat,
+                    "longitude": lon
+                }
+                update_place_details(place.get("id"), update_data)
+    else:
+        st.error("Could not fetch place details. Please try again.")
+
 elif selected == "Operations":
     st.title("⏰ Operational Efficiency")
     st.info("Operational analytics based on historical interaction patterns.")

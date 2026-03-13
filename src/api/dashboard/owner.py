@@ -20,6 +20,20 @@ def get_owner_place_id(db: Session, owner_id: int):
         )
     return place.id
 
+@router.get("/my-place")
+def get_my_place(
+    db: Session = Depends(get_db),
+    current_user = Depends(owner_guard)
+):
+    """Return the current owner's place details."""
+    place = db.query(Place).filter(Place.owner_id == current_user.id).first()
+    if not place:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No place found for this owner"
+        )
+    return place
+
 @router.get("/dashboard")
 def get_owner_dashboard(
     start_date: str = Query(None),
