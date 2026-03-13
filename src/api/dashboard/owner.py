@@ -4,6 +4,7 @@ from sqlalchemy import func
 from src.core.dependencies import get_db
 from src.models.review import Review
 from src.models.place import Place
+from src.schemas.place import PlaceResponse
 from src.models.interaction import Interaction
 from src.api.dashboard.dependencies import owner_guard
 from typing import List, Dict, Any
