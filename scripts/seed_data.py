@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.core.database import SessionLocal
 from src.core.security import get_password_hash
-from src.models.user import User, UserRole
+from src.models.user import User
 from src.models.category import Category
 from src.models.place import Place
 
@@ -45,30 +45,50 @@ def seed():
                 db.add(cat)
                 db.flush()
                 categories[data["name"]] = cat
-                print(f"  ✅ Category: {data['icon']} {data['name']}")
+                print(f"  [OK] Category: {data['name']}")
             else:
                 categories[data["name"]] = existing
-                print(f"  ⏭️  Category already exists: {data['name']}")
+                print(f"  [SKIP] Category already exists: {data['name']}")
 
         db.commit()
 
         # ── Admin user ────────────────────────────────────────────
-        admin_email = "admin@aroundu.com"
+        admin_email = "Admin@AroundU.com"
         admin = db.query(User).filter(User.email == admin_email).first()
         if not admin:
             admin = User(
-                full_name="AroundU Admin",
+                full_name="AroundU",
                 email=admin_email,
-                password_hash=get_password_hash("admin123!"),
-                role=UserRole.ADMIN,
+                password_hash=get_password_hash("aroundu11"),
+                role="ADMIN",
                 is_active=True,
                 is_verified=True,
             )
             db.add(admin)
-            db.commit()
-            print(f"\n  ✅ Admin user created: {admin_email} / admin123!")
+            db.flush()
+            print(f"\n  [OK] Admin user created: {admin_email} / admin123!")
         else:
-            print(f"\n  ⏭️  Admin user already exists: {admin_email}")
+            print(f"\n  [SKIP] Admin user already exists: {admin_email}")
+
+        # ── Owner user ────────────────────────────────────────────
+        owner_email = "owner@aroundu.com"
+        owner = db.query(User).filter(User.email == owner_email).first()
+        if not owner:
+            owner = User(
+                full_name="The Grand Kitchen Owner",
+                email=owner_email,
+                password_hash=get_password_hash("owner123!"),
+                role="OWNER",
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(owner)
+            db.flush()
+            print(f"  [OK] Owner user created: {owner_email} / owner123!")
+        else:
+            print(f"  [SKIP] Owner user already exists: {owner_email}")
+
+        db.commit()
 
         # ── Demo user ─────────────────────────────────────────────
         demo_email = "demo@aroundu.com"
@@ -78,15 +98,15 @@ def seed():
                 full_name="Demo User",
                 email=demo_email,
                 password_hash=get_password_hash("demo1234"),
-                role=UserRole.USER,
+                role="USER",
                 is_active=True,
                 is_verified=True,
             )
             db.add(demo)
             db.commit()
-            print(f"  ✅ Demo user created:  {demo_email} / demo1234")
+            print(f"  [OK] Demo user created:  {demo_email} / demo1234")
         else:
-            print(f"  ⏭️  Demo user already exists: {demo_email}")
+            print(f"  [SKIP] Demo user already exists: {demo_email}")
 
         # ── Places ────────────────────────────────────────────────
         places_data = [
@@ -101,6 +121,7 @@ def seed():
                 "longitude": -74.0060,
                 "category": "Restaurant",
                 "rating": 4.7,
+                "owner_id": owner.id if owner else None,
             },
             {
                 "name": "Street Tacos Fiesta",
@@ -205,13 +226,13 @@ def seed():
         for data in places_data:
             existing = db.query(Place).filter(Place.name == data["name"]).first()
             if existing:
-                print(f"  ⏭️  Place already exists: {data['name']}")
+                print(f"  [SKIP] Place already exists: {data['name']}")
                 continue
 
             cat_name = data.pop("category")
             cat = categories.get(cat_name)
             if not cat:
-                print(f"  ⚠️  Category '{cat_name}' not found, skipping {data['name']}")
+                print(f"  [WARN] Category '{cat_name}' not found, skipping {data['name']}")
                 continue
 
             place = Place(
@@ -220,10 +241,10 @@ def seed():
                 is_active=True,
             )
             db.add(place)
-            print(f"  ✅ Place: {place.name}")
+            print(f"  [OK] Place: {place.name}")
 
         db.commit()
-        print("\n🎉 Seeding complete!")
+        print("\n[FINISH] Seeding complete!")
         print("─" * 42)
         print("  Admin login:  admin@aroundu.com / admin123!")
         print("  Demo login:   demo@aroundu.com  / demo1234")
@@ -231,7 +252,7 @@ def seed():
 
     except Exception as e:
         db.rollback()
-        print(f"\n❌ Seeding failed: {e}")
+        print(f"\n[ERROR] Seeding failed: {e}")
         raise
     finally:
         db.close()

@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from src.core.dependencies import get_current_user
 from src.models.user import User
 from src.core.permissions import require_admin, require_dashboard_access
@@ -20,7 +20,7 @@ def admin_guard(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 def owner_guard(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != "owner":
+    if current_user.role != "OWNER":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Owner access required"
