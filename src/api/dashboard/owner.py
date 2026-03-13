@@ -20,7 +20,7 @@ def get_owner_place_id(db: Session, owner_id: int):
         )
     return place.id
 
-@router.get("/my-place")
+@router.get("/my-place", response_model=PlaceResponse)
 def get_my_place(
     db: Session = Depends(get_db),
     current_user = Depends(owner_guard)
