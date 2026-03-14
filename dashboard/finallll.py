@@ -508,13 +508,17 @@ elif selected == "Manage Place":
                     upload_image(place.get("id"), "place", place_file, place_caption)
         
         if place_imgs:
-            cols = st.columns(3)
+            cols = st.columns(4)
             for idx, img in enumerate(place_imgs):
-                with cols[idx % 3]:
+                with cols[idx % 4]:
                     # Build full URL if relative
                     img_url = img['image_url']
-                    if img_url.startswith("/uploads/"):
-                        img_url = f"{BACKEND_BASE_URL.replace('/api', '')}{img_url}"
+                    if img_url.startswith("/"):
+                        base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                        if img_url.startswith("/uploads/"):
+                            img_url = f"{base}{img_url}"
+                        else:
+                            img_url = f"{base}/uploads{img_url}"
                     
                     st.image(img_url, use_container_width=True)
                     if img.get("caption"):
@@ -538,12 +542,16 @@ elif selected == "Manage Place":
                     upload_image(place.get("id"), "menu", menu_file, menu_caption)
         
         if menu_imgs:
-            cols = st.columns(3)
+            cols = st.columns(4)
             for idx, img in enumerate(menu_imgs):
-                with cols[idx % 3]:
+                with cols[idx % 4]:
                     img_url = img['image_url']
-                    if img_url.startswith("/uploads/"):
-                        img_url = f"{BACKEND_BASE_URL.replace('/api', '')}{img_url}"
+                    if img_url.startswith("/"):
+                        base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                        if img_url.startswith("/uploads/"):
+                            img_url = f"{base}{img_url}"
+                        else:
+                            img_url = f"{base}/uploads{img_url}"
                         
                     st.image(img_url, use_container_width=True)
                     if img.get("caption"):

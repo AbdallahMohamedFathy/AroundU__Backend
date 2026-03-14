@@ -75,7 +75,12 @@ def delete_place_image(
         place = uow.place_repository.get_by_id(image.place_id)
         require_place_owner_or_admin(current_user, place)
 
-        relative_path = image.image_url.lstrip("/uploads/")
+        image_url = image.image_url
+        if image_url.startswith("/uploads/"):
+            relative_path = image_url.removeprefix("/uploads/")
+        else:
+            relative_path = image_url.lstrip("/") # Fallback
+            
         delete_file(relative_path)
 
         uow.place_image_repository.delete(image)
