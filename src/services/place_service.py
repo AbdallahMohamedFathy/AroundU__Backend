@@ -6,6 +6,8 @@ from src.models.place import Place
 from src.schemas.place import PlaceResponse
 from src.services.location_parser import extract_coordinates_from_google_maps
 from sqlalchemy import text
+from src.core.exceptions import APIException
+from src.core.logger import logger
 
 # Rule 2: No SQLAlchemy or Model imports. 
 # We import types ONLY for type-hinting if absolutely necessary, but here we use the repo ones.
@@ -129,18 +131,21 @@ def create_place(uow: Any, request_data: Any, current_user: Any):
         return PlaceResponse.model_validate(db_place)
 
 
+
 def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
-    try:
-        with uow as uow:
+    """Partially update a place using UnitOfWork."""
+    with uow as uow:
+        try:
             place = uow.place_repository.get_by_id(place_id)
             if not place:
-                raise HTTPException(status_code=404, detail="Place not found")
+                raise APIException("Place not found", code=status.HTTP_404_NOT_FOUND)
 
             require_place_owner_or_admin(current_user, place)
 
+            # Convert schema to dict
             update_data = place_data.model_dump(exclude_unset=True)
 
-            # Handle Google Maps link
+            # Handle Google Maps link parsing
             loc_link = update_data.get("location_link")
             if loc_link and loc_link.strip():
                 try:
@@ -148,14 +153,15 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
                     if lat is not None and lng is not None:
                         place.latitude = lat
                         place.longitude = lng
-                        # Remove from dict so repo.update doesn't overwrite with old raw values
-                        if "latitude" in update_data: del update_data["latitude"]
-                        if "longitude" in update_data: del update_data["longitude"]
+                        # Avoid overwriting link-extracted coords with potentially stale raw values
+                        update_data.pop("latitude", None)
+                        update_data.pop("longitude", None)
                 except ValueError as e:
-                    raise HTTPException(status_code=400, detail=str(e))
+                    raise APIException(str(e), code=status.HTTP_400_BAD_REQUEST)
                 
-                del update_data["location_link"]
+                update_data.pop("location_link", None)
 
+            # Perform the update
             updated_place = uow.place_repository.update(place, update_data)
 
             # 4. Refresh PostGIS location with explicit parameters
@@ -174,15 +180,19 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
                 }
             )
 
+            # Load primary relationships before commit to avoid DetachedInstanceError
+            # Pydantic serialization will trigger these loads
+            response_data = PlaceResponse.model_validate(updated_place)
+
             uow.commit()
-            return updated_place
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"CRITICAL ERROR in update_place: {error_details}")
-        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+            return response_data
+            
+        except APIException:
+            raise
+        except Exception as e:
+            import traceback
+            logger.error(f"Place update failed: {traceback.format_exc()}")
+            raise APIException(f"Update failed: {str(e)}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 def delete_place(uow: Any, place_id: int, current_user: Any):
