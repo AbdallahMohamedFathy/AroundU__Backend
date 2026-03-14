@@ -158,17 +158,25 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
 
         updated_place = uow.place_repository.update(place, update_data)
 
-        # Update PostGIS location
-        uow.session.execute(
-            text("""
-                UPDATE places
-                SET location = ST_SetSRID(
-                    ST_MakePoint(longitude, latitude), 4326
-                )::geography
-                WHERE id = :id
-            """),
-            {"id": place_id}
-        )
+        # 4. Refresh PostGIS location with explicit parameters
+        try:
+            uow.session.execute(
+                text("""
+                    UPDATE places
+                    SET location = ST_SetSRID(
+                        ST_MakePoint(:lng, :lat), 4326
+                    )::geography
+                    WHERE id = :id
+                """),
+                {
+                    "lng": place.longitude,
+                    "lat": place.latitude,
+                    "id": place_id
+                }
+            )
+        except Exception as e:
+            # If Raw SQL fails, we still want to know why
+            raise HTTPException(status_code=500, detail=f"PostGIS Update Failed: {str(e)}")
 
         uow.commit()
 
