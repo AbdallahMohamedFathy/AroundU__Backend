@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
+from src.schemas.place_image import PlaceImageResponse
 
 
 class PlaceBase(BaseModel):
@@ -42,12 +43,6 @@ class PlaceUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-class PlaceImageInfo(BaseModel):
-    id: int
-    image_url: str
-    is_primary: bool
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class PlaceResponse(PlaceBase):
@@ -57,7 +52,7 @@ class PlaceResponse(PlaceBase):
     is_active: bool
     created_at: datetime
     distance_km: Optional[float] = None  # Calculated field
-    images: List[PlaceImageInfo] = []
+    images: List[PlaceImageResponse] = []
     is_favorited: Optional[bool] = False  # Calculated field based on current user
 
     model_config = ConfigDict(from_attributes=True)

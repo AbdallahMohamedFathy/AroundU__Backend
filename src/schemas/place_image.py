@@ -5,11 +5,12 @@ from typing import Optional
 
 class PlaceImageBase(BaseModel):
     image_url: str
-    is_primary: bool = False
+    image_type: str # 'place' or 'menu'
+    caption: Optional[str] = None
 
 
 class PlaceImageCreate(PlaceImageBase):
-    place_id: int
+    pass
 
 
 class PlaceImageResponse(PlaceImageBase):

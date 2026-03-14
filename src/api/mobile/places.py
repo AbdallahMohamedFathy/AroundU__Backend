@@ -5,6 +5,10 @@ from src.schemas.place import PlaceResponse, PlaceListResponse, NearbyPlaceListR
 from src.services.place_service import (
     get_places, get_place_by_id, get_nearby_places,
 )
+from src.services import place_image_service
+from src.schemas.place_image import PlaceImageResponse
+from src.core.dependencies import get_place_image_repository
+from typing import List
 
 router = APIRouter()
 
@@ -45,3 +49,11 @@ def nearby_places(
 def get_place(place_id: int, repo = Depends(get_place_repository)):
     """Retrieve a single place by ID."""
     return get_place_by_id(repo, place_id)
+
+@router.get("/{place_id}/images", response_model=List[PlaceImageResponse])
+def list_place_images(
+    place_id: int, 
+    repo = Depends(get_place_image_repository)
+):
+    """Retrieve all images (place and menu) for a specific place."""
+    return place_image_service.get_place_images(repo, place_id)

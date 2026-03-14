@@ -182,6 +182,35 @@ def update_place_details(place_id, data):
         st.error(f"❌ Failed to update: {res.text}")
     except Exception as e:
         st.error(f"Error: {e}")
+def delete_place_image(image_id):
+    try:
+        res = requests.delete(f"{BACKEND_BASE_URL}/dashboard/upload/image/{image_id}", headers=get_headers())
+        if res.status_code == 204:
+            st.success("🗑️ Image deleted!")
+            st.cache_data.clear()
+            st.rerun()
+            return True
+        st.error(f"❌ Failed to delete: {res.text}")
+    except Exception as e:
+        st.error(f"Error: {e}")
+    return False
+
+def upload_image(place_id, image_type, file, caption=None):
+    try:
+        data = {"place_id": place_id, "image_type": image_type}
+        if caption: data["caption"] = caption
+        
+        files = {"file": (file.name, file.getvalue(), file.type)}
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/upload/place-image", data=data, files=files, headers=get_headers())
+        
+        if res.status_code == 201:
+            st.success(f"✅ {image_type.capitalize()} photo uploaded!")
+            st.cache_data.clear()
+            st.rerun()
+            return True
+        st.error(f"❌ Upload failed: {res.text}")
+    except Exception as e:
+        st.error(f"Upload error: {e}")
     return False
 
 @st.cache_data(ttl=30)
@@ -458,6 +487,71 @@ elif selected == "Manage Place":
                     update_data["location_link"] = loc_link
                 
                 update_place_details(place.get("id"), update_data)
+        
+        st.markdown("---")
+        st.subheader("📸 Media Gallery")
+        
+        # Split images by type
+        all_images = place.get("images", [])
+        place_imgs = [img for img in all_images if img.get("image_type") == "place"]
+        menu_imgs = [img for img in all_images if img.get("image_type") == "menu"]
+        
+        # --- PLACE PHOTOS ---
+        st.markdown("### 🏢 Place Photos")
+        st.caption("Upload interior or exterior photos of your business.")
+        
+        with st.expander("Upload New Place Photo", expanded=False):
+            place_file = st.file_uploader("Choose a photo", type=['png', 'jpg', 'jpeg', 'webp'], key="place_upload")
+            place_caption = st.text_input("Photo Caption (Optional)", key="place_caption")
+            if place_file:
+                if st.button("Upload Place Photo", use_container_width=True):
+                    upload_image(place.get("id"), "place", place_file, place_caption)
+        
+        if place_imgs:
+            cols = st.columns(3)
+            for idx, img in enumerate(place_imgs):
+                with cols[idx % 3]:
+                    # Build full URL if relative
+                    img_url = img['image_url']
+                    if img_url.startswith("/uploads/"):
+                        img_url = f"{BACKEND_BASE_URL.replace('/api', '')}{img_url}"
+                    
+                    st.image(img_url, use_container_width=True)
+                    if img.get("caption"):
+                        st.caption(img["caption"])
+                    if st.button("Remove", key=f"del_place_{img['id']}", type="secondary", icon="🗑️"):
+                        delete_place_image(img['id'])
+        else:
+            st.info("No place photos uploaded yet.")
+            
+        st.markdown("---")
+        
+        # --- MENU PHOTOS ---
+        st.markdown("### 🍴 Menu Photos")
+        st.caption("Upload photos of your menu items or the physical menu.")
+        
+        with st.expander("Upload New Menu Photo", expanded=False):
+            menu_file = st.file_uploader("Choose a menu photo", type=['png', 'jpg', 'jpeg', 'webp'], key="menu_upload")
+            menu_caption = st.text_input("Item Name/Description (Optional)", key="menu_caption")
+            if menu_file:
+                if st.button("Upload Menu Photo", use_container_width=True):
+                    upload_image(place.get("id"), "menu", menu_file, menu_caption)
+        
+        if menu_imgs:
+            cols = st.columns(3)
+            for idx, img in enumerate(menu_imgs):
+                with cols[idx % 3]:
+                    img_url = img['image_url']
+                    if img_url.startswith("/uploads/"):
+                        img_url = f"{BACKEND_BASE_URL.replace('/api', '')}{img_url}"
+                        
+                    st.image(img_url, use_container_width=True)
+                    if img.get("caption"):
+                        st.caption(img["caption"])
+                    if st.button("Remove", key=f"del_menu_{img['id']}", type="secondary", icon="🗑️"):
+                        delete_place_image(img['id'])
+        else:
+            st.info("No menu photos uploaded yet.")
     else:
         st.error("Could not load data. Please refresh.")
 

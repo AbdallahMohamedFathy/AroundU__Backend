@@ -9,6 +9,9 @@ from src.models.interaction import Interaction
 from src.api.dashboard.dependencies import owner_guard
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
+from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
+from src.services import place_image_service
+from src.core.dependencies import get_uow, get_place_image_repository
 
 router = APIRouter(dependencies=[Depends(owner_guard)])
 
@@ -216,3 +219,25 @@ def get_location_heatmap(
         {"lat": place.latitude + (i*0.0005), "lon": place.longitude + (j*0.0005), "intensity": visits * (i+j+1)}
         for i in range(-2, 3) for j in range(-2, 3)
     ]
+
+# --- IMAGE MANAGEMENT ---
+
+@router.post("/places/{place_id}/images", response_model=PlaceImageResponse, status_code=status.HTTP_201_CREATED)
+def upload_place_image(
+    place_id: int,
+    image_data: PlaceImageCreate,
+    uow = Depends(get_uow),
+    current_user = Depends(owner_guard)
+):
+    """Upload a new image (place or menu) for the owner's place."""
+    return place_image_service.add_place_image(uow, place_id, image_data, current_user)
+
+@router.delete("/place-images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_place_image(
+    image_id: int,
+    uow = Depends(get_uow),
+    current_user = Depends(owner_guard)
+):
+    """Delete an existing image."""
+    place_image_service.delete_place_image(uow, image_id, current_user)
+    return None

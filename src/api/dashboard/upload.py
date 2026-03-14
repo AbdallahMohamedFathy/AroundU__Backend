@@ -15,7 +15,8 @@ router = APIRouter(
 @router.post("/place-image", response_model=PlaceImageResponse, status_code=status.HTTP_201_CREATED)
 async def upload_place_image(
     place_id: int = Form(...),
-    is_primary: bool = Form(False),
+    image_type: str = Form(...), # 'place' or 'menu'
+    caption: Optional[str] = Form(None),
     file: UploadFile = File(...),
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
@@ -28,19 +29,17 @@ async def upload_place_image(
         require_place_owner_or_admin(current_user, place)
 
     file_path = await save_upload_file(file, subfolder="places")
+    # In a real external storage scenario, this would be a Cloudinary/S3 URL
+    # For now, we use the local /uploads/ URL
     image_url = f"/uploads/{file_path}"
 
     with uow:
-        if is_primary:
-            existing_primary = uow.place_image_repository.get_primary_for_place(place_id)
-            for img in existing_primary:
-                img.is_primary = False
-
         from src.models.place_image import PlaceImage
         db_image = PlaceImage(
             place_id=place_id,
             image_url=image_url,
-            is_primary=is_primary,
+            image_type=image_type,
+            caption=caption
         )
 
         db_image = uow.place_image_repository.create(db_image)
@@ -58,29 +57,6 @@ def list_place_images(
     return repo.get_by_place(place_id)
 
 
-# ─── SET PRIMARY ───────────────────────
-@router.put("/image/{image_id}/primary", response_model=PlaceImageResponse)
-def set_primary_image(
-    image_id: int,
-    uow=Depends(get_uow),
-    current_user: User = Depends(get_current_user),
-):
-    with uow:
-        image = uow.place_image_repository.get_by_id(image_id)
-        if not image:
-            raise APIException("Image not found", code=status.HTTP_404_NOT_FOUND)
-
-        place = uow.place_repository.get_by_id(image.place_id)
-        require_place_owner_or_admin(current_user, place)
-
-        existing_primary = uow.place_image_repository.get_primary_for_place(image.place_id)
-        for img in existing_primary:
-            img.is_primary = False
-
-        image.is_primary = True
-        uow.commit()
-
-        return image
 
 
 # ─── DELETE ─────────────────────────────

@@ -12,7 +12,3 @@ class PlaceImageRepository(BaseRepository[PlaceImage]):
     def get_by_place(self, place_id: int) -> List[PlaceImage]:
         return self.session.query(PlaceImage)\
             .filter(PlaceImage.place_id == place_id).all()
-
-    def get_primary_for_place(self, place_id: int) -> List[PlaceImage]:
-        return self.session.query(PlaceImage)\
-            .filter(PlaceImage.place_id == place_id, PlaceImage.is_primary == True).all()
