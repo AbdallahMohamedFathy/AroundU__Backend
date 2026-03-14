@@ -233,8 +233,11 @@ if st.session_state.token is None:
 # =========================
 # SIDEBAR
 # =========================
+my_place = fetch_my_place()
+place_name = my_place.get("name", "AroundU") if my_place else "AroundU"
+
 with st.sidebar:
-    st.title("🏙️ AroundU")
+    st.title(f"🏙️ {place_name}")
     st.caption("Beni Suef Business Intelligence")
 
     selected = option_menu(
