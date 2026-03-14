@@ -32,17 +32,18 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_interactions_id'), 'interactions', ['id'], unique=False)
-    op.drop_index(op.f('idx_chat_messages_user_id'), table_name='chat_messages')
-    op.drop_index(op.f('idx_favorites_user_id'), table_name='favorites')
-    op.drop_index(op.f('idx_places_category_id'), table_name='places')
-    op.drop_index(op.f('idx_places_location_gist'), table_name='places', postgresql_using='gist')
-    op.drop_index(op.f('idx_places_location'), table_name='places')
+    # Defensive index drops to handle existing DB state inconsistencies
+    op.execute("DROP INDEX IF EXISTS idx_chat_messages_user_id")
+    op.execute("DROP INDEX IF EXISTS idx_favorites_user_id")
+    op.execute("DROP INDEX IF EXISTS idx_places_category_id")
+    op.execute("DROP INDEX IF EXISTS idx_places_location_gist")
+    op.execute("DROP INDEX IF EXISTS idx_places_location")
     op.create_index('idx_places_location', 'places', ['location'], unique=False, postgresql_using='gist')
-    op.drop_index(op.f('ix_places_owner_id'), table_name='places')
+    op.execute("DROP INDEX IF EXISTS ix_places_owner_id")
     op.create_index(op.f('ix_places_owner_id'), 'places', ['owner_id'], unique=True)
-    op.drop_index(op.f('idx_reviews_place_id'), table_name='reviews')
-    op.drop_index(op.f('idx_reviews_user_id'), table_name='reviews')
-    op.drop_index(op.f('idx_search_history_user_id'), table_name='search_history')
+    op.execute("DROP INDEX IF EXISTS idx_reviews_place_id")
+    op.execute("DROP INDEX IF EXISTS idx_reviews_user_id")
+    op.execute("DROP INDEX IF EXISTS idx_search_history_user_id")
     # ### end Alembic commands ###
 
 
