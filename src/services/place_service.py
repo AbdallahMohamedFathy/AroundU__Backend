@@ -130,36 +130,35 @@ def create_place(uow: Any, request_data: Any, current_user: Any):
 
 
 def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
+    try:
+        with uow as uow:
+            place = uow.place_repository.get_by_id(place_id)
+            if not place:
+                raise HTTPException(status_code=404, detail="Place not found")
 
-    with uow as uow:
+            require_place_owner_or_admin(current_user, place)
 
-        place = uow.place_repository.get_by_id(place_id)
+            update_data = place_data.model_dump(exclude_unset=True)
 
-        if not place:
-            raise HTTPException(status_code=404, detail="Place not found")
+            # Handle Google Maps link
+            loc_link = update_data.get("location_link")
+            if loc_link and loc_link.strip():
+                try:
+                    lat, lng = extract_coordinates_from_google_maps(loc_link)
+                    if lat is not None and lng is not None:
+                        place.latitude = lat
+                        place.longitude = lng
+                        # Remove from dict so repo.update doesn't overwrite with old raw values
+                        if "latitude" in update_data: del update_data["latitude"]
+                        if "longitude" in update_data: del update_data["longitude"]
+                except ValueError as e:
+                    raise HTTPException(status_code=400, detail=str(e))
+                
+                del update_data["location_link"]
 
-        require_place_owner_or_admin(current_user, place)
+            updated_place = uow.place_repository.update(place, update_data)
 
-        update_data = place_data.model_dump(exclude_unset=True)
-
-        # Handle Google Maps link
-        if "location_link" in update_data:
-            try:
-                lat, lng = extract_coordinates_from_google_maps(update_data["location_link"])
-                place.latitude = lat
-                place.longitude = lng
-                # Remove from dict so repo.update doesn't overwrite with old raw values
-                if "latitude" in update_data: del update_data["latitude"]
-                if "longitude" in update_data: del update_data["longitude"]
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            
-            del update_data["location_link"]
-
-        updated_place = uow.place_repository.update(place, update_data)
-
-        # 4. Refresh PostGIS location with explicit parameters
-        try:
+            # 4. Refresh PostGIS location with explicit parameters
             uow.session.execute(
                 text("""
                     UPDATE places
@@ -174,13 +173,16 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
                     "id": place_id
                 }
             )
-        except Exception as e:
-            # If Raw SQL fails, we still want to know why
-            raise HTTPException(status_code=500, detail=f"PostGIS Update Failed: {str(e)}")
 
-        uow.commit()
-
-        return updated_place
+            uow.commit()
+            return updated_place
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"CRITICAL ERROR in update_place: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
 
 
 def delete_place(uow: Any, place_id: int, current_user: Any):
