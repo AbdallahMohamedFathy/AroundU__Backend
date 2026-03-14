@@ -130,24 +130,31 @@ def create_place(uow: Any, request_data: Any, current_user: Any):
 
 
 def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
-    """Partially update a place using UnitOfWork."""
+
     with uow as uow:
+
         place = uow.place_repository.get_by_id(place_id)
+
         if not place:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
-        
-        # Permission check
+            raise HTTPException(status_code=404, detail="Place not found")
+
         require_place_owner_or_admin(current_user, place)
-        
-        # 3. Handle Location Link Parsing
-        if place_data.location_link:
-            lat, lng = extract_coordinates_from_google_maps(place_data.location_link)
+
+        update_data = place_data.model_dump(exclude_unset=True)
+
+        # Handle Google Maps link
+        if "location_link" in update_data:
+
+            lat, lng = extract_coordinates_from_google_maps(update_data["location_link"])
+
             place.latitude = lat
             place.longitude = lng
 
-        updated_place = uow.place_repository.update(place, place_data)
+            del update_data["location_link"]
 
-        # 4. Refresh PostGIS location if latitude or longitude was updated
+        updated_place = uow.place_repository.update(place, update_data)
+
+        # Update PostGIS location
         uow.session.execute(
             text("""
                 UPDATE places
@@ -159,13 +166,8 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
             {"id": place_id}
         )
 
-        # Stamp updated_at on all favorites that reference this place
-        uow.session.execute(
-            text("UPDATE favorites SET updated_at = :now WHERE place_id = :place_id"),
-            {"now": datetime.now(timezone.utc), "place_id": place_id}
-        )
-
         uow.commit()
+
         return updated_place
 
 
