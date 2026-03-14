@@ -7,6 +7,8 @@ from src.core.security import get_password_hash
 from src.models.user import User
 from src.models.place import Place
 from src.schemas.admin import PlaceCreationResponse
+from src.services.location_parser import extract_coordinates_from_google_maps
+from sqlalchemy import text
 
 def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
     """
@@ -61,17 +63,43 @@ def create_place_with_owner(uow: UnitOfWork, place_in, current_admin):
         )
         uow.user_repository.create(new_owner)
         
-        # 4. Create the Place
+        # 4. Handle Location Parsing
+        lat = place_in.latitude
+        lng = place_in.longitude
+        
+        if place_in.location_link:
+            lat, lng = extract_coordinates_from_google_maps(place_in.location_link)
+
+        if lat is None or lng is None:
+            raise APIException("Latitude and Longitude are required if location_link is not provided", code=status.HTTP_400_BAD_REQUEST)
+
+        # 5. Create the Place
         new_place = Place(
             name=place_in.place_name,
             description=place_in.description,
             category_id=place_in.category_id,
-            latitude=place_in.latitude,
-            longitude=place_in.longitude,
+            latitude=lat,
+            longitude=lng,
             owner_id=new_owner.id,
             is_active=True
         )
-        uow.place_repository.create(new_place)
+        new_place = uow.place_repository.create(new_place)
+
+        # 6. Update PostGIS location
+        uow.session.execute(
+            text("""
+                UPDATE places
+                SET location = ST_SetSRID(
+                    ST_MakePoint(:lng, :lat), 4326
+                )::geography
+                WHERE id = :id
+            """),
+            {
+                "lng": lng,
+                "lat": lat,
+                "id": new_place.id
+            }
+        )
 
         uow.commit()
 

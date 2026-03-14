@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from src.models.place import Place
 from src.schemas.place import PlaceResponse
+from src.services.location_parser import extract_coordinates_from_google_maps
 from sqlalchemy import text
 
 # Rule 2: No SQLAlchemy or Model imports. 
@@ -138,7 +139,25 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
         # Permission check
         require_place_owner_or_admin(current_user, place)
         
+        # 3. Handle Location Link Parsing
+        if place_data.location_link:
+            lat, lng = extract_coordinates_from_google_maps(place_data.location_link)
+            place.latitude = lat
+            place.longitude = lng
+
         updated_place = uow.place_repository.update(place, place_data)
+
+        # 4. Refresh PostGIS location if latitude or longitude was updated
+        uow.session.execute(
+            text("""
+                UPDATE places
+                SET location = ST_SetSRID(
+                    ST_MakePoint(longitude, latitude), 4326
+                )::geography
+                WHERE id = :id
+            """),
+            {"id": place_id}
+        )
 
         # Stamp updated_at on all favorites that reference this place
         uow.session.execute(

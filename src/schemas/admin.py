@@ -7,8 +7,9 @@ class PlaceCreateWithOwner(BaseModel):
     place_name: str
     description: str = None
     category_id: int
-    latitude: float
-    longitude: float
+    location_link: str = None
+    latitude: float = None
+    longitude: float = None
     owner_email: str
     owner_password: str
 

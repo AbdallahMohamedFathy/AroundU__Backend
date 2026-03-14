@@ -163,6 +163,14 @@ def fetch_my_place():
         st.error(f"Connection error: {e}")
     return None
 
+@st.cache_data(ttl=300)
+def fetch_categories():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/mobile/categories")
+        if res.status_code == 200: return res.json()
+    except: pass
+    return []
+
 def update_place_details(place_id, data):
     try:
         res = requests.put(f"{BACKEND_BASE_URL}/dashboard/places/{place_id}", json=data, headers=get_headers())
@@ -388,34 +396,53 @@ elif selected == "Manage Place":
     st.info("Update your business details visible to customers.")
     
     place = fetch_my_place()
-    if place:
+    categories = fetch_categories()
+    
+    if place and categories:
+        # Map category name to ID for the selectbox
+        cat_options = {c['name']: c['id'] for c in categories}
+        current_cat_name = next((name for name, id in cat_options.items() if id == place.get('category_id')), "Cafe")
+
         with st.form("edit_place_form"):
             name = st.text_input("Business Name", value=place.get("name", ""))
             description = st.text_area("Description", value=place.get("description", ""), height=150)
+            
+            # --- CATEGORY DROPDOWN ---
+            selected_cat_name = st.selectbox("Category", options=list(cat_options.keys()), index=list(cat_options.keys()).index(current_cat_name) if current_cat_name in cat_options else 0)
+            
             address = st.text_input("Address", value=place.get("address", ""))
             phone = st.text_input("Phone", value=place.get("phone", ""))
             website = st.text_input("Website", value=place.get("website", ""))
             
-            c1, c2 = st.columns(2)
-            with c1:
-                lat = st.number_input("Latitude", value=place.get("latitude", 0.0), format="%.6f")
-            with c2:
-                lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
+            st.markdown("### 📍 Location")
+            st.info("Paste a Google Maps link to automatically update coordinates.")
+            loc_link = st.text_input("Google Maps Link", placeholder="https://www.google.com/maps/...")
             
-            submit = st.form_submit_button("Save Changes")
+            with st.expander("Raw Coordinates (Optional)"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    lat = st.number_input("Latitude", value=place.get("latitude", 0.0), format="%.6f")
+                with c2:
+                    lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
+            
+            submit = st.form_submit_button("Save Changes", use_container_width=True)
             if submit:
                 update_data = {
                     "name": name,
                     "description": description,
+                    "category_id": cat_options[selected_cat_name],
                     "address": address,
                     "phone": phone,
                     "website": website,
                     "latitude": lat,
                     "longitude": lon
                 }
+                if loc_link:
+                    update_data["location_link"] = loc_link
+                
                 update_place_details(place.get("id"), update_data)
     else:
-        st.error("Could not fetch place details. Please try again.")
+        st.error("Could not load data. Please refresh.")
 
 elif selected == "Operations":
     st.title("⏰ Operational Efficiency")

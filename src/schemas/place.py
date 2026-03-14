@@ -29,6 +29,7 @@ class PlaceUpdate(BaseModel):
     website: Optional[str] = Field(None, max_length=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+    location_link: Optional[str] = None
     category_id: Optional[int] = None
     is_active: Optional[bool] = None
 
