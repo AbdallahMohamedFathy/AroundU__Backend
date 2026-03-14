@@ -176,6 +176,8 @@ def update_place_details(place_id, data):
         res = requests.put(f"{BACKEND_BASE_URL}/dashboard/places/{place_id}", json=data, headers=get_headers())
         if res.status_code == 200:
             st.success("✅ Place updated successfully!")
+            st.cache_data.clear()
+            st.rerun()
             return True
         st.error(f"❌ Failed to update: {res.text}")
     except Exception as e:
