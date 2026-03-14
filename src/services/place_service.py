@@ -144,12 +144,16 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
 
         # Handle Google Maps link
         if "location_link" in update_data:
-
-            lat, lng = extract_coordinates_from_google_maps(update_data["location_link"])
-
-            place.latitude = lat
-            place.longitude = lng
-
+            try:
+                lat, lng = extract_coordinates_from_google_maps(update_data["location_link"])
+                place.latitude = lat
+                place.longitude = lng
+                # Remove from dict so repo.update doesn't overwrite with old raw values
+                if "latitude" in update_data: del update_data["latitude"]
+                if "longitude" in update_data: del update_data["longitude"]
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            
             del update_data["location_link"]
 
         updated_place = uow.place_repository.update(place, update_data)

@@ -68,7 +68,10 @@ def create_place_with_owner(uow: UnitOfWork, place_in, current_admin):
         lng = place_in.longitude
         
         if place_in.location_link:
-            lat, lng = extract_coordinates_from_google_maps(place_in.location_link)
+            try:
+                lat, lng = extract_coordinates_from_google_maps(place_in.location_link)
+            except ValueError as e:
+                raise APIException(str(e), code=status.HTTP_400_BAD_REQUEST)
 
         if lat is None or lng is None:
             raise APIException("Latitude and Longitude are required if location_link is not provided", code=status.HTTP_400_BAD_REQUEST)
