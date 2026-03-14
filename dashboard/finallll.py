@@ -430,6 +430,14 @@ elif selected == "Manage Place":
                 with c2:
                     lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
             
+            # --- SOCIAL MEDIA LINKS ---
+            st.markdown("### 📱 Social Media")
+            with st.expander("Social Media & Contact Links"):
+                facebook = st.text_input("Facebook URL", value=place.get("facebook_url", ""))
+                instagram = st.text_input("Instagram URL", value=place.get("instagram_url", ""))
+                tiktok = st.text_input("TikTok URL", value=place.get("tiktok_url", ""))
+                whatsapp = st.text_input("WhatsApp Number", value=place.get("whatsapp_number", ""), help="e.g. +201234567890")
+            
             submit = st.form_submit_button("Save Changes", use_container_width=True)
             if submit:
                 update_data = {
@@ -440,7 +448,11 @@ elif selected == "Manage Place":
                     "phone": phone,
                     "website": website,
                     "latitude": lat,
-                    "longitude": lon
+                    "longitude": lon,
+                    "facebook_url": facebook,
+                    "instagram_url": instagram,
+                    "whatsapp_number": whatsapp,
+                    "tiktok_url": tiktok
                 }
                 if loc_link:
                     update_data["location_link"] = loc_link

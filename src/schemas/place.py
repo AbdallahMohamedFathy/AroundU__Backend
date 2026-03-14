@@ -12,6 +12,10 @@ class PlaceBase(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     category_id: int
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    whatsapp_number: Optional[str] = None
+    tiktok_url: Optional[str] = None
 
 
 class PlaceCreate(PlaceBase):
@@ -31,6 +35,10 @@ class PlaceUpdate(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     location_link: Optional[str] = None
     category_id: Optional[int] = None
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    whatsapp_number: Optional[str] = None
+    tiktok_url: Optional[str] = None
     is_active: Optional[bool] = None
 
 
