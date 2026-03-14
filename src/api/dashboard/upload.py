@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from src.core.dependencies import get_current_user, get_uow, get_place_image_repository
 from src.models.user import User
