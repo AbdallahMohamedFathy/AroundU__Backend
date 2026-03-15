@@ -204,10 +204,14 @@ def get_owner_reviews(
 
     results = query.group_by(Review.sentiment).all()
     
-    stats = {"positive": 0, "negative": 0}
+    stats = {"positive": 0, "negative": 0, "neutral": 0, "unknown": 0}
     for sentiment, count in results:
         if sentiment in stats:
             stats[sentiment] = count
+        elif sentiment is None:
+            stats["unknown"] = count
+        else:
+            stats["neutral"] = count
             
     return stats
 

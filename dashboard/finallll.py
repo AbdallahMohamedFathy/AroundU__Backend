@@ -484,27 +484,38 @@ elif selected == "Customer Insights":
         positive = reviews.get("positive", 0)
         negative = reviews.get("negative", 0)
 
-        if positive > 0 or negative > 0:
-
-            sentiment_df = pd.DataFrame({
-                "Sentiment": ["Positive", "Negative"],
-                "Count": [positive, negative]
-            })
-
-            fig_reviews = px.bar(
-                sentiment_df,
-                x="Sentiment",
-                y="Count",
-                color="Sentiment",
-                color_discrete_map={
-                    "Positive": "#61A3BB",
-                    "Negative": "#65797E"
-                },
-                template="plotly_white"
-            )
-
-            st.plotly_chart(fig_reviews, use_container_width=True)
-
+        if reviews:
+            # Map API keys to human readable labels
+            sentiment_map = {
+                'positive': 'Positive',
+                'negative': 'Negative',
+                'neutral': 'Neutral',
+                'unknown': 'Unknown'
+            }
+            
+            data_list = []
+            for k, v in reviews.items():
+                if v > 0:
+                    data_list.append({'Sentiment': sentiment_map.get(k, k.capitalize()), 'Count': v})
+            
+            if data_list:
+                sentiment_df = pd.DataFrame(data_list)
+                fig_reviews = px.bar(
+                    sentiment_df,
+                    x="Sentiment",
+                    y="Count",
+                    color="Sentiment",
+                    color_discrete_map={
+                        "Positive": "#61A3BB",
+                        "Negative": "#65797E",
+                        "Neutral": "#2F5C85",
+                        "Unknown": "#D3D3D3"
+                    },
+                    template="plotly_white"
+                )
+                st.plotly_chart(fig_reviews, use_container_width=True)
+            else:
+                st.info("No reviews with sentiment data available.")
         else:
             st.info("No review data available for this period.")
 
@@ -515,7 +526,7 @@ elif selected == "Customer Insights":
 
         st.subheader("Review Ratings Overview")
 
-        total_reviews = positive + negative
+        total_reviews = sum(reviews.values()) if reviews else 0
 
         st.markdown(f"""
         <div style="background:#F8F9FA; padding:20px; border-radius:10px; border-left:5px solid #2F5C85;">
