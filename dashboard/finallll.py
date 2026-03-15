@@ -289,7 +289,8 @@ def fetch_review_list(start_date, end_date):
         res = requests.get(f"{BACKEND_BASE_URL}/owner/reviews/list", params=params, headers=get_headers())
         if res.status_code == 200: return res.json()
         handle_api_error(res)
-    except: pass
+    except Exception as e:
+        st.error(f"Error fetching reviews: {e}")
     return []
 
 @st.cache_data(ttl=30)

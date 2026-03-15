@@ -289,7 +289,7 @@ def get_owner_review_list(
             "sentiment": r.sentiment,
             "date": r.created_at,
             "user_name": r.name,
-            "stars": "⭐" * r.rating
+            "stars": "⭐" * int(r.rating)
         }
         for r in reviews
     ]
