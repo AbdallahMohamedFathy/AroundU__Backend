@@ -8,7 +8,8 @@ from src.schemas.place import PlaceResponse
 from src.models.interaction import Interaction
 from src.api.dashboard.dependencies import owner_guard
 from typing import List, Dict, Any
-from datetime import datetime, timedelta
+from typing import Annotated
+from datetime import datetime, timedelta, date
 from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
 from src.services import place_image_service
 from src.core.dependencies import get_uow, get_place_image_repository
@@ -49,22 +50,30 @@ def get_my_place(
 
 @router.get("/dashboard")
 def get_owner_dashboard(
-    start_date: str = Query(None),
-    end_date: str = Query(None),
+    start_date: date = Query(None),
+    end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user = Depends(owner_guard)
 ):
     """Get high-level KPI metrics from real interactions."""
     try:
         place_id = get_owner_place_id(db, current_user.id)
-        
-        query = db.query(Interaction).filter(Interaction.place_id == place_id)
-        if start_date: query = query.filter(Interaction.created_at >= start_date)
-        if end_date: query = query.filter(Interaction.created_at <= end_date)
-        
-        # Aggregate counts
-        interactions = query.all()
-        
+
+        query = db.query(
+            Interaction.type,
+            func.count(Interaction.id)
+        ).filter(
+            Interaction.place_id == place_id
+        )
+
+        if start_date:
+            query = query.filter(Interaction.created_at >= start_date)
+
+        if end_date:
+            query = query.filter(Interaction.created_at <= end_date)
+
+        results = query.group_by(Interaction.type).all()
+
         stats = {
             "visits": 0,
             "orders": 0,
@@ -72,19 +81,21 @@ def get_owner_dashboard(
             "calls": 0,
             "directions": 0
         }
-        
-        for inter in interactions:
-            key = f"{inter.type}s" if not inter.type.endswith('s') else inter.type
-            if inter.type == 'direction': key = "directions"
-            if inter.type == 'visit': key = "visits"
-            if inter.type == 'call': key = "calls"
-            if inter.type == 'order': key = "orders"
-            if inter.type == 'save': key = "saves"
-            
-            if key in stats:
-                stats[key] += 1
-                
+
+        for type_, count in results:
+            if type_ == "visit":
+                stats["visits"] = count
+            elif type_ == "order":
+                stats["orders"] = count
+            elif type_ == "save":
+                stats["saves"] = count
+            elif type_ == "call":
+                stats["calls"] = count
+            elif type_ == "direction":
+                stats["directions"] = count
+
         return stats
+
     except HTTPException:
         raise
     except Exception as e:
@@ -93,8 +104,8 @@ def get_owner_dashboard(
 
 @router.get("/analytics")
 def get_owner_analytics(
-    start_date: str = Query(None),
-    end_date: str = Query(None),
+    start_date: date = Query(None),
+    end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user = Depends(owner_guard)
 ):
@@ -104,9 +115,9 @@ def get_owner_analytics(
         
         # Default to last 30 days if no dates provided
         if not end_date:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = datetime.now().date()
         if not start_date:
-            start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=30)).date()
 
         # Query interactions grouped by date and type
         results = db.query(
@@ -126,8 +137,8 @@ def get_owner_analytics(
         daily_data = {}
         
         # Initialize days
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        start_dt = start_date
+        end_dt = end_date
         curr = start_dt
         while curr <= end_dt:
             d_str = curr.strftime("%Y-%m-%d")
@@ -196,7 +207,7 @@ def get_owner_reviews(
 
 @router.get("/location-heatmap")
 def get_location_heatmap(
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
     current_user = Depends(owner_guard)
 ):
     """Get location activity data from real visits (simulated by random jitter around place for heat effect)."""
