@@ -267,7 +267,7 @@ def get_owner_review_list(
         Review.comment,
         Review.sentiment,
         Review.created_at,
-        User.name
+        User.full_name
     ).join(User, Review.user_id == User.id).filter(
         Review.place_id == place_id
     )
@@ -288,7 +288,7 @@ def get_owner_review_list(
             "comment": r.comment,
             "sentiment": r.sentiment,
             "date": r.created_at,
-            "user_name": r.name,
+            "user_name": r.full_name,
             "stars": "⭐" * int(r.rating)
         }
         for r in reviews
