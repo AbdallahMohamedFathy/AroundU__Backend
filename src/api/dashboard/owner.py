@@ -181,8 +181,8 @@ def get_chatbot_stats(
 
 @router.get("/reviews")
 def get_owner_reviews(
-    start_date: str = Query(None),
-    end_date: str = Query(None),
+    start_date: date = Query(None),
+    end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user = Depends(owner_guard)
 ):
