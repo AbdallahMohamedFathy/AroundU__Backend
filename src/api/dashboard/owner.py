@@ -168,15 +168,33 @@ def get_owner_analytics(
 
 @router.get("/chatbot-stats")
 def get_chatbot_stats(
-    start_date: str = Query(None),
-    end_date: str = Query(None),
+    start_date: date = Query(None),
+    end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user = Depends(owner_guard)
 ):
-    """Chatbot stats - for now keeping simple as metrics aren't in interactions yet."""
+    """Chatbot stats derived from ChatMessage model."""
+    from src.models.chat_message import ChatMessage
+    
+    query = db.query(func.count(ChatMessage.id))
+    
+    # For now, ChatMessages are user-wide. 
+    # In a full multi-tenant system, these would be filtered by place_id.
+    
+    if start_date:
+        query = query.filter(func.date(ChatMessage.created_at) >= start_date)
+    if end_date:
+        query = query.filter(func.date(ChatMessage.created_at) <= end_date)
+        
+    total_queries = query.scalar() or 0
+    
+    # Simple success rate logic: if there is a reply, it counts as handled.
+    # Our ChatMessage model requires reply if created, so it's 100% for now.
+    success_rate = 100.0 if total_queries > 0 else 0.0
+    
     return {
-        "queries": 0,
-        "success_rate": 0.0
+        "queries": total_queries,
+        "success_rate": success_rate
     }
 
 @router.get("/reviews")
