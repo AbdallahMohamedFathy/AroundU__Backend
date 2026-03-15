@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from src.core.dependencies import get_db
+from src.models.user import User
 from src.models.review import Review
 from src.models.place import Place
 from src.schemas.place import PlaceResponse
@@ -245,3 +246,44 @@ def delete_place_image(
     """Delete an existing image."""
     place_image_service.delete_place_image(uow, image_id, current_user)
     return None
+
+@router.get("/reviews/list")
+def get_owner_review_list(
+    start_date: date = Query(None),
+    end_date: date = Query(None),
+    db: Session = Depends(get_db),
+    current_user = Depends(owner_guard)
+):
+
+    place_id = get_owner_place_id(db, current_user.id)
+
+    query = db.query(
+        Review.rating,
+        Review.comment,
+        Review.sentiment,
+        Review.created_at,
+        User.name
+    ).join(User, Review.user_id == User.id).filter(
+        Review.place_id == place_id
+    )
+
+    if start_date:
+        query = query.filter(Review.created_at >= start_date)
+
+    if end_date:
+        query = query.filter(Review.created_at <= end_date)
+
+    reviews = query.order_by(
+        Review.created_at.desc()
+    ).all()
+
+    return [
+        {
+            "rating": r.rating,
+            "comment": r.comment,
+            "sentiment": r.sentiment,
+            "date": r.created_at,
+            "user_name": r.name
+        }
+        for r in reviews
+    ]
