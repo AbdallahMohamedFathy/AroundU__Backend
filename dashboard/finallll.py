@@ -78,6 +78,65 @@ button:focus, button:focus-visible {
     box-shadow: none !important;
 }
 
+/* Review Cards */
+.review-card {
+    background: #F8F9FA;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    border: 1px solid #E9ECEF;
+    transition: all 0.3s ease;
+}
+
+.review-card:hover {
+    border-color: #2F5C85;
+    background: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.user-name {
+    font-weight: 700;
+    color: #1D3143;
+    font-size: 16px;
+}
+
+.review-date {
+    color: #65797E;
+    font-size: 13px;
+}
+
+.sentiment-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.sentiment-positive {
+    background-color: #D1E7DD;
+    color: #0F5132;
+}
+
+.sentiment-negative {
+    background-color: #F8D7DA;
+    color: #842029;
+}
+
+.review-comment {
+    color: #495057;
+    font-size: 15px;
+    line-height: 1.5;
+    margin-top: 8px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -222,6 +281,16 @@ def fetch_review_data(start_date, end_date):
         handle_api_error(res)
     except: pass
     return {"positive": 0, "negative": 0}
+
+@st.cache_data(ttl=30)
+def fetch_review_list(start_date, end_date):
+    try:
+        params = {"start_date": start_date, "end_date": end_date}
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/reviews/list", params=params, headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
 
 @st.cache_data(ttl=30)
 def fetch_location_data():
@@ -421,6 +490,41 @@ elif selected == "Customer Insights":
             <h2 style="color:#1D3143; margin:0;">{reviews['positive'] + reviews['negative']}</h2>
         </div>
         """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.subheader("💬 Customer Reviews")
+    
+    with st.spinner("Loading reviews..."):
+        review_list = fetch_review_list(start_date, end_date)
+        
+        if not review_list:
+            st.info("No reviews available for this period.")
+        else:
+            for rev in review_list:
+                sentiment_class = "sentiment-positive" if rev['sentiment'] == "positive" else "sentiment-negative"
+                
+                # Format date if it's a string from API
+                date_str = rev['date']
+                try:
+                    if isinstance(date_str, str):
+                        date_obj = datetime.strptime(date_str.split('T')[0], "%Y-%m-%d")
+                        date_str = date_obj.strftime("%b %d, %Y")
+                except:
+                    pass
+
+                st.markdown(f"""
+                <div class="review-card">
+                    <div class="review-header">
+                        <div>
+                            <span class="user-name">{rev['user_name']}</span>
+                            <span style="margin-left:10px; color:#FFD700;">{rev['stars']}</span>
+                        </div>
+                        <span class="sentiment-badge {sentiment_class}">{rev['sentiment']}</span>
+                    </div>
+                    <div class="review-date">{date_str}</div>
+                    <div class="review-comment">{rev['comment']}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # =========================
 # 5️⃣ MANAGE PLACE
