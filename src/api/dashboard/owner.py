@@ -206,30 +206,23 @@ def get_owner_reviews(
     return stats
 
 @router.get("/location-heatmap")
-def get_location_heatmap(
-    db: Annotated[Session, Depends(get_db)],
+async def get_location_heatmap(
+    uow: Annotated[Any, Depends(get_uow)],
     current_user = Depends(owner_guard)
 ):
-    """Get location activity data from real visits (simulated by random jitter around place for heat effect)."""
-    place = db.query(Place).filter(Place.owner_id == current_user.id).first()
-    if not place:
-        return []
-    
-    # We query interactions of type 'visit' for this place
-    visits = db.query(Interaction).filter(
-        Interaction.place_id == place.id,
-        Interaction.type == 'visit'
-    ).count()
+    """Get location activity data from real visits using AI heatmap service."""
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place:
+            return []
+        
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        if not visits:
+            return []
 
-    if visits == 0:
-        return []
-
-    # Since we don't have user coordinates in Interaction (yet), 
-    # we return spread points around the place to show "activity area"
-    return [
-        {"lat": place.latitude + (i*0.0005), "lon": place.longitude + (j*0.0005), "intensity": visits * (i+j+1)}
-        for i in range(-2, 3) for j in range(-2, 3)
-    ]
+        points = [{"lat": v.user_lat, "lon": v.user_lon} for v in visits]
+        heatmap_data = await ai_connector.get_heatmap(points)
+        return heatmap_data
 
 # --- IMAGE MANAGEMENT ---
 
