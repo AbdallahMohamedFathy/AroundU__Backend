@@ -560,28 +560,15 @@ elif selected == "Customer Insights":
 
             st.markdown(f"""
             <div class="review-card">
-
                 <div class="review-header">
-
                     <div>
                         <span class="user-name">{rev["user_name"]}</span>
-                        <span style="margin-left:10px;color:#FFD700;">
-                            {rev["stars"]}
-                        </span>
+                        <span style="margin-left:10px;color:#FFD700;">{rev["stars"]}</span>
                     </div>
-
-                    <span class="sentiment-badge {sentiment_class}">
-                        {rev["sentiment"]}
-                    </span>
-
+                    <span class="sentiment-badge {sentiment_class}">{rev["sentiment"]}</span>
                 </div>
-
                 <div class="review-date">{date_str}</div>
-
-                <div class="review-comment">
-                    {rev["comment"]}
-                </div>
-
+                <div class="review-comment">{rev["comment"]}</div>
             </div>
             """, unsafe_allow_html=True)
 
