@@ -460,71 +460,128 @@ if selected == "Dashboard":
         fig_pie.update_traces(textinfo='percent+label', textfont_size=14,
             pull=[0.02, 0.04, 0.02, 0.04], marker=dict(line=dict(color='#FFFFFF', width=2)))
         fig_pie.update_layout(legend_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)# =========================
+# =========================
 # 2️⃣ CUSTOMER INSIGHTS
 # =========================
 elif selected == "Customer Insights":
+
     st.title("🤖 Customer & Review Analysis")
+
+    # Fetch data
     reviews = fetch_review_data(start_date, end_date)
-    
+    review_list = fetch_review_list(start_date, end_date)
+
     c1, c2 = st.columns(2)
+
+    # -----------------------
+    # Sentiment Chart
+    # -----------------------
     with c1:
         st.subheader("Customer Sentiment Overview")
-        if reviews['positive'] > 0 or reviews['negative'] > 0:
+
+        positive = reviews.get("positive", 0)
+        negative = reviews.get("negative", 0)
+
+        if positive > 0 or negative > 0:
+
             sentiment_df = pd.DataFrame({
-                'Sentiment': ['Positive', 'Negative'],
-                'Count': [reviews['positive'], reviews['negative']]
+                "Sentiment": ["Positive", "Negative"],
+                "Count": [positive, negative]
             })
-            fig_reviews = px.bar(sentiment_df, x='Sentiment', y='Count', 
-                color='Sentiment',
-                color_discrete_map={'Positive': '#61A3BB', 'Negative': '#65797E'},
-                template="plotly_white")
+
+            fig_reviews = px.bar(
+                sentiment_df,
+                x="Sentiment",
+                y="Count",
+                color="Sentiment",
+                color_discrete_map={
+                    "Positive": "#61A3BB",
+                    "Negative": "#65797E"
+                },
+                template="plotly_white"
+            )
+
             st.plotly_chart(fig_reviews, use_container_width=True)
+
         else:
             st.info("No review data available for this period.")
-        
+
+    # -----------------------
+    # Total Reviews Card
+    # -----------------------
     with c2:
+
         st.subheader("Review Ratings Overview")
+
+        total_reviews = positive + negative
+
         st.markdown(f"""
         <div style="background:#F8F9FA; padding:20px; border-radius:10px; border-left:5px solid #2F5C85;">
             <p style="color:#65797E; margin-bottom:5px;">Total Reviews in period</p>
-            <h2 style="color:#1D3143; margin:0;">{reviews['positive'] + reviews['negative']}</h2>
+            <h2 style="color:#1D3143; margin:0;">{total_reviews}</h2>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.subheader("💬 Customer Reviews")
-    
-    with st.spinner("Loading reviews..."):
-        review_list = fetch_review_list(start_date, end_date)
-        
-        if not review_list:
-            st.info("No reviews available for this period.")
-        else:
-            for rev in review_list:
-                sentiment_class = "sentiment-positive" if rev['sentiment'] == "positive" else "sentiment-negative"
-                
-                # Format date if it's a string from API
-                date_str = rev['date']
-                try:
-                    if isinstance(date_str, str):
-                        date_obj = datetime.strptime(date_str.split('T')[0], "%Y-%m-%d")
-                        date_str = date_obj.strftime("%b %d, %Y")
-                except:
-                    pass
 
-                st.markdown(f"""
-                <div class="review-card">
-                    <div class="review-header">
-                        <div>
-                            <span class="user-name">{rev['user_name']}</span>
-                            <span style="margin-left:10px; color:#FFD700;">{rev['stars']}</span>
-                        </div>
-                        <span class="sentiment-badge {sentiment_class}">{rev['sentiment']}</span>
+    # -----------------------
+    # Review List
+    # -----------------------
+    st.subheader("💬 Customer Reviews")
+
+    if not review_list:
+
+        st.info("No reviews available for this period.")
+
+    else:
+
+        for rev in review_list:
+
+            sentiment_class = (
+                "sentiment-positive"
+                if rev["sentiment"] == "positive"
+                else "sentiment-negative"
+            )
+
+            # Format date
+            date_str = rev["date"]
+
+            try:
+                if isinstance(date_str, str):
+                    date_obj = datetime.strptime(
+                        date_str.split("T")[0],
+                        "%Y-%m-%d"
+                    )
+                    date_str = date_obj.strftime("%b %d, %Y")
+            except:
+                pass
+
+            st.markdown(f"""
+            <div class="review-card">
+
+                <div class="review-header">
+
+                    <div>
+                        <span class="user-name">{rev["user_name"]}</span>
+                        <span style="margin-left:10px;color:#FFD700;">
+                            {rev["stars"]}
+                        </span>
                     </div>
-                    <div class="review-date">{date_str}</div>
-                    <div class="review-comment">{rev['comment']}</div>
+
+                    <span class="sentiment-badge {sentiment_class}">
+                        {rev["sentiment"]}
+                    </span>
+
                 </div>
-                """, unsafe_allow_html=True)
+
+                <div class="review-date">{date_str}</div>
+
+                <div class="review-comment">
+                    {rev["comment"]}
+                </div>
+
+            </div>
+            """, unsafe_allow_html=True)
 
 # =========================
 # 5️⃣ MANAGE PLACE
@@ -704,4 +761,4 @@ elif selected == "Location Logic":
     else:
         st.warning("No location interaction data available for this selection.")
 else:
-        st.warning("No location data available for the current selection.")
+    st.warning("No location data available for the current selection.")
