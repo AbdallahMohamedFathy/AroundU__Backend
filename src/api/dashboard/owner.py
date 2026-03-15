@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from src.core.dependencies import get_db
+from src.services.ai_service import ai_connector
 from src.models.user import User
 from src.models.review import Review
 from src.models.place import Place
@@ -188,16 +189,20 @@ def get_owner_reviews(
     """Get real aggregated review sentiment stats."""
     place_id = get_owner_place_id(db, current_user.id)
         
-    query = db.query(Review).filter(Review.place_id == place_id)
-    if start_date: query = query.filter(Review.created_at >= start_date)
-    if end_date: query = query.filter(Review.created_at <= end_date)
-    
-    results = db.query(
+    query = db.query(
         Review.sentiment,
         func.count(Review.id)
     ).filter(
         Review.place_id == place_id
-    ).group_by(Review.sentiment).all()
+    )
+
+    if start_date:
+        query = query.filter(Review.created_at >= start_date)
+
+    if end_date:
+        query = query.filter(Review.created_at <= end_date)
+
+    results = query.group_by(Review.sentiment).all()
     
     stats = {"positive": 0, "negative": 0}
     for sentiment, count in results:
@@ -283,7 +288,8 @@ def get_owner_review_list(
             "comment": r.comment,
             "sentiment": r.sentiment,
             "date": r.created_at,
-            "user_name": r.name
+            "user_name": r.name,
+            "stars": "⭐" * r.rating
         }
         for r in reviews
     ]
