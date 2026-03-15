@@ -69,10 +69,10 @@ def get_owner_dashboard(
         )
 
         if start_date:
-            query = query.filter(Interaction.created_at >= start_date)
+            query = query.filter(func.date(Interaction.created_at) >= start_date)
 
         if end_date:
-            query = query.filter(Interaction.created_at <= end_date)
+            query = query.filter(func.date(Interaction.created_at) <= end_date)
 
         results = query.group_by(Interaction.type).all()
 
@@ -128,8 +128,8 @@ def get_owner_analytics(
             func.count(Interaction.id).label('count')
         ).filter(
             Interaction.place_id == place_id,
-            Interaction.created_at >= start_date,
-            Interaction.created_at <= end_date
+            func.date(Interaction.created_at) >= start_date,
+            func.date(Interaction.created_at) <= end_date
         ).group_by(
             func.date(Interaction.created_at),
             Interaction.type
@@ -197,10 +197,10 @@ def get_owner_reviews(
     )
 
     if start_date:
-        query = query.filter(Review.created_at >= start_date)
+        query = query.filter(func.date(Review.created_at) >= start_date)
 
     if end_date:
-        query = query.filter(Review.created_at <= end_date)
+        query = query.filter(func.date(Review.created_at) <= end_date)
 
     results = query.group_by(Review.sentiment).all()
     
@@ -277,10 +277,10 @@ def get_owner_review_list(
     )
 
     if start_date:
-        query = query.filter(Review.created_at >= start_date)
+        query = query.filter(func.date(Review.created_at) >= start_date)
 
     if end_date:
-        query = query.filter(Review.created_at <= end_date)
+        query = query.filter(func.date(Review.created_at) <= end_date)
 
     reviews = query.order_by(
         Review.created_at.desc()
