@@ -21,45 +21,54 @@ st.markdown("""
     background-color: rgba(255, 255, 255, 0);
 }
 
-/* Sidebar */
+/* Sidebar Style Refactor (Blue Header/Strip Style) */
 section[data-testid="stSidebar"] {
-    background-color: #FFFFFF;
-    border-right: 1px solid #E5E7EB;
+    background-color: #F8F9FB !important; /* Make parent clean */
+}
+
+section[data-testid="stSidebar"] > div:first-child {
+    background-color: #1D3143 !important;
+    border-radius: 0px 40px 40px 0px !important;
+    margin-right: 15px;
+    height: 96vh !important;
+    margin-top: 2vh !important;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.1) !important;
 }
 
 section[data-testid="stSidebar"] .stMarkdown h1 {
-    font-size: 22px !important;
-    color: #1D3143 !important;
-    padding-top: 25px;
-    margin-bottom: 4px !important;
+    font-size: 24px !important;
+    color: #FFFFFF !important;
+    padding-top: 35px !important;
+    font-weight: 800 !important;
+    margin-bottom: 0px !important;
 }
 
 section[data-testid="stSidebar"] .stMarkdown p {
-    font-size: 13px !important;
-    color: #64748B !important;
-    margin-bottom: 25px !important;
+    font-size: 14px !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    margin-bottom: 30px !important;
 }
 
 section[data-testid="stSidebar"] * {
-    color: #1D3143;
+    color: white !important;
 }
 
-/* Sidebar Logout Button */
+/* Sidebar Logout Button (Ghost Style) */
 div[data-testid="stSidebar"] button {
-    background-color: #F8F9FA !important;
-    border: 1px solid #E5E7EB !important;
-    color: #1D3143 !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
+    background-color: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    font-weight: 500 !important;
     padding: 10px 20px !important;
-    margin-top: 20px !important;
-    transition: all 0.2s ease !important;
+    margin-top: 30px !important;
+    transition: all 0.3s ease !important;
 }
 
 div[data-testid="stSidebar"] button:hover {
-    background-color: #FEE2E2 !important;
-    color: #DC2626 !important;
-    border-color: #FCA5A5 !important;
+    background-color: #FFFFFF !important;
+    color: #1D3143 !important;
+    border-color: #FFFFFF !important;
 }
 
 /* KPI Cards */
@@ -362,25 +371,25 @@ with st.sidebar:
     selected = option_menu(
         None,
         options=["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"],
-        icons=['grid-fill', 'chat-dots-fill', 'bar-chart-fill', 'geo-alt-fill', 'gear-wide-connected'],
+        icons=['house-door-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill', 'gear-fill'],
         menu_icon="cast",
         default_index=0,
         styles={
             "container": {"background-color": "transparent", "padding": "0px"},
-            "icon": {"color": "#64748B", "font-size": "18px"},
+            "icon": {"color": "rgba(255, 255, 255, 0.7)", "font-size": "18px"},
             "nav-link": {
-                "color": "#475569", "font-size": "15px",
+                "color": "#FFFFFF", "font-size": "15px",
                 "text-align": "left", "margin": "8px 0px",
-                "padding": "12px 20px",
-                "border-radius": "12px",
+                "padding": "12px 18px",
+                "border-radius": "14px",
                 "font-weight": "500",
-                "--hover-color": "#F1F5F9",
+                "--hover-color": "rgba(255, 255, 255, 0.1)",
             },
             "nav-link-selected": {
-                "background-color": "#EBF5FF",
-                "color": "#1E40AF", 
+                "background-color": "#FFFFFF",
+                "color": "#1D3143", 
                 "font-weight": "700",
-                "border-left": "4px solid #1E40AF"
+                "box-shadow": "0px 4px 10px rgba(0,0,0,0.1)"
             }
         }
     )
