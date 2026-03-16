@@ -71,19 +71,22 @@ div[data-testid="stSidebar"] button:hover {
     border-color: #FFFFFF !important;
 }
 
-/* Sidebar date input and widget styling - aggressive override */
+/* Sidebar date input and widget styling - no border, seamless */
 section[data-testid="stSidebar"] [data-baseweb="base-input"],
 section[data-testid="stSidebar"] [data-baseweb="input"],
 section[data-testid="stSidebar"] [data-baseweb="input"] > div {
-    background-color: rgba(255, 255, 255, 0.18) !important;
-    border: 1px solid rgba(255, 255, 255, 0.45) !important;
-    border-radius: 12px !important;
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    border: none !important;
+    outline: none !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
 }
 
 section[data-testid="stSidebar"] [data-baseweb="input"] input {
     color: #FFFFFF !important;
     background-color: transparent !important;
     border: none !important;
+    outline: none !important;
 }
 
 section[data-testid="stSidebar"] [data-baseweb="base-input"] svg {
@@ -437,18 +440,22 @@ with st.sidebar:
     
     st.markdown("### 📅 Select Date Range")
 
-    # Force-style the date input and button to match blue sidebar
+    # Force-style the date input and button to match blue sidebar (no visible borders)
     st.markdown("""
     <style>
     section[data-testid="stSidebar"] .stDateInput div[data-baseweb="input"],
     section[data-testid="stSidebar"] .stDateInput div[data-baseweb="base-input"] {
-        background-color: rgba(255,255,255,0.15) !important;
-        border: 1px solid rgba(255,255,255,0.45) !important;
-        border-radius: 12px !important;
+        background-color: rgba(255,255,255,0.12) !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        border-radius: 10px !important;
     }
     section[data-testid="stSidebar"] .stDateInput input {
         color: #FFFFFF !important;
         background-color: transparent !important;
+        border: none !important;
+        outline: none !important;
     }
     section[data-testid="stSidebar"] .stDateInput span,
     section[data-testid="stSidebar"] .stDateInput svg {
@@ -456,14 +463,16 @@ with st.sidebar:
         fill: #FFFFFF !important;
     }
     section[data-testid="stSidebar"] .stButton > button {
-        background-color: rgba(255,255,255,0.18) !important;
-        border: 1.5px solid rgba(255,255,255,0.5) !important;
+        background-color: rgba(255,255,255,0.15) !important;
+        border: none !important;
+        outline: none !important;
         color: #FFFFFF !important;
-        border-radius: 12px !important;
+        border-radius: 10px !important;
         font-weight: 600 !important;
+        box-shadow: none !important;
     }
     section[data-testid="stSidebar"] .stButton > button:hover {
-        background-color: rgba(255,255,255,0.3) !important;
+        background-color: rgba(255,255,255,0.25) !important;
     }
     </style>
     """, unsafe_allow_html=True)
