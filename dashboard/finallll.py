@@ -56,18 +56,18 @@ section[data-testid="stSidebar"] * {
 /* Sidebar Logout Button (Ghost Style) */
 div[data-testid="stSidebar"] button {
     background-color: transparent !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
     color: #FFFFFF !important;
     border-radius: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     padding: 10px 20px !important;
     margin-top: 30px !important;
     transition: all 0.3s ease !important;
 }
 
 div[data-testid="stSidebar"] button:hover {
-    background-color: #FFFFFF !important;
-    color: #1D3143 !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #FFFFFF !important;
     border-color: #FFFFFF !important;
 }
 
@@ -375,8 +375,8 @@ with st.sidebar:
         menu_icon="cast",
         default_index=0,
         styles={
-            "container": {"background-color": "transparent", "padding": "0px"},
-            "icon": {"color": "rgba(255, 255, 255, 0.7)", "font-size": "18px"},
+            "container": {"background-color": "transparent !important", "padding": "0px !important"},
+            "icon": {"color": "#FFFFFF", "font-size": "18px"},
             "nav-link": {
                 "color": "#FFFFFF", "font-size": "15px",
                 "text-align": "left", "margin": "8px 0px",
@@ -386,10 +386,10 @@ with st.sidebar:
                 "--hover-color": "rgba(255, 255, 255, 0.1)",
             },
             "nav-link-selected": {
-                "background-color": "#FFFFFF",
-                "color": "#1D3143", 
+                "background-color": "#FFFFFF !important",
+                "color": "#055e9b !important", 
                 "font-weight": "700",
-                "box-shadow": "0px 4px 10px rgba(0,0,0,0.1)"
+                "box-shadow": "0px 4px 10px rgba(0,0,0,0.1) !important"
             }
         }
     )
