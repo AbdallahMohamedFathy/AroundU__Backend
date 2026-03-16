@@ -8,6 +8,7 @@ from src.models.review import Review
 from src.models.place import Place
 from src.schemas.place import PlaceResponse
 from src.models.interaction import Interaction
+from src.models.favorite import Favorite
 from src.api.dashboard.dependencies import owner_guard
 from typing import List, Dict, Any
 from typing import Annotated
@@ -76,10 +77,19 @@ def get_owner_dashboard(
 
         results = query.group_by(Interaction.type).all()
 
+        # 2. Count Favorites (saves) separately to sync with favorites table
+        fav_query = db.query(func.count(Favorite.id)).filter(Favorite.place_id == place_id)
+        if start_date:
+            fav_query = fav_query.filter(func.date(Favorite.created_at) >= start_date)
+        if end_date:
+            fav_query = fav_query.filter(func.date(Favorite.created_at) <= end_date)
+        
+        favorite_count = fav_query.scalar() or 0
+
         stats = {
             "visits": 0,
             "orders": 0,
-            "saves": 0,
+            "saves": favorite_count, # Use Favorite table for accuracy
             "calls": 0,
             "directions": 0
         }
@@ -90,7 +100,11 @@ def get_owner_dashboard(
             elif type_ == "order":
                 stats["orders"] = count
             elif type_ == "save":
-                stats["saves"] = count
+                # Only add if interactions are also tracking it, 
+                # but usually mobile app uses Favorites table for 'saves'.
+                # To be safe, we prioritize Favorite table as per user observation.
+                if favorite_count == 0:
+                    stats["saves"] = count
             elif type_ == "call":
                 stats["calls"] = count
             elif type_ == "direction":
@@ -150,14 +164,34 @@ def get_owner_analytics(
             }
             curr += timedelta(days=1)
 
+        # Also query favorites for time-series
+        fav_results = db.query(
+            func.date(Favorite.created_at).label('day'),
+            func.count(Favorite.id).label('count')
+        ).filter(
+            Favorite.place_id == place_id,
+            func.date(Favorite.created_at) >= start_date,
+            func.date(Favorite.created_at) <= end_date
+        ).group_by(
+            func.date(Favorite.created_at)
+        ).all()
+
         for day, type_, count in results:
             d_str = day.strftime("%Y-%m-%d")
             if d_str in daily_data:
                 key = f"{type_}s" if not type_.endswith('s') else type_
                 if type_ == 'visit': key = "visits"
                 if type_ == 'direction': key = "directions"
+                if type_ == 'save': continue # Skip interaction saves, will use favorites
+                
                 if d_str in daily_data and key in daily_data[d_str]:
                     daily_data[d_str][key] = count
+        
+        # Merge favorite data
+        for day, count in fav_results:
+            d_str = day.strftime("%Y-%m-%d")
+            if d_str in daily_data:
+                daily_data[d_str]["saves"] = count
 
         return sorted(list(daily_data.values()), key=lambda x: x['date'])
     except HTTPException:
