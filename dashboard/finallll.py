@@ -183,7 +183,7 @@ def fetch_dashboard_data(start_date, end_date):
         if res.status_code == 200: return res.json()
         handle_api_error(res)
     except: pass
-    return {"visits": 0, "orders": 0, "saves": 0, "calls": 0, "directions": 0}
+    return {"visits": 0, "saves": 0, "calls": 0, "directions": 0}
 
 @st.cache_data(ttl=30)
 def fetch_analytics_data(start_date, end_date):
@@ -199,7 +199,7 @@ def fetch_analytics_data(start_date, end_date):
             return df
         handle_api_error(res)
     except: pass
-    return pd.DataFrame(columns=['Date', 'Visits', 'Orders', 'Saves', 'Directions', 'Calls', 'Review_sentiment'])
+    return pd.DataFrame(columns=['Date', 'Visits', 'Saves', 'Directions', 'Calls', 'Review_sentiment'])
 
 @st.cache_data(ttl=30)
 def fetch_chatbot_stats(start_date, end_date):
@@ -311,7 +311,7 @@ if st.session_state.token is None:
     # --- LOGIN SCREEN ---
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("https://raw.githubusercontent.com/AbdallahMohamedFathy/AroundU__Backend/main/logo.png", width=100) # Placeholder for logo
+        st.image(r"C:\Users\Mega Store\Desktop\Around\WhatsApp Image 2026-03-15 at 11.35.15 AM.jpeg", width=100) # Placeholder for logo
         st.title("🏙️ Welcome to AroundU")
         st.subheader("Owner Dashboard Login")
         
