@@ -27,7 +27,7 @@ section[data-testid="stSidebar"] {
 }
 
 section[data-testid="stSidebar"] > div:first-child {
-    background-color: #0066B2 !important;
+    background-color: #055e9b !important;
     border-radius: 0px 40px 40px 0px !important;
     margin-right: 15px;
     height: 96vh !important;
