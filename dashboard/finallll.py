@@ -71,41 +71,44 @@ div[data-testid="stSidebar"] button:hover {
     border-color: #FFFFFF !important;
 }
 
-/* Sidebar date input and widget styling */
-div[data-testid="stSidebar"] .stDateInput input,
-div[data-testid="stSidebar"] input[type="text"],
-div[data-testid="stSidebar"] input[type="date"] {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    color: #FFFFFF !important;
+/* Sidebar date input and widget styling - aggressive override */
+section[data-testid="stSidebar"] [data-baseweb="base-input"],
+section[data-testid="stSidebar"] [data-baseweb="input"],
+section[data-testid="stSidebar"] [data-baseweb="input"] > div {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.45) !important;
     border-radius: 12px !important;
 }
 
-div[data-testid="stSidebar"] .stDateInput > div,
-div[data-testid="stSidebar"] .stDateInput > div > div {
-    background-color: transparent !important;
-    border: none !important;
-}
-
-div[data-testid="stSidebar"] [data-baseweb="input"] {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    border-radius: 12px !important;
-}
-
-div[data-testid="stSidebar"] [data-baseweb="input"] input {
+section[data-testid="stSidebar"] [data-baseweb="input"] input {
     color: #FFFFFF !important;
     background-color: transparent !important;
     border: none !important;
 }
 
-div[data-testid="stSidebar"] [data-baseweb="input"] svg {
+section[data-testid="stSidebar"] [data-baseweb="input"] svg,
+section[data-testid="stSidebar"] [data-baseweb="base-input"] svg {
     fill: #FFFFFF !important;
 }
 
-div[data-testid="stSidebar"] p,
-div[data-testid="stSidebar"] label {
-    color: rgba(255, 255, 255, 0.85) !important;
+/* Sidebar button - make it fully transparent/ghost */
+section[data-testid="stSidebar"] .stButton > button {
+    background-color: rgba(255,255,255,0.15) !important;
+    border: 1.5px solid rgba(255,255,255,0.45) !important;
+    color: #FFFFFF !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background-color: rgba(255,255,255,0.28) !important;
+}
+
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] span {
+    color: rgba(255, 255, 255, 0.9) !important;
 }
 
 /* KPI Cards */
