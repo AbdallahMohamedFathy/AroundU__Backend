@@ -284,7 +284,11 @@ def fetch_chatbot_stats(start_date, end_date):
 def fetch_my_place():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/owner/my-place", headers=get_headers())
-        if res.status_code == 200: return res.json()
+        if res.status_code == 200: 
+            data = res.json()
+            # Debug log for social links specifically
+            # st.sidebar.write(f"DEBUG Social: FB={data.get('facebook_url')}")
+            return data
         if res.status_code != 401:
             st.error(f"Backend returned {res.status_code}: {res.text}")
         handle_api_error(res)
@@ -796,6 +800,7 @@ elif selected == "Manage Place":
                             img_url = f"{base}/uploads{img_url}"
                     
                     st.image(img_url, use_container_width=True)
+                    st.caption(f"Path: {img_url}") # Debug label to see why it breaks
                     if img.get("caption"):
                         st.caption(img["caption"])
                     if st.button("Remove", key=f"del_place_{img['id']}", type="secondary", icon="🗑️"):
@@ -829,6 +834,7 @@ elif selected == "Manage Place":
                             img_url = f"{base}/uploads{img_url}"
                         
                     st.image(img_url, use_container_width=True)
+                    st.caption(f"Path: {img_url}") # Debug label
                     if img.get("caption"):
                         st.caption(img["caption"])
                     if st.button("Remove", key=f"del_menu_{img['id']}", type="secondary", icon="🗑️"):
