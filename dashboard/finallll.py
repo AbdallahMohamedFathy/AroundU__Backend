@@ -311,7 +311,7 @@ if st.session_state.token is None:
     # --- LOGIN SCREEN ---
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image(r"C:\Users\Mega Store\Desktop\Around\WhatsApp Image 2026-03-15 at 11.35.15 AM.jpeg", width=100) # Placeholder for logo
+        st.image(os.path.join(os.path.dirname(__file__), "logo.jpeg"), width=100) # Placeholder for logo
         st.title("🏙️ Welcome to AroundU")
         st.subheader("Owner Dashboard Login")
         
