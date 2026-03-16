@@ -1,5 +1,5 @@
-from fastapi import Depends, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, status, OAuth2PasswordBearer
+from typing import Optional
 from sqlalchemy.orm import Session
 import jwt
 
@@ -112,36 +112,33 @@ def get_current_user(
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
-
         if payload.get("type") != "access":
-            raise APIException(
-                "Invalid token type",
-                code=status.HTTP_401_UNAUTHORIZED
-            )
-
+            raise APIException("Invalid token type", code=status.HTTP_401_UNAUTHORIZED)
         user_id = payload.get("sub")
-
         if not user_id:
-            raise APIException(
-                "Invalid token payload",
-                code=status.HTTP_401_UNAUTHORIZED
-            )
-
+            raise APIException("Invalid token payload", code=status.HTTP_401_UNAUTHORIZED)
     except jwt.PyJWTError:
-        raise APIException(
-            "Invalid credentials",
-            code=status.HTTP_401_UNAUTHORIZED
-        )
+        raise APIException("Invalid credentials", code=status.HTTP_401_UNAUTHORIZED)
 
     user = user_service.get_user_by_id(repo, int(user_id))
-
     if not user or not user.is_active:
-        raise APIException(
-            "Account is inactive",
-            code=status.HTTP_403_FORBIDDEN
-        )
-
+        raise APIException("Account is inactive", code=status.HTTP_403_FORBIDDEN)
     return user
+
+def get_current_user_optional(
+    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/mobile/auth/login", auto_error=False)),
+    repo: UserRepository = Depends(get_user_repository)
+) -> Optional[UserResponse]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id: return None
+        user = user_service.get_user_by_id(repo, int(user_id))
+        return user if user and user.is_active else None
+    except:
+        return None
 
 
 # =========================================================
