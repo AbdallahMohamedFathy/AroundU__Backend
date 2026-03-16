@@ -436,6 +436,38 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("### 📅 Select Date Range")
+
+    # Force-style the date input and button to match blue sidebar
+    st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] .stDateInput div[data-baseweb="input"],
+    section[data-testid="stSidebar"] .stDateInput div[data-baseweb="base-input"] {
+        background-color: rgba(255,255,255,0.15) !important;
+        border: 1px solid rgba(255,255,255,0.45) !important;
+        border-radius: 12px !important;
+    }
+    section[data-testid="stSidebar"] .stDateInput input {
+        color: #FFFFFF !important;
+        background-color: transparent !important;
+    }
+    section[data-testid="stSidebar"] .stDateInput span,
+    section[data-testid="stSidebar"] .stDateInput svg {
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button {
+        background-color: rgba(255,255,255,0.18) !important;
+        border: 1.5px solid rgba(255,255,255,0.5) !important;
+        color: #FFFFFF !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background-color: rgba(255,255,255,0.3) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     # Using fixed range as fallback, actual data is fetched per period
     max_date = datetime.now()
     date_range = st.date_input(
