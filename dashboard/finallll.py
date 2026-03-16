@@ -23,37 +23,43 @@ st.markdown("""
 
 /* Sidebar */
 section[data-testid="stSidebar"] {
-    background-color: #26394A;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: #FFFFFF;
+    border-right: 1px solid #E5E7EB;
 }
 
 section[data-testid="stSidebar"] .stMarkdown h1 {
-    font-size: 20px !important;
-    padding-top: 20px;
-    margin-bottom: 0px !important;
+    font-size: 22px !important;
+    color: #1D3143 !important;
+    padding-top: 25px;
+    margin-bottom: 4px !important;
 }
 
 section[data-testid="stSidebar"] .stMarkdown p {
     font-size: 13px !important;
-    color: rgba(255, 255, 255, 0.6) !important;
+    color: #64748B !important;
+    margin-bottom: 25px !important;
 }
 
 section[data-testid="stSidebar"] * {
-    color: white;
+    color: #1D3143;
 }
 
 /* Sidebar Logout Button */
 div[data-testid="stSidebar"] button {
-    background-color: transparent !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
-    border-radius: 8px !important;
+    background-color: #F8F9FA !important;
+    border: 1px solid #E5E7EB !important;
+    color: #1D3143 !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 10px 20px !important;
+    margin-top: 20px !important;
     transition: all 0.2s ease !important;
 }
 
 div[data-testid="stSidebar"] button:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-    border-color: #61A3BB !important;
+    background-color: #FEE2E2 !important;
+    color: #DC2626 !important;
+    border-color: #FCA5A5 !important;
 }
 
 /* KPI Cards */
@@ -356,24 +362,25 @@ with st.sidebar:
     selected = option_menu(
         None,
         options=["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"],
-        icons=['grid-1x2', 'chat-left-dots', 'graph-up-arrow', 'geo-alt', 'sliders'],
+        icons=['grid-fill', 'chat-dots-fill', 'bar-chart-fill', 'geo-alt-fill', 'gear-wide-connected'],
         menu_icon="cast",
         default_index=0,
         styles={
             "container": {"background-color": "transparent", "padding": "0px"},
-            "icon": {"color": "rgba(255, 255, 255, 0.5)", "font-size": "16px"},
+            "icon": {"color": "#64748B", "font-size": "18px"},
             "nav-link": {
-                "color": "rgba(255, 255, 255, 0.8)", "font-size": "15px",
-                "text-align": "left", "margin": "4px 0px",
-                "padding": "10px 15px",
-                "border-radius": "8px",
-                "--hover-color": "rgba(255, 255, 255, 0.05)",
+                "color": "#475569", "font-size": "15px",
+                "text-align": "left", "margin": "8px 0px",
+                "padding": "12px 20px",
+                "border-radius": "12px",
+                "font-weight": "500",
+                "--hover-color": "#F1F5F9",
             },
             "nav-link-selected": {
-                "background-color": "#3E5A74",
-                "color": "white", 
-                "font-weight": "600",
-                "border": "1px solid rgba(255, 255, 255, 0.1)"
+                "background-color": "#EBF5FF",
+                "color": "#1E40AF", 
+                "font-weight": "700",
+                "border-left": "4px solid #1E40AF"
             }
         }
     )
