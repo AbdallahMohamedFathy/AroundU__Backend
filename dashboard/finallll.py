@@ -434,14 +434,14 @@ if selected == "Dashboard":
         df_curr = fetch_analytics_data(start_date, end_date)
         df_prev = fetch_analytics_data(prev_start_date, prev_end_date)
         
-        metrics = ['visits', 'orders', 'saves', 'calls']
+        metrics = ['visits', 'saves', 'calls']
         curr_vals = [data[m] for m in metrics]
         prev_vals = [prev_data[m] for m in metrics]
         
         growth_data = pd.DataFrame({
             'Metric': [m.capitalize() for m in metrics] * 2,
             'Value': curr_vals + prev_vals,
-            'Period': ['Selected Period'] * 4 + ['Previous Period'] * 4
+            'Period': ['Selected Period'] * 3 + ['Previous Period'] * 3
         })
         fig_growth = px.bar(growth_data, x='Metric', y='Value', color='Period',
             barmode='group', text='Value', text_auto='.2s',
