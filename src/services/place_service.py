@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from src.models.place import Place
 from src.schemas.place import PlaceResponse
-from src.services.location_parser import extract_coordinates_from_google_maps
+from src.utils.location_parser import extract_coordinates
 from sqlalchemy import text
 from src.core.exceptions import APIException
 from src.core.logger import logger
@@ -149,17 +149,23 @@ def update_place(uow: Any, place_id: int, place_data: Any, current_user: Any):
             loc_link = update_data.get("location_link")
             if loc_link and loc_link.strip():
                 try:
-                    lat, lng = extract_coordinates_from_google_maps(loc_link)
-                    if lat is not None and lng is not None:
+                    coords = extract_coordinates(loc_link)
+                    if coords:
+                        lat, lng = coords
                         place.latitude = lat
                         place.longitude = lng
                         # Avoid overwriting link-extracted coords with potentially stale raw values
                         update_data.pop("latitude", None)
                         update_data.pop("longitude", None)
-                except ValueError as e:
-                    raise APIException(str(e), code=status.HTTP_400_BAD_REQUEST)
+                except Exception as e:
+                    logger.error(f"Failed to parse location link: {str(e)}")
+                    # We don't necessarily want to fail the whole update if the link is bad,
+                    # but the user requested robust parsing.
                 
                 update_data.pop("location_link", None)
+
+            # Debug log for social media and other updates
+            logger.info(f"Updating place {place_id} with data: {update_data}")
 
             # Perform the update
             updated_place = uow.place_repository.update(place, update_data)

@@ -7,7 +7,7 @@ from src.core.security import get_password_hash
 from src.models.user import User
 from src.models.place import Place
 from src.schemas.admin import PlaceCreationResponse
-from src.services.location_parser import extract_coordinates_from_google_maps
+from src.utils.location_parser import extract_coordinates
 from sqlalchemy import text
 
 def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
@@ -69,9 +69,11 @@ def create_place_with_owner(uow: UnitOfWork, place_in, current_admin):
         
         if place_in.location_link:
             try:
-                lat, lng = extract_coordinates_from_google_maps(place_in.location_link)
-            except ValueError as e:
-                raise APIException(str(e), code=status.HTTP_400_BAD_REQUEST)
+                coords = extract_coordinates(place_in.location_link)
+                if coords:
+                    lat, lng = coords
+            except Exception as e:
+                logger.error(f"Admin create place: Location parsing failed: {str(e)}")
 
         if lat is None or lng is None:
             raise APIException("Latitude and Longitude are required if location_link is not provided", code=status.HTTP_400_BAD_REQUEST)
