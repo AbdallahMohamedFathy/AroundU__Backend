@@ -21,18 +21,39 @@ st.markdown("""
     background-color: rgba(255, 255, 255, 0);
 }
 
-h1, h2, h3 {
-    color: #1D3143;
-    font-weight: 700 !important;
-}
-
 /* Sidebar */
 section[data-testid="stSidebar"] {
-    background-color: #1D3143;
+    background-color: #26394A;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+section[data-testid="stSidebar"] .stMarkdown h1 {
+    font-size: 20px !important;
+    padding-top: 20px;
+    margin-bottom: 0px !important;
+}
+
+section[data-testid="stSidebar"] .stMarkdown p {
+    font-size: 13px !important;
+    color: rgba(255, 255, 255, 0.6) !important;
 }
 
 section[data-testid="stSidebar"] * {
     color: white;
+}
+
+/* Sidebar Logout Button */
+div[data-testid="stSidebar"] button {
+    background-color: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-testid="stSidebar"] button:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: #61A3BB !important;
 }
 
 /* KPI Cards */
@@ -333,23 +354,26 @@ with st.sidebar:
     st.caption("Beni Suef Business Intelligence")
 
     selected = option_menu(
-        "Main Menu",
+        None,
         options=["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"],
-        icons=['speedometer2', 'chat-square-text', 'clock-history', 'geo-alt', 'gear'],
+        icons=['grid-1x2', 'chat-left-dots', 'graph-up-arrow', 'geo-alt', 'sliders'],
         menu_icon="cast",
         default_index=0,
         styles={
-            "container": {"background-color": "#1D3143", "padding": "5px"},
-            "menu-title": {"color": "#FFFFFF", "font-weight": "bold", "font-size": "15px"},
-            "icon": {"color": "#61A3BB", "font-size": "18px"},
+            "container": {"background-color": "transparent", "padding": "0px"},
+            "icon": {"color": "rgba(255, 255, 255, 0.5)", "font-size": "16px"},
             "nav-link": {
-                "color": "white", "font-size": "16px",
-                "text-align": "left", "margin": "2px",
-                "--hover-color": "#619FB8",
+                "color": "rgba(255, 255, 255, 0.8)", "font-size": "15px",
+                "text-align": "left", "margin": "4px 0px",
+                "padding": "10px 15px",
+                "border-radius": "8px",
+                "--hover-color": "rgba(255, 255, 255, 0.05)",
             },
             "nav-link-selected": {
-                "background-color": "#2F5C85",
-                "color": "white", "font-weight": "bold"
+                "background-color": "#3E5A74",
+                "color": "white", 
+                "font-weight": "600",
+                "border": "1px solid rgba(255, 255, 255, 0.1)"
             }
         }
     )
