@@ -375,7 +375,7 @@ with st.sidebar:
         menu_icon="cast",
         default_index=0,
         styles={
-            "container": {"background-color": "transparent !important", "padding": "0px !important"},
+            "container": {"background-color": "#055e9b !important", "padding": "0px !important"},
             "icon": {"color": "#FFFFFF", "font-size": "18px"},
             "nav-link": {
                 "color": "#FFFFFF", "font-size": "15px",
