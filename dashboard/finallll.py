@@ -433,7 +433,9 @@ if selected == "Dashboard":
         growth_data = pd.DataFrame({
             'Metric': [m.capitalize() for m in metrics] * 2,
             'Value': curr_vals + prev_vals,
-                  fig_growth = px.bar(growth_data, x='Metric', y='Value', color='Period',
+            'Period': ['Selected Period'] * 3 + ['Previous Period'] * 3
+        })
+        fig_growth = px.bar(growth_data, x='Metric', y='Value', color='Period',
             barmode='group', text='Value', text_auto='.2s',
             color_discrete_map={'Selected Period': '#1D3143', 'Previous Period': '#61A3BB'},
             template="plotly_white")
@@ -453,7 +455,6 @@ if selected == "Dashboard":
         fig_pie.update_traces(textinfo='percent', textfont_size=14,
             marker=dict(line=dict(color='#FFFFFF', width=2)))
         fig_pie.update_layout(legend_title_text='', margin=dict(t=20, b=20, l=20, r=20), height=400)
-nd_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)# =========================
 # =========================
 # 2️⃣ CUSTOMER INSIGHTS
 # =========================
