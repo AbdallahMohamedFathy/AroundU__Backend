@@ -14,11 +14,16 @@ st.markdown("""
 <style>
 
 .stApp {
-    background-color: #FFFFFF;
+    background-color: #F8F9FB;
+}
+
+[data-testid="stHeader"] {
+    background-color: rgba(255, 255, 255, 0);
 }
 
 h1, h2, h3 {
     color: #1D3143;
+    font-weight: 700 !important;
 }
 
 /* Sidebar */
@@ -33,108 +38,95 @@ section[data-testid="stSidebar"] * {
 /* KPI Cards */
 .kpi-card {
     background: #FFFFFF;
-    padding: 22px;
-    border-radius: 14px;
-    border-left: 6px solid #2F5C85;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    transition: all 0.25s ease;
-    cursor: pointer;
+    padding: 24px;
+    border-radius: 16px;
+    border-top: 4px solid #61A3BB;
+    box-shadow: 0 4px 20px rgba(29, 49, 67, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
 }
 
 .kpi-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
-    border-left: 6px solid #61A3BB;
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(29, 49, 67, 0.12);
+    border-top-color: #2F5C85;
 }
 
-.kpi-title { font-size: 14px; color: #65797E; }
-.kpi-value { font-size: 34px; font-weight: bold; color: #1D3143; }
-.kpi-delta { font-size: 14px; color: #61A3BB; }
-
-/* DATE INPUT */
-[data-baseweb="input"] input {
-    color: #1D3143 !important;
-    font-weight: 500 !important;
+.kpi-title { 
+    font-size: 14px; 
+    color: #65797E; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
 }
-div[data-baseweb="input"] span {
-    color: #1D3143 !important;
+.kpi-value { 
+    font-size: 36px; 
+    font-weight: 800; 
+    color: #1D3143; 
+    margin: 8px 0;
 }
-
-/* CALENDAR - أسماء أيام الأسبوع */
-[data-baseweb="calendar"] [role="columnheader"] {
-    color: #65797E !important;
-    font-weight: 600 !important;
-}
-
-/* اليوم الحالي */
-[data-baseweb="calendar"] [aria-current="date"] {
-    border: 2px solid #2F5C85 !important;
-    border-radius: 50% !important;
-}
-
-/* إزالة outline */
-button:focus, button:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
+.kpi-delta { 
+    font-size: 14px; 
+    font-weight: 600;
+    color: #61A3BB; 
 }
 
 /* Review Cards */
 .review-card {
-    background: #F8F9FA;
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 16px;
+    background: #FFFFFF;
+    padding: 24px;
+    border-radius: 16px;
+    margin-bottom: 20px;
     border: 1px solid #E9ECEF;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
     transition: all 0.3s ease;
 }
 
 .review-card:hover {
-    border-color: #2F5C85;
-    background: #FFFFFF;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border-color: #61A3BB;
+    box-shadow: 0 8px 24px rgba(97, 163, 187, 0.1);
 }
 
 .review-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .user-name {
     font-weight: 700;
     color: #1D3143;
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .review-date {
-    color: #65797E;
+    color: #adb5bd;
     font-size: 13px;
 }
 
 .sentiment-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
+    padding: 6px 14px;
+    border-radius: 30px;
     font-size: 12px;
-    font-weight: 600;
-    text-transform: capitalize;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .sentiment-positive {
-    background-color: #D1E7DD;
-    color: #0F5132;
+    background-color: #E7F3F7;
+    color: #61A3BB;
 }
 
 .sentiment-negative {
-    background-color: #F8D7DA;
-    color: #842029;
+    background-color: #FEECEB;
+    color: #E63946;
 }
 
 .review-comment {
-    color: #495057;
+    color: #4A5568;
     font-size: 15px;
-    line-height: 1.5;
-    margin-top: 8px;
+    line-height: 1.6;
 }
 
 </style>
@@ -441,27 +433,27 @@ if selected == "Dashboard":
         growth_data = pd.DataFrame({
             'Metric': [m.capitalize() for m in metrics] * 2,
             'Value': curr_vals + prev_vals,
-            'Period': ['Selected Period'] * 3 + ['Previous Period'] * 3
-        })
-        fig_growth = px.bar(growth_data, x='Metric', y='Value', color='Period',
+                  fig_growth = px.bar(growth_data, x='Metric', y='Value', color='Period',
             barmode='group', text='Value', text_auto='.2s',
-            color_discrete_map={'Selected Period': '#2F5C85', 'Previous Period': '#61A3BB'},
+            color_discrete_map={'Selected Period': '#1D3143', 'Previous Period': '#61A3BB'},
             template="plotly_white")
-        fig_growth.update_traces(textposition='outside')
-        fig_growth.update_layout(yaxis_title='Total Count', xaxis_title='Metric',
-            margin=dict(t=40, b=40, l=40, r=40))
+        fig_growth.update_traces(textposition='outside', marker_line_width=0)
+        fig_growth.update_layout(yaxis_title='Total Count', xaxis_title='',
+            margin=dict(t=40, b=40, l=40, r=40),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_growth, use_container_width=True)
 
     with col_right:
         st.subheader("🤖 Chatbot Stats")
         bot_stats = fetch_chatbot_stats(start_date, end_date)
         st.metric("Bot Resolution Rate", f"{bot_stats['success_rate']:.1f}%")
-        query_types = pd.DataFrame({'Type': ['Menu', 'Hours', 'Location', 'Pricing'], 'Val': [40, 30, 20, 10]})
-        fig_pie = px.pie(query_types, values='Val', names='Type', hole=0.5, color='Type',
-            color_discrete_map={'Menu': '#2F5C85', 'Hours': '#61A3BB', 'Location': '#65797E', 'Pricing': '#1D3143'})
-        fig_pie.update_traces(textinfo='percent+label', textfont_size=14,
-            pull=[0.02, 0.04, 0.02, 0.04], marker=dict(line=dict(color='#FFFFFF', width=2)))
-        fig_pie.update_layout(legend_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)# =========================
+        query_types = pd.DataFrame({'Type': ['Menu', 'Hours', 'Order Status', 'General'], 'Val': [40, 30, 20, 10]})
+        fig_pie = px.pie(query_types, values='Val', names='Type', hole=0.6, color='Type',
+            color_discrete_map={'Menu': '#1D3143', 'Hours': '#2F5C85', 'Order Status': '#61A3BB', 'General': '#F8F9FA'})
+        fig_pie.update_traces(textinfo='percent', textfont_size=14,
+            marker=dict(line=dict(color='#FFFFFF', width=2)))
+        fig_pie.update_layout(legend_title_text='', margin=dict(t=20, b=20, l=20, r=20), height=400)
+nd_title_text='Query Type', margin=dict(t=20, b=20, l=20, r=20), height=400)# =========================
 # =========================
 # 2️⃣ CUSTOMER INSIGHTS
 # =========================
@@ -507,12 +499,13 @@ elif selected == "Customer Insights":
                     color="Sentiment",
                     color_discrete_map={
                         "Positive": "#61A3BB",
-                        "Negative": "#65797E",
+                        "Negative": "#E63946",
                         "Neutral": "#2F5C85",
-                        "Unknown": "#D3D3D3"
+                        "Unknown": "#F8F9FA"
                     },
                     template="plotly_white"
                 )
+                fig_reviews.update_traces(marker_line_width=0)
                 st.plotly_chart(fig_reviews, use_container_width=True)
             else:
                 st.info("No reviews with sentiment data available.")
@@ -735,8 +728,9 @@ elif selected == "Operations":
         
         st.subheader("Hourly Interaction Volume")
         fig_line = px.line(df, x='Date', y=['Visits', 'Calls'], 
-            color_discrete_sequence=['#2F5C85', '#61A3BB'],
+            color_discrete_sequence=['#1D3143', '#61A3BB'],
             title="Interaction Trends Over Time")
+        fig_line.update_layout(template="plotly_white")
         st.plotly_chart(fig_line, use_container_width=True)
     else:
         st.warning("Insufficient data to display operational trends.")
