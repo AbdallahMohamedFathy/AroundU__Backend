@@ -1,4 +1,5 @@
-from fastapi import Depends, status, OAuth2PasswordBearer
+from fastapi import Depends, status
+from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
 from sqlalchemy.orm import Session
 import jwt
