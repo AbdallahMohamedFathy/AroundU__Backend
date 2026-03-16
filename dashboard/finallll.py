@@ -37,7 +37,7 @@ section[data-testid="stSidebar"] > div:first-child {
 
 section[data-testid="stSidebar"] .stMarkdown h1 {
     font-size: 24px !important;
-    color: #FFFFFF !important;
+    color: #055e9b !important;
     padding-top: 35px !important;
     font-weight: 800 !important;
     margin-bottom: 0px !important;
@@ -57,7 +57,7 @@ section[data-testid="stSidebar"] * {
 div[data-testid="stSidebar"] button {
     background-color: transparent !important;
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    color: white !important;
+    color: #055e9b !important;
     border-radius: 12px !important;
     font-weight: 500 !important;
     padding: 10px 20px !important;
