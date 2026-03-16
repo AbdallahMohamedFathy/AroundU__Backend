@@ -1,16 +1,22 @@
-from fastapi import APIRouter, Depends, Query
-from typing import Optional
-from src.core.dependencies import get_place_repository
+from fastapi import APIRouter, Depends, Query, BackgroundTasks
+from typing import Optional, List
+from src.core.dependencies import get_place_repository, get_uow, get_place_image_repository
 from src.schemas.place import PlaceResponse, PlaceListResponse, NearbyPlaceListResponse
 from src.services.place_service import (
     get_places, get_place_by_id, get_nearby_places,
 )
+from src.models.interaction import Interaction
 from src.services import place_image_service
 from src.schemas.place_image import PlaceImageResponse
-from src.core.dependencies import get_place_image_repository
-from typing import List
 
 router = APIRouter()
+
+# ─── Helper for background visits ───
+def record_view_visit(place_id: int, uow):
+    with uow:
+        visit = Interaction(place_id=place_id, type="visit")
+        uow.interaction_repository.add(visit)
+        uow.commit()
 
 
 # ─── LIST  GET /places ───────────────────────────────────────────────────────
@@ -46,9 +52,16 @@ def nearby_places(
 
 # ─── GET ONE  GET /places/{id} ──────────────────────────────────────────────
 @router.get("/{place_id}", response_model=PlaceResponse)
-def get_place(place_id: int, repo = Depends(get_place_repository)):
-    """Retrieve a single place by ID."""
-    return get_place_by_id(repo, place_id)
+def get_place(
+    place_id: int, 
+    background_tasks: BackgroundTasks,
+    repo = Depends(get_place_repository),
+    uow = Depends(get_uow)
+):
+    """Retrieve a single place by ID and record a visit in the background."""
+    place = get_place_by_id(repo, place_id)
+    background_tasks.add_task(record_view_visit, place_id, uow)
+    return place
 
 @router.get("/{place_id}/images", response_model=List[PlaceImageResponse])
 def list_place_images(
