@@ -86,7 +86,6 @@ section[data-testid="stSidebar"] [data-baseweb="input"] input {
     border: none !important;
 }
 
-section[data-testid="stSidebar"] [data-baseweb="input"] svg,
 section[data-testid="stSidebar"] [data-baseweb="base-input"] svg {
     fill: #FFFFFF !important;
 }
