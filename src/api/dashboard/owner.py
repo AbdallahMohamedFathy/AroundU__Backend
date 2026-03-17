@@ -282,9 +282,74 @@ async def get_location_heatmap(
         if not visits:
             return []
 
-        points = [{"lat": v.user_lat, "lon": v.user_lon} for v in visits]
-        heatmap_data = await ai_connector.get_heatmap(points)
+        points = [{"lat": v.user_lat, "lon": v.user_lon} for v in visits if v.user_lat and v.user_lon]
+        
+        from src.services.ai_location_service import ai_location_service
+        heatmap_data = await ai_location_service.get_heatmap(points)
         return heatmap_data
+
+@router.get("/opportunities")
+async def get_opportunities(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user = Depends(owner_guard)
+):
+    """Get opportunity clusters based on interaction points."""
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return []
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        if not visits: return []
+        points = [{"lat": v.user_lat, "lon": v.user_lon} for v in visits if v.user_lat and v.user_lon]
+        
+        from src.services.ai_location_service import ai_location_service
+        ops = await ai_location_service.get_opportunities(points)
+        return ops
+
+@router.get("/anomalies")
+async def get_anomalies(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user = Depends(owner_guard)
+):
+    """Get anomalies based on basic interaction metrics."""
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return []
+        
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        # Prepare some basic metric payload for anomaly detection
+        metrics_data = [{"metric_name": "visits", "value": len(visits)}]
+        
+        from src.services.anomaly_service import ai_anomaly_service
+        return await ai_anomaly_service.detect_anomalies(metrics_data)
+
+@router.get("/anomalies/summary")
+async def get_anomalies_summary(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user = Depends(owner_guard)
+):
+    """Get summary for anomaly data."""
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return {}
+        
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        metrics_data = [{"metric_name": "visits", "value": len(visits)}]
+        
+        from src.services.anomaly_service import ai_anomaly_service
+        return await ai_anomaly_service.get_summary(metrics_data)
+
+@router.get("/place-anomalies")
+async def get_place_anomalies(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user = Depends(owner_guard)
+):
+    """Get specific place anomalies."""
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return []
+        
+        from src.services.anomaly_service import ai_anomaly_service
+        return await ai_anomaly_service.get_place_anomalies(place.id)
 
 # --- IMAGE MANAGEMENT ---
 
