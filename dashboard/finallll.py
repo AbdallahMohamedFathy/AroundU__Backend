@@ -281,6 +281,33 @@ def fetch_chatbot_stats(start_date, end_date):
     except: pass
     return {"queries": 0, "success_rate": 0.0}
 
+@st.cache_data(ttl=60)
+def fetch_anomalies():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/anomalies", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
+
+@st.cache_data(ttl=60)
+def fetch_anomalies_summary():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/anomalies/summary", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return {}
+
+@st.cache_data(ttl=60)
+def fetch_opportunities():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/opportunities", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
+
 def fetch_my_place():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/owner/my-place", headers=get_headers())
@@ -636,6 +663,49 @@ elif selected == "Customer Insights":
                 st.info("No reviews with sentiment data available.")
         else:
             st.info("No review data available for this period.")
+
+    # -----------------------
+    # AI Alerts & Summary
+    # -----------------------
+    st.markdown("---")
+    st.subheader("🚨 AI Business Intelligence")
+    
+    anomalies = fetch_anomalies()
+    summary = fetch_anomalies_summary()
+    opportunities = fetch_opportunities()
+    
+    col_ai1, col_ai2 = st.columns(2)
+    
+    with col_ai1:
+        st.markdown("#### ⚠️ AI Alerts")
+        if anomalies:
+            for item in anomalies:
+                # Assuming item format: {"anomaly_type": "Spike", "metric": "visits", "description": "..."}
+                desc = item.get("description", str(item))
+                st.warning(f"**Anomaly Detected:** {desc}")
+        else:
+            st.success("No critical anomalies detected recently.")
+            
+        st.markdown("#### 📊 Summary")
+        if summary:
+            # Assuming summary format has a 'summary' or 'text' field
+            text = summary.get("summary", summary.get("text", str(summary)))
+            st.info(text)
+        else:
+            st.info("No AI summary available.")
+            
+    with col_ai2:
+        st.markdown("#### 🎯 Opportunities")
+        if opportunities:
+            for opp in opportunities:
+                 # Assuming opp format: {"title": "...", "description": "..."}
+                 title = opp.get("title", opp.get("opportunity_type", "New Opportunity"))
+                 desc = opp.get("description", str(opp))
+                 st.info(f"**💡 {title}**\n\n{desc}")
+        else:
+            st.info("No new opportunities identified at the moment.")
+
+    st.markdown("---")
 
     # -----------------------
     # Total Reviews Card
