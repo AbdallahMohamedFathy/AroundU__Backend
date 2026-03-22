@@ -15,7 +15,7 @@ router = APIRouter()
 def record_view_visit(place_id: int, uow):
     with uow:
         visit = Interaction(place_id=place_id, type="visit")
-        uow.interaction_repository.add(visit)
+        uow.interaction_repository.create(visit)
         uow.commit()
 
 

@@ -24,7 +24,7 @@ async def chat_with_ai(
         if not conversation:
             from src.models.conversation import Conversation # Lazy import
             conversation = Conversation(user_id=current_user.id)
-            uow.conversation_repository.add(conversation)
+            uow.conversation_repository.create(conversation)
             uow.session.flush() # Get ID
 
         # 2. Save user message
@@ -34,7 +34,7 @@ async def chat_with_ai(
             sender="user",
             content=message_content
         )
-        uow.message_repository.add(user_msg)
+        uow.message_repository.create(user_msg)
         
         # 3. Get AI response from microservice
         ai_response_data = await ai_connector.send_chat_message(current_user.id, message_content)
@@ -45,7 +45,7 @@ async def chat_with_ai(
             sender="ai",
             content=ai_response_data.get("response", "")
         )
-        uow.message_repository.add(ai_msg)
+        uow.message_repository.create(ai_msg)
         uow.commit()
 
     return ai_response_data
