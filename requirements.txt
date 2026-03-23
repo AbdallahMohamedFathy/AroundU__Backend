@@ -23,6 +23,7 @@ python-jose[cryptography]>=3.3.0
 
 # Image Processing
 Pillow>=10.1.0
+cloudinary>=1.36.0
 
 # Email
 aiosmtplib>=3.0.1
