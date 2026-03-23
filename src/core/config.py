@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     AI_SENTIMENT_TIMEOUT_SECONDS: float = 3.0
     AI_SENTIMENT_MAX_RETRIES: int = 3
 
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: str = Field(..., env="CLOUDINARY_CLOUD_NAME")
+    CLOUDINARY_API_KEY: str = Field(..., env="CLOUDINARY_API_KEY")
+    CLOUDINARY_API_SECRET: str = Field(..., env="CLOUDINARY_API_SECRET")
+
     def get_cors_origins(self) -> list:
         if self.CORS_ORIGINS == "*":
             return ["*"]

@@ -862,12 +862,13 @@ elif selected == "Manage Place":
                 with cols[idx % 4]:
                     # Build full URL if relative
                     img_url = img['image_url']
-                    if img_url.startswith("/"):
+                    # Only prepend base if it's a local relative path
+                    if img_url.startswith("/uploads/"):
                         base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
-                        if img_url.startswith("/uploads/"):
-                            img_url = f"{base}{img_url}"
-                        else:
-                            img_url = f"{base}/uploads{img_url}"
+                        img_url = f"{base}{img_url}"
+                    elif img_url.startswith("/") and not img_url.startswith("/uploads/"):
+                        base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                        img_url = f"{base}/uploads{img_url}"
                     
                     st.image(img_url, use_container_width=True)
                     st.caption(f"Path: {img_url}") # Debug label to see why it breaks
@@ -896,12 +897,13 @@ elif selected == "Manage Place":
             for idx, img in enumerate(menu_imgs):
                 with cols[idx % 4]:
                     img_url = img['image_url']
-                    if img_url.startswith("/"):
+                    # Only prepend base if it's a local relative path
+                    if img_url.startswith("/uploads/"):
                         base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
-                        if img_url.startswith("/uploads/"):
-                            img_url = f"{base}{img_url}"
-                        else:
-                            img_url = f"{base}/uploads{img_url}"
+                        img_url = f"{base}{img_url}"
+                    elif img_url.startswith("/") and not img_url.startswith("/uploads/"):
+                        base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                        img_url = f"{base}/uploads{img_url}"
                         
                     st.image(img_url, use_container_width=True)
                     st.caption(f"Path: {img_url}") # Debug label

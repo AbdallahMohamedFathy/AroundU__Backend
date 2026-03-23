@@ -1,6 +1,6 @@
 from typing import List, Any
 from fastapi import status
-from src.models.place_image import PlaceImage
+from src.models.place_image import PlaceImage, UploadFile, File
 from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
 from src.core.exceptions import APIException
 from src.core.permissions import require_place_owner_or_admin
@@ -38,6 +38,9 @@ def delete_place_image(uow: Any, image_id: int, current_user: Any):
         
         place = uow.place_repository.get_by_id(image.place_id)
         require_place_owner_or_admin(current_user, place)
+        
+        from src.services.cloudinary_service import delete_image
+        delete_image(image.image_url)
         
         uow.place_image_repository.delete(image)
         uow.commit()
