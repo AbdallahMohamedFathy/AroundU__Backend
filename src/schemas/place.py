@@ -64,6 +64,7 @@ class NearbyPlaceResponse(BaseModel):
     category: str
     description: Optional[str] = None
     distance: float
+    is_favorited: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 

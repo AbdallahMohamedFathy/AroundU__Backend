@@ -19,3 +19,9 @@ class FavoriteRepository(BaseRepository[Favorite]):
         return self.session.query(Favorite)\
             .filter(Favorite.user_id == user_id, Favorite.place_id == place_id)\
             .first()
+
+    def get_user_favorite_place_ids(self, user_id: int) -> set[int]:
+        """Returns a set of place_ids that the user has favorited."""
+        results = self.session.query(Favorite.place_id)\
+            .filter(Favorite.user_id == user_id).all()
+        return {r[0] for r in results}
