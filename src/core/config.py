@@ -22,12 +22,19 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7    # 7 days as per requirements
 
     # Database
-    DATABASE_URL: str = Field(..., env="DATABASE_URL")
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 20
+    DATABASE_URL: str
+    Environment : str ="production"
+    
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30
     DB_POOL_RECYCLE: int = 1800
     DB_QUERY_TIMEOUT_MS: int = 5000
+
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
+  
 
     # Email Configuration
     SMTP_HOST: str = "smtp.gmail.com"
