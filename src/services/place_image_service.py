@@ -1,6 +1,7 @@
 from typing import List, Any
 from fastapi import status
-from src.models.place_image import PlaceImage, UploadFile, File
+from src.models.place_image import PlaceImage
+from fastapi import UploadFile, File
 from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
 from src.core.exceptions import APIException
 from src.core.permissions import require_place_owner_or_admin
