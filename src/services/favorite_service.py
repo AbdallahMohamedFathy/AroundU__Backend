@@ -1,6 +1,3 @@
-"""
-Service layer for managing user favorites (Refactored for Phase D)
-"""
 from typing import List, Optional
 from src.core.unit_of_work import UnitOfWork
 from src.repositories.favorite_repository import FavoriteRepository
@@ -38,7 +35,7 @@ def remove_favorite(uow: UnitOfWork, user_id: int, place_id: int) -> bool:
         if not favorite:
             raise APIException("Favorite not found", code=status.HTTP_404_NOT_FOUND)
 
-        uow.favorite_repository.delete(favorite.id)
+        uow.favorite_repository.delete(favorite)
         uow.commit()
         return True
 
