@@ -404,6 +404,15 @@ def fetch_location_data():
     except: pass
     return pd.DataFrame()
 
+@st.cache_data(ttl=30)
+def fetch_interactions_locations():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/interactions-locations", headers=get_headers())
+        if res.status_code == 200: return pd.DataFrame(res.json())
+        handle_api_error(res)
+    except: pass
+    return pd.DataFrame()
+
 # --- MAIN APP LOGIC ---
 if 'token' not in st.session_state:
     st.session_state.token = None
@@ -939,19 +948,58 @@ elif selected == "Operations":
 # =========================
 elif selected == "Location Logic":
     st.title("📍 Location Analysis: Beni Suef")
-    map_data = fetch_location_data()
+    
+    # Map Mode Toggle
+    mode = st.radio("Map Mode", ["Heatmap", "Users"], horizontal=True)
     
     BS_LAT, BS_LON = 29.0661, 31.0994
-    if not map_data.empty:
-        fig_map = px.density_mapbox(map_data, lat='lat', lon='lon', z='intensity',
-            radius=15, center=dict(lat=BS_LAT, lon=BS_LON), zoom=15,
-            mapbox_style="open-street-map", height=700)
-        fig_map.update_layout(
-            coloraxis_colorbar=dict(title="Intensity",
-                title_font=dict(color="#1D3143"), tickfont=dict(color="#1D3143")),
-            margin={"r":0,"t":0,"l":0,"b":0})
-        st.plotly_chart(fig_map, use_container_width=True)
-    else:
-        st.warning("No location interaction data available for this selection.")
+
+    if mode == "Heatmap":
+        map_data = fetch_location_data()
+        if not map_data.empty:
+            fig_map = px.density_mapbox(map_data, lat='lat', lon='lon', z='intensity',
+                radius=15, center=dict(lat=BS_LAT, lon=BS_LON), zoom=15,
+                mapbox_style="open-street-map", height=700)
+            fig_map.update_layout(
+                coloraxis_colorbar=dict(title="Intensity",
+                    title_font=dict(color="#1D3143"), tickfont=dict(color="#1D3143")),
+                margin={"r":0,"t":0,"l":0,"b":0})
+            st.plotly_chart(fig_map, use_container_width=True)
+        else:
+            st.warning("No location interaction data available for heatmap.")
+    
+    else: # Users Mode
+        scatter_data = fetch_interactions_locations()
+        if not scatter_data.empty:
+            # Color mapping per instruction: visit -> red, call -> blue, save -> green
+            color_map = {
+                "visit": "#E63946", # Red
+                "call": "#2F5C85", # Blue
+                "save": "#61A3BB"  # Green
+            }
+            
+            fig_scatter = px.scatter_mapbox(
+                scatter_data, 
+                lat="lat", 
+                lon="lon", 
+                color="type",
+                color_discrete_map=color_map,
+                zoom=14,
+                center=dict(lat=BS_LAT, lon=BS_LON),
+                height=700,
+                hover_name="type" # Show interaction type on hover
+            )
+            fig_scatter.update_layout(
+                mapbox_style="open-street-map",
+                margin={"r":0,"t":0,"l":0,"b":0},
+                legend=dict(
+                    title="Interaction Type",
+                    yanchor="top", y=0.99, xanchor="left", x=0.01,
+                    bgcolor="rgba(255, 255, 255, 0.8)"
+                )
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
+        else:
+            st.warning("No individual user interactions yet.")
 else:
-    st.warning("No location data available for the current selection.")
+    st.warning("Please select a valid section from the sidebar.")

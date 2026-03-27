@@ -4,15 +4,19 @@ from typing import Dict, Any, Optional
 from src.core.logger import logger
 
 class BaseAIService:
-    def __init__(self, service_name: str, timeout: float = 10.0, max_retries: int = 3):
+    def __init__(self, service_name: str, base_url: str = "", timeout: float = 10.0, max_retries: int = 3):
         self.service_name = service_name
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
 
-    async def _request_with_retry(self, method: str, url: str, **kwargs) -> Optional[Dict[str, Any]]:
+    async def _request_with_retry(self, method: str, path: str, **kwargs) -> Optional[Dict[str, Any]]:
         """
         Internal helper for resilient requests with retries and error handling.
+        Uses exponential backoff for retries.
         """
+        url = f"{self.base_url}{path}" if path.startswith("/") else path
+        
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for attempt in range(self.max_retries):
                 try:
@@ -24,5 +28,5 @@ class BaseAIService:
                     if attempt == self.max_retries - 1:
                         logger.error(f"{self.service_name} exhausted all {self.max_retries} retries for {url}.")
                         return None
-                    await asyncio.sleep(0.5 * (attempt + 1)) # Exponential backoff
+                    await asyncio.sleep(0.5 * (attempt + 1)) # Exponential backoff: 0.5s, 1.0s, 1.5s...
         return None

@@ -7,18 +7,16 @@ from src.services.base_ai import BaseAIService
 
 class AIServiceConnector(BaseAIService):
     def __init__(self):
-        super().__init__(service_name="AI Service (Main)")
-        self.ai_service_url = getattr(settings, "AI_SERVICE_URL", "http://ai_service:8001").rstrip("/")
+        super().__init__(
+            service_name="AI Service (Main)",
+            base_url=getattr(settings, "AI_SERVICE_URL", "http://ai_service:8001")
+        )
 
     # --- CHAT & RECOMMENDATIONS ---
-    def _get_api_url(self, path: str) -> str:
-        return f"{self.ai_service_url}{path}"
-
     async def send_chat_message(self, user_id: int, message: str) -> Dict[str, Any]:
         """Forward chat message to AI microservice with resilience."""
-        url = self._get_api_url("/chat/")
         data = await self._request_with_retry(
-            "POST", url, 
+            "POST", "/chat/", 
             json={"user_id": user_id, "message": message}
         )
         if data:
@@ -32,8 +30,7 @@ class AIServiceConnector(BaseAIService):
 
     async def get_recommendations(self, user_id: int) -> List[Dict[str, Any]]:
         """Fetch recommendations from AI microservice with resilience."""
-        url = self._get_api_url(f"/recommendations/{user_id}")
-        data = await self._request_with_retry("GET", url)
+        data = await self._request_with_retry("GET", f"/recommendations/{user_id}")
         if data and isinstance(data, dict):
             return data.get("recommendations", [])
         return []

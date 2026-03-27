@@ -331,6 +331,30 @@ async def get_opportunities(
         ops = await ai_location_service.get_opportunities(points)
         return ops
 
+@router.get("/interactions-locations")
+async def get_interactions_locations(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user = Depends(owner_guard)
+):
+    """Get all individual interactions with coordinates for scatter map."""
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place:
+            return []
+        
+        interactions = uow.interaction_repository.get_by_place(place.id)
+        
+        # Filter and format for the dashboard (only include valid coordinates)
+        return [
+            {
+                "lat": i.user_lat,
+                "lon": i.user_lon,
+                "type": i.type
+            }
+            for i in interactions
+            if i.user_lat is not None and i.user_lon is not None
+        ]
+
 @router.get("/clusters")
 async def get_ai_clusters(
     current_user = Depends(owner_guard)
