@@ -282,8 +282,18 @@ async def get_location_heatmap(
         if not visits:
             return []
 
+        # Prepare points with category and district to satisfy AI service requirement
+        category_name = place.category.name if (place and place.category) else "General"
+        district_name = place.address.split(',')[0].strip() if (place and place.address) else "Beni Suef"
+
         points = [
-            {"lat": v.user_lat, "lon": v.user_lon, "cluster": v.cluster_id} 
+            {
+                "lat": v.user_lat, 
+                "lon": v.user_lon, 
+                "cluster": v.cluster_id,
+                "category": category_name,
+                "district": district_name
+            } 
             for v in visits if v.user_lat and v.user_lon
         ]
         
@@ -302,8 +312,18 @@ async def get_opportunities(
         if not place: return []
         visits = uow.interaction_repository.get_visits_by_place(place.id)
         if not visits: return []
+        # Prepare points with category and district to satisfy AI service requirement
+        category_name = place.category.name if (place and place.category) else "General"
+        district_name = place.address.split(',')[0].strip() if (place and place.address) else "Beni Suef"
+
         points = [
-            {"lat": v.user_lat, "lon": v.user_lon, "cluster": v.cluster_id} 
+            {
+                "lat": v.user_lat, 
+                "lon": v.user_lon, 
+                "cluster": v.cluster_id,
+                "category": category_name,
+                "district": district_name
+            } 
             for v in visits if v.user_lat and v.user_lon
         ]
         

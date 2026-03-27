@@ -34,7 +34,11 @@ class AILocationService(BaseAIService):
         # 3. Use new payload structure: {"visits": [...]}
         url = f"{self.base_url}/heatmap"
         data = await self._request_with_retry("POST", url, json={"visits": valid_points})
-        return data if data else []
+        
+        # 4. Unwrap nested 'hotspots' from AI response to match dashboard expectation
+        if data and isinstance(data, dict):
+            return data.get("hotspots", [])
+        return []
 
     async def get_opportunities(self, points: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Get opportunity clusters from points."""
@@ -53,8 +57,20 @@ class AILocationService(BaseAIService):
             return []
 
         url = f"{self.base_url}/opportunities"
-        data = await self._request_with_retry("POST", url, json={"visits": valid_points})
-        return data if data else []
+        
+        # AI Service for /opportunities expects 'places' key and specific fields (category, district)
+        # We send both 'visits' (per user instruction) and 'places' (per AI service requirement)
+        payload = {
+            "visits": valid_points,
+            "places": valid_points
+        }
+        
+        data = await self._request_with_retry("POST", url, json=payload)
+        
+        # Unwrap nested 'opportunities' from AI response
+        if data and isinstance(data, dict):
+            return data.get("opportunities", [])
+        return []
 
     async def get_clusters(self) -> List[Dict[str, Any]]:
         """Get all clusters from the AI service."""
