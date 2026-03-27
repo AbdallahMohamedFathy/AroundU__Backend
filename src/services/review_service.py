@@ -9,7 +9,7 @@ from fastapi import status
 from src.services.sentiment_service import analyze_sentiment
 
 
-def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
+async def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
 
     with uow:
 
@@ -37,7 +37,7 @@ def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
 
         if review_data.comment:
             try:
-                sentiment_result = analyze_sentiment(review_data.comment)
+                sentiment_result = await analyze_sentiment(review_data.comment)
 
                 # normalize result
                 if isinstance(sentiment_result, dict):
@@ -110,7 +110,7 @@ def get_review_by_id(repo: ReviewRepository, review_id: int):
     return review
 
 
-def update_review(uow: UnitOfWork, review_id: int, current_user: Any, review_data: ReviewUpdate):
+async def update_review(uow: UnitOfWork, review_id: int, current_user: Any, review_data: ReviewUpdate):
 
     with uow:
 
@@ -132,7 +132,7 @@ def update_review(uow: UnitOfWork, review_id: int, current_user: Any, review_dat
             review.comment = review_data.comment
 
             try:
-                sentiment_result = analyze_sentiment(review_data.comment)
+                sentiment_result = await analyze_sentiment(review_data.comment)
 
                 if isinstance(sentiment_result, dict):
                     sentiment_result = sentiment_result.get("label")

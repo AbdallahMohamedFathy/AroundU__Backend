@@ -282,7 +282,10 @@ async def get_location_heatmap(
         if not visits:
             return []
 
-        points = [{"lat": v.user_lat, "lon": v.user_lon} for v in visits if v.user_lat and v.user_lon]
+        points = [
+            {"lat": v.user_lat, "lon": v.user_lon, "cluster": v.cluster_id} 
+            for v in visits if v.user_lat and v.user_lon
+        ]
         
         from src.services.ai_location_service import ai_location_service
         heatmap_data = await ai_location_service.get_heatmap(points)
@@ -299,11 +302,22 @@ async def get_opportunities(
         if not place: return []
         visits = uow.interaction_repository.get_visits_by_place(place.id)
         if not visits: return []
-        points = [{"lat": v.user_lat, "lon": v.user_lon} for v in visits if v.user_lat and v.user_lon]
+        points = [
+            {"lat": v.user_lat, "lon": v.user_lon, "cluster": v.cluster_id} 
+            for v in visits if v.user_lat and v.user_lon
+        ]
         
         from src.services.ai_location_service import ai_location_service
         ops = await ai_location_service.get_opportunities(points)
         return ops
+
+@router.get("/clusters")
+async def get_ai_clusters(
+    current_user = Depends(owner_guard)
+):
+    """Get all available location clusters from the AI service."""
+    from src.services.ai_location_service import ai_location_service
+    return await ai_location_service.get_clusters()
 
 @router.get("/anomalies")
 async def get_anomalies(

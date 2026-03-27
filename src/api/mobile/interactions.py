@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from typing import Optional
 from src.core.dependencies import get_uow, get_current_user_optional
 from src.schemas.interaction import InteractionCreate, InteractionResponse
-from src.services.ai_service import ai_connector
+from src.services.ai_location_service import ai_location_service
 from src.models.interaction import Interaction
 from src.models.user import User
 
@@ -21,7 +21,7 @@ async def record_interaction(
     """
     cluster_id = None
     if interaction_in.type == "visit" and interaction_in.user_lat and interaction_in.user_lon:
-        cluster_data = await ai_connector.predict_cluster(interaction_in.user_lat, interaction_in.user_lon)
+        cluster_data = await ai_location_service.predict_cluster(interaction_in.user_lat, interaction_in.user_lon)
         if cluster_data:
             cluster_id = cluster_data.get("cluster")
 

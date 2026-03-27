@@ -40,25 +40,25 @@ def get_review(review_id: int, repo=Depends(get_review_repository)):
 
 # ─── CREATE  POST /reviews ───────────────────────────────────────────────────
 @router.post("/", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
-def create_place_review(
+async def create_place_review(
     data: ReviewCreate,
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
     """Create a review for a place. Each user can review a place only once."""
-    return review_service.create_review(uow, current_user.id, data)
+    return await review_service.create_review(uow, current_user.id, data)
 
 
 # ─── UPDATE  PUT /reviews/{id} ──────────────────────────────────────────────
 @router.put("/{review_id}", response_model=ReviewResponse)
-def update_place_review(
+async def update_place_review(
     review_id: int,
     data: ReviewUpdate,
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
     """Update your own review (rating and/or comment)."""
-    return review_service.update_review(uow, review_id, current_user, data)
+    return await review_service.update_review(uow, review_id, current_user, data)
 
 
 # ─── DELETE  DELETE /reviews/{id} ───────────────────────────────────────────
