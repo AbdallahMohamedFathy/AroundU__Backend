@@ -958,7 +958,7 @@ elif selected == "Location Logic":
         map_data = fetch_location_data()
         if not map_data.empty:
             fig_map = px.density_mapbox(map_data, lat='lat', lon='lon', z='intensity',
-                radius=15, center=dict(lat=BS_LAT, lon=BS_LON), zoom=15,
+                radius=30, center=dict(lat=BS_LAT, lon=BS_LON), zoom=13,
                 mapbox_style="open-street-map", height=700)
             fig_map.update_layout(
                 coloraxis_colorbar=dict(title="Intensity",
