@@ -35,8 +35,11 @@ class AIAnomalyService(BaseAIService):
 
     async def get_place_anomalies(self, place_id: int) -> List[Dict[str, Any]]:
         """Get specifically place anomalies by ID."""
-        # AI expects {"anomalies": place_id} or similar based on latest 422 error
-        res = await self._request_with_retry("POST", "/place-anomalies", json={"anomalies": place_id})
+        # AI expects both place_id and anomalies list (based on latest 422 error)
+        res = await self._request_with_retry(
+            "POST", "/place-anomalies", 
+            json={"place_id": place_id, "anomalies": []}
+        )
         return res if res else []
 
 ai_anomaly_service = AIAnomalyService()

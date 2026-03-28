@@ -374,7 +374,7 @@ async def get_anomalies(
         # Build raw interaction payload for AI /detect endpoint (requires full objects)
         interactions_data = [
             {
-                "user_id": i.user_id,
+                "user_id": i.user_id if i.user_id is not None else 0, # AI expects non-null integer
                 "place_id": i.place_id,
                 "user_lat": i.user_lat or 0.0,
                 "user_lon": i.user_lon or 0.0,
