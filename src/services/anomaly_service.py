@@ -12,12 +12,20 @@ class AIAnomalyService(BaseAIService):
         )
 
     async def detect_anomalies(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Detect anomalies in arbitrary interaction metric data."""
+        """Detect anomalies in aggregated interaction metric data."""
+        if not data:
+            return []
+            
+        logger.info(f"Anomaly payload: {data}")
         res = await self._request_with_retry("POST", "/detect", json=data)
         return res if res else []
 
     async def get_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Get summary stats for the provided data."""
+        """Get summary stats for the provided metric data."""
+        if not data:
+            return {}
+            
+        logger.info(f"Anomaly payload: {data}")
         res = await self._request_with_retry("POST", "/summary", json=data)
         return res if res else {}
 

@@ -282,17 +282,12 @@ async def get_location_heatmap(
         if not visits:
             return []
 
-        # Prepare points with category and district to satisfy AI service requirement
-        category_name = place.category.name if (place and place.category) else "General"
-        district_name = place.address.split(',')[0].strip() if (place and place.address) else "Beni Suef"
-
+        # Heatmap only requires lat, lon, and cluster
         points = [
             {
                 "lat": v.user_lat, 
                 "lon": v.user_lon, 
-                "cluster": v.cluster_id,
-                "category": category_name,
-                "district": district_name
+                "cluster": v.cluster_id
             } 
             for v in visits if v.user_lat and v.user_lon
         ]
@@ -312,10 +307,11 @@ async def get_opportunities(
         if not place: return []
         visits = uow.interaction_repository.get_visits_by_place(place.id)
         if not visits: return []
-        # Prepare points with category and district to satisfy AI service requirement
+        # Prepare metadata from the owner's place
         category_name = place.category.name if (place and place.category) else "General"
         district_name = place.address.split(',')[0].strip() if (place and place.address) else "Beni Suef"
 
+        # Opportunities requires lat, lon, cluster, category, and district
         points = [
             {
                 "lat": v.user_lat, 
@@ -373,9 +369,17 @@ async def get_anomalies(
         place = uow.place_repository.get_by_owner_id(current_user.id)
         if not place: return []
         
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
-        # Prepare some basic metric payload for anomaly detection
-        metrics_data = [{"metric_name": "visits", "value": len(visits)}]
+        interactions = uow.interaction_repository.get_by_place(place.id)
+        visit_count = len([i for i in interactions if i.type == 'visit'])
+        call_count = len([i for i in interactions if i.type == 'call'])
+        save_count = uow.session.query(func.count(Favorite.id)).filter(Favorite.place_id == place.id).scalar() or 0
+        
+        # Build aggregated metrics payload
+        metrics_data = [
+            {"metric_name": "visits", "value": visit_count},
+            {"metric_name": "calls", "value": call_count},
+            {"metric_name": "saves", "value": save_count}
+        ]
         
         from src.services.anomaly_service import ai_anomaly_service
         return await ai_anomaly_service.detect_anomalies(metrics_data)
@@ -390,8 +394,16 @@ async def get_anomalies_summary(
         place = uow.place_repository.get_by_owner_id(current_user.id)
         if not place: return {}
         
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
-        metrics_data = [{"metric_name": "visits", "value": len(visits)}]
+        interactions = uow.interaction_repository.get_by_place(place.id)
+        visit_count = len([i for i in interactions if i.type == 'visit'])
+        call_count = len([i for i in interactions if i.type == 'call'])
+        save_count = uow.session.query(func.count(Favorite.id)).filter(Favorite.place_id == place.id).scalar() or 0
+        
+        metrics_data = [
+            {"metric_name": "visits", "value": visit_count},
+            {"metric_name": "calls", "value": call_count},
+            {"metric_name": "saves", "value": save_count}
+        ]
         
         from src.services.anomaly_service import ai_anomaly_service
         return await ai_anomaly_service.get_summary(metrics_data)
