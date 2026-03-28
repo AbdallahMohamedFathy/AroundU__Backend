@@ -19,13 +19,10 @@ class AILocationService(BaseAIService):
         """Generate heatmap from points."""
         # 1. Filter invalid data (lat/lon/cluster is None)
         valid_points = [
-            {
-                "lat": p.get("lat"), 
-                "lon": p.get("lon"), 
-                "cluster": p.get("cluster")
-            } 
-            for p in points 
-            if p.get("lat") is not None and p.get("lon") is not None and p.get("cluster") is not None
+            p for p in points 
+            if p.get("lat") is not None 
+            and p.get("lon") is not None 
+            and p.get("cluster") is not None
         ]
         
         # 2. If no valid data -> return empty list and DO NOT call AI
@@ -44,13 +41,10 @@ class AILocationService(BaseAIService):
         """Get opportunity clusters from points."""
         # 1. Filter invalid data (lat/lon/cluster is None)
         valid_points = [
-            {
-                "lat": p.get("lat"), 
-                "lon": p.get("lon"), 
-                "cluster": p.get("cluster")
-            } 
-            for p in points 
-            if p.get("lat") is not None and p.get("lon") is not None and p.get("cluster") is not None
+            p for p in points 
+            if p.get("lat") is not None 
+            and p.get("lon") is not None 
+            and p.get("cluster") is not None
         ]
         
         # 2. If no valid data -> return empty list and DO NOT call AI
