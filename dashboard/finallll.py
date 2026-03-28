@@ -688,10 +688,18 @@ elif selected == "Customer Insights":
     with col_ai1:
         st.markdown("#### ⚠️ AI Alerts")
         if anomalies:
-            for item in anomalies:
-                # Assuming item format: {"anomaly_type": "Spike", "metric": "visits", "description": "..."}
-                desc = item.get("description", str(item))
-                st.warning(f"**Anomaly Detected:** {desc}")
+            # Handle both wrapped dictionary and raw list
+            items = anomalies.get("anomalies", anomalies.get("visits", anomalies)) if isinstance(anomalies, dict) else anomalies
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict):
+                        # Use description if present, otherwise fallout to the whole object string
+                        desc = item.get("description", item.get("msg", str(item)))
+                    else:
+                        desc = str(item)
+                    st.warning(f"**Anomaly Detected:** {desc}")
+            else:
+                st.warning(f"**Anomaly Status:** {str(items)}")
         else:
             st.success("No critical anomalies detected recently.")
             

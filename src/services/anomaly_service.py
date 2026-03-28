@@ -16,10 +16,14 @@ class AIAnomalyService(BaseAIService):
         if not data:
             return []
             
-        # Wrap list in dictionary as required by AI schema: {"visits": [...]}
+        # 3. Log and request
         payload = {"visits": data}
         logger.info(f"Anomaly payload (/detect): {payload}")
         res = await self._request_with_retry("POST", "/detect", json=payload)
+        
+        # 4. Unwrap nested 'anomalies' or 'visits' from AI response
+        if res and isinstance(res, dict):
+            return res.get("anomalies", res.get("visits", []))
         return res if res else []
 
     async def get_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
