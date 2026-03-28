@@ -674,56 +674,270 @@ elif selected == "Customer Insights":
             st.info("No review data available for this period.")
 
     # -----------------------
-    # AI Alerts & Summary
+    # AI Anomaly Detection (Premium Table UI)
     # -----------------------
     st.markdown("---")
-    st.subheader("🚨 AI Business Intelligence")
-    
-    anomalies = fetch_anomalies()
-    summary = fetch_anomalies_summary()
+    st.markdown("""
+    <style>
+    .anomaly-section-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #1D3143;
+        margin-bottom: 4px;
+    }
+    .anomaly-table-header {
+        display: grid;
+        grid-template-columns: 2fr 3fr 1fr 1.2fr;
+        background: #1D3143;
+        color: white;
+        padding: 10px 16px;
+        border-radius: 10px 10px 0 0;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    .anomaly-row {
+        display: grid;
+        grid-template-columns: 2fr 3fr 1fr 1.2fr;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f0f0;
+        align-items: center;
+        transition: background 0.2s;
+        background: white;
+    }
+    .anomaly-row:hover { background: #f8fafc; }
+    .anomaly-row:last-child { border-radius: 0 0 10px 10px; border-bottom: none; }
+    .anomaly-name { font-weight: 700; color: #1D3143; font-size: 14px; }
+    .anomaly-detail { color: #4a5568; font-size: 13px; line-height: 1.4; }
+    .severity-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        text-align: center;
+    }
+    .sev-high   { background: #ffe5e5; color: #c0392b; border: 1.5px solid #e74c3c; }
+    .sev-medium { background: #fff3e0; color: #d35400; border: 1.5px solid #e67e22; }
+    .sev-low    { background: #e8f5e9; color: #27ae60; border: 1.5px solid #2ecc71; }
+    .category-pill {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #eef2ff;
+        color: #3949ab;
+    }
+    .cat-user     { background: #fce4ec; color: #c2185b; }
+    .cat-place    { background: #e3f2fd; color: #1565c0; }
+    .cat-district { background: #f3e5f5; color: #6a1b9a; }
+    .priority-block {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        background: white;
+        border: 1px solid #e9ecef;
+        margin-bottom: 10px;
+    }
+    .priority-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        margin-top: 3px;
+        flex-shrink: 0;
+    }
+    .dot-high   { background: #e74c3c; }
+    .dot-medium { background: #e67e22; }
+    .dot-low    { background: #2ecc71; }
+    .priority-label { font-weight: 700; font-size: 14px; color: #1D3143; }
+    .priority-types { font-size: 13px; color: #4a5568; margin-top: 2px; }
+    .priority-impact { font-size: 12px; color: #7f8c8d; margin-top: 4px; font-style: italic; }
+    .anomaly-table-wrapper {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(29, 49, 67, 0.08);
+        border: 1px solid #e9ecef;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="anomaly-section-title">🚨 AroundU Anomaly Detection</div>', unsafe_allow_html=True)
+    st.caption("AI-powered detection of abnormal activity across places, users, and districts.")
+
+    anomalies    = fetch_anomalies()
+    summary      = fetch_anomalies_summary()
     opportunities = fetch_opportunities()
-    
-    col_ai1, col_ai2 = st.columns(2)
-    
-    with col_ai1:
-        st.markdown("#### ⚠️ AI Alerts")
-        if anomalies:
-            # Handle both wrapped dictionary and raw list
-            items = anomalies.get("anomalies", anomalies.get("visits", anomalies)) if isinstance(anomalies, dict) else anomalies
-            if isinstance(items, list):
-                for item in items:
-                    if isinstance(item, dict):
-                        # Format the anomaly details nicely
-                        a_type = item.get("anomaly_type", "Unknown").replace("_", " ").title()
-                        severity = item.get("severity", "Medium").upper()
-                        details = item.get("details", "")
-                        
-                        st.warning(f"**{a_type} ({severity}):** {details}")
-                    else:
-                        st.warning(f"**Anomaly Detected:** {str(item)}")
-            else:
-                st.warning(f"**Anomaly Status:** {str(items)}")
-        else:
-            st.success("No critical anomalies detected recently.")
-            
-        st.markdown("#### 📊 Summary")
-        if summary:
-            # Assuming summary format has a 'summary' or 'text' field
-            text = summary.get("summary", summary.get("text", str(summary)))
-            st.info(text)
-        else:
-            st.info("No AI summary available.")
-            
-    with col_ai2:
-        st.markdown("#### 🎯 Opportunities")
-        if opportunities:
-            for opp in opportunities:
-                 # Assuming opp format: {"title": "...", "description": "..."}
-                 title = opp.get("title", opp.get("opportunity_type", "New Opportunity"))
-                 desc = opp.get("description", str(opp))
-                 st.info(f"**💡 {title}**\n\n{desc}")
-        else:
-            st.info("No new opportunities identified at the moment.")
+
+    # ── Normalize anomaly list ──────────────────────────────────────────
+    def _extract_anomalies(raw):
+        if not raw:
+            return []
+        if isinstance(raw, dict):
+            return raw.get("anomalies", raw.get("details", raw.get("visits", [])))
+        if isinstance(raw, list):
+            return raw
+        return []
+
+    # Prefer summary.details (richer) over raw anomalies list
+    detail_items = _extract_anomalies(summary) if summary else _extract_anomalies(anomalies)
+    # Also check summary["details"]
+    if isinstance(summary, dict) and summary.get("details"):
+        detail_items = summary["details"]
+
+    # ── Severity → CSS class mapping ───────────────────────────────────
+    SEV_CLASS  = {"high": "sev-high", "medium": "sev-medium", "low": "sev-low"}
+    CAT_CLASS  = {"user": "cat-user", "place": "cat-place", "district": "cat-district"}
+    SEV_LABEL  = {"high": "High", "medium": "Medium", "low": "Low"}
+
+    # ── Fallback display names for known anomaly types ──────────────────
+    KNOWN_DISPLAY = {
+        "traffic_spike":      ("Traffic Spike",      "place",    "high"),
+        "sudden_drop":        ("Sudden Drop",         "place",    "high"),
+        "unusual_hours":      ("Unusual Hours",       "place",    "medium"),
+        "geographic_anomaly": ("Geographic Anomaly",  "place",    "low"),
+        "bot_behavior":       ("Bot Behavior",        "user",     "high"),
+        "gps_spoofing":       ("GPS Spoofing",        "user",     "low"),
+        "impossible_travel":  ("Impossible Travel",   "user",     "low"),
+        "district_spike":     ("District Spike",      "district", "medium"),
+        "dead_zone":          ("Dead Zone",           "district", "high"),
+    }
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Anomaly table or empty state ───────────────────────────────────
+    if detail_items:
+        table_rows_html = ""
+        for item in detail_items:
+            if not isinstance(item, dict):
+                continue
+
+            raw_type  = str(item.get("anomaly_type", item.get("type", "unknown"))).lower().replace(" ", "_")
+            defaults  = KNOWN_DISPLAY.get(raw_type, (raw_type.replace("_", " ").title(), "place", "medium"))
+
+            display_name = defaults[0]
+            category     = str(item.get("category", defaults[1])).lower()
+            severity_raw = str(item.get("severity", defaults[2])).lower()
+            details_txt  = item.get("details", item.get("description", "—"))
+
+            sev_cls = SEV_CLASS.get(severity_raw, "sev-medium")
+            cat_cls = CAT_CLASS.get(category, "cat-place")
+            sev_lbl = SEV_LABEL.get(severity_raw, severity_raw.capitalize())
+
+            table_rows_html += f"""
+            <div class="anomaly-row">
+                <div class="anomaly-name">{display_name}</div>
+                <div class="anomaly-detail">{details_txt}</div>
+                <div><span class="severity-badge {sev_cls}">{sev_lbl}</span></div>
+                <div><span class="category-pill {cat_cls}">{category.capitalize()}</span></div>
+            </div>"""
+
+        st.markdown(f"""
+        <div class="anomaly-table-wrapper">
+            <div class="anomaly-table-header">
+                <div>Anomaly</div>
+                <div>Details</div>
+                <div>Level</div>
+                <div>Category</div>
+            </div>
+            {table_rows_html}
+        </div>
+        """, unsafe_allow_html=True)
+
+    else:
+        st.success("✅ No anomalies detected. All systems normal.")
+
+    # ── Priority Summary ───────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("#### 📊 Priority Summary")
+
+    if detail_items:
+        high_items   = [a for a in detail_items if isinstance(a, dict) and str(a.get("severity","")).lower() == "high"]
+        med_items    = [a for a in detail_items if isinstance(a, dict) and str(a.get("severity","")).lower() == "medium"]
+        low_items    = [a for a in detail_items if isinstance(a, dict) and str(a.get("severity","")).lower() == "low"]
+
+        def _names(lst):
+            return ", ".join(
+                str(a.get("anomaly_type", a.get("type","?"))).replace("_"," ").title()
+                for a in lst[:4]
+            ) or "—"
+
+        p_col1, p_col2 = st.columns(2)
+
+        with p_col1:
+            if high_items:
+                st.markdown(f"""
+                <div class="priority-block">
+                    <div class="priority-dot dot-high"></div>
+                    <div>
+                        <div class="priority-label">🔴 High Priority ({len(high_items)})</div>
+                        <div class="priority-types">{_names(high_items)}</div>
+                        <div class="priority-impact">Immediate action required — affects data accuracy</div>
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+            if med_items:
+                st.markdown(f"""
+                <div class="priority-block">
+                    <div class="priority-dot dot-medium"></div>
+                    <div>
+                        <div class="priority-label">🟠 Medium Priority ({len(med_items)})</div>
+                        <div class="priority-types">{_names(med_items)}</div>
+                        <div class="priority-impact">Could be real event or fake visits — needs review</div>
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+        with p_col2:
+            if low_items:
+                st.markdown(f"""
+                <div class="priority-block">
+                    <div class="priority-dot dot-low"></div>
+                    <div>
+                        <div class="priority-label">🟢 Low Priority ({len(low_items)})</div>
+                        <div class="priority-types">{_names(low_items)}</div>
+                        <div class="priority-impact">Monitor — low immediate risk</div>
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+            total   = len(detail_items)
+            urgent  = len(high_items)
+            if isinstance(summary, dict):
+                total  = summary.get("total_anomalies", total)
+                urgent = summary.get("urgent_anomalies", urgent)
+
+            st.markdown(f"""
+            <div class="priority-block" style="border-left: 4px solid #2F5C85;">
+                <div>
+                    <div class="priority-label">📈 Summary</div>
+                    <div class="priority-types">
+                        Total: <strong>{total}</strong> anomalies &nbsp;|&nbsp;
+                        Urgent: <strong style="color:#e74c3c">{urgent}</strong>
+                    </div>
+                </div>
+            </div>""", unsafe_allow_html=True)
+    else:
+        st.info("No anomaly data to summarise.")
+
+    # ── Opportunities column ───────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("#### 🎯 AI Opportunities")
+    if opportunities:
+        opp_cols = st.columns(min(3, len(opportunities)))
+        for idx, opp in enumerate(opportunities[:6]):
+            title = opp.get("title", opp.get("opportunity_type", "New Opportunity")).replace("_", " ").title()
+            desc  = opp.get("description", str(opp))
+            with opp_cols[idx % len(opp_cols)]:
+                st.markdown(f"""
+                <div class="priority-block" style="border-left:4px solid #61A3BB; flex-direction:column; gap:4px;">
+                    <div class="priority-label">💡 {title}</div>
+                    <div class="priority-types">{desc}</div>
+                </div>""", unsafe_allow_html=True)
+    else:
+        st.info("No new opportunities identified at the moment.")
 
     st.markdown("---")
 
