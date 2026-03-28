@@ -23,10 +23,23 @@ class BaseAIService:
                     response = await client.request(method, url, **kwargs)
                     response.raise_for_status()
                     return response.json()
-                except (httpx.RequestError, httpx.HTTPStatusError) as e:
+                except httpx.HTTPStatusError as e:
+                    # Log the response body for detailed debugging of 422/400 errors
+                    try:
+                        resp_body = e.response.json()
+                    except Exception:
+                        resp_body = e.response.text
+                    
+                    logger.warning(f"{self.service_name} ({url}) attempt {attempt+1} failed with status {e.response.status_code}: {resp_body}")
+                    
+                    if attempt == self.max_retries - 1:
+                        logger.error(f"{self.service_name} exhausted all {self.max_retries} retries for {url}.")
+                        return None
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                except httpx.RequestError as e:
                     logger.warning(f"{self.service_name} ({url}) attempt {attempt+1} failed: {e}")
                     if attempt == self.max_retries - 1:
                         logger.error(f"{self.service_name} exhausted all {self.max_retries} retries for {url}.")
                         return None
-                    await asyncio.sleep(0.5 * (attempt + 1)) # Exponential backoff: 0.5s, 1.0s, 1.5s...
+                    await asyncio.sleep(0.5 * (attempt + 1))
         return None
