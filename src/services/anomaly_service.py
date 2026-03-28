@@ -16,8 +16,8 @@ class AIAnomalyService(BaseAIService):
         if not data:
             return []
             
-        # Wrap list in dictionary as required by AI schema: {"metrics": [...]}
-        payload = {"metrics": data}
+        # Wrap list in dictionary as required by AI schema: {"visits": [...]}
+        payload = {"visits": data}
         logger.info(f"Anomaly payload: {payload}")
         res = await self._request_with_retry("POST", "/detect", json=payload)
         return res if res else []
@@ -27,8 +27,8 @@ class AIAnomalyService(BaseAIService):
         if not data:
             return {}
             
-        # Wrap list in dictionary as required by AI schema: {"metrics": [...]}
-        payload = {"metrics": data}
+        # Wrap list in dictionary as required by AI schema: {"anomalies": [...]}
+        payload = {"anomalies": data}
         logger.info(f"Anomaly payload: {payload}")
         res = await self._request_with_retry("POST", "/summary", json=payload)
         return res if res else {}
