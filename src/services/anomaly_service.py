@@ -44,6 +44,10 @@ class AIAnomalyService(BaseAIService):
             "POST", "/place-anomalies", 
             json={"place_id": place_id, "anomalies": []}
         )
+        
+        # Unwrap if nested
+        if res and isinstance(res, dict):
+            return res.get("anomalies", [])
         return res if res else []
 
 ai_anomaly_service = AIAnomalyService()

@@ -74,10 +74,10 @@ class AILocationService(BaseAIService):
         logger.info(f"Opportunities payload: {payload}")
         data = await self._request_with_retry("POST", "/opportunities", json=payload)
         
-        # 4. Unwrap nested 'opportunities' from AI response
+        # 4. Unwrap nested 'opportunities' or 'places' from AI response
         if data and isinstance(data, dict):
-            return data.get("opportunities", [])
-        return []
+            return data.get("opportunities", data.get("places", []))
+        return data if data else []
 
     async def get_clusters(self) -> List[Dict[str, Any]]:
         """Get all clusters from the AI service."""
