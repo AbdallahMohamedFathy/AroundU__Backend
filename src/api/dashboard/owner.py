@@ -370,19 +370,22 @@ async def get_anomalies(
         if not place: return []
         
         interactions = uow.interaction_repository.get_by_place(place.id)
-        visit_count = len([i for i in interactions if i.type == 'visit'])
-        call_count = len([i for i in interactions if i.type == 'call'])
-        save_count = uow.session.query(func.count(Favorite.id)).filter(Favorite.place_id == place.id).scalar() or 0
         
-        # Build aggregated metrics payload
-        metrics_data = [
-            {"metric_name": "visits", "value": visit_count},
-            {"metric_name": "calls", "value": call_count},
-            {"metric_name": "saves", "value": save_count}
+        # Build raw interaction payload for AI /detect endpoint (requires full objects)
+        interactions_data = [
+            {
+                "user_id": i.user_id,
+                "place_id": i.place_id,
+                "user_lat": i.user_lat or 0.0,
+                "user_lon": i.user_lon or 0.0,
+                "visited_at": i.created_at.isoformat() if i.created_at else None,
+                "cluster": i.cluster_id or 0
+            }
+            for i in interactions
         ]
         
         from src.services.anomaly_service import ai_anomaly_service
-        return await ai_anomaly_service.detect_anomalies(metrics_data)
+        return await ai_anomaly_service.detect_anomalies(interactions_data)
 
 @router.get("/anomalies/summary")
 async def get_anomalies_summary(
