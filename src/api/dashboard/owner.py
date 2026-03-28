@@ -397,11 +397,28 @@ async def get_anomalies_summary(
         place = uow.place_repository.get_by_owner_id(current_user.id)
         if not place: return {}
         
-        # 1. Fetch real anomalies for the place first (uses AI place-anomalies endpoint)
+        # 1. Try fetching existing place anomalies recorded in the AI DB
         from src.services.anomaly_service import ai_anomaly_service
         anomalies = await ai_anomaly_service.get_place_anomalies(place.id)
         
-        # 2. If no anomalies found -> return empty summary response
+        # 2. If no historical anomalies, fallback to summarizing the real-time detections
+        if not anomalies:
+            interactions = uow.interaction_repository.get_by_place(place.id)
+            interactions_data = [
+                {
+                    "user_id": i.user_id if i.user_id is not None else 0,
+                    "place_id": i.place_id,
+                    "user_lat": i.user_lat or 0.0,
+                    "user_lon": i.user_lon or 0.0,
+                    "visited_at": i.created_at.isoformat() if i.created_at else None,
+                    "cluster": i.cluster_id or 0
+                }
+                for i in interactions
+            ]
+            # Get detections to use as summary source
+            anomalies = await ai_anomaly_service.detect_anomalies(interactions_data)
+        
+        # 3. If still no anomalies found -> return empty summary response
         if not anomalies:
             return {
                 "total_anomalies": 0,
@@ -410,7 +427,7 @@ async def get_anomalies_summary(
                 "details": []
             }
         
-        # 3. Pass real anomalies to /summary endpoint which expects a list of anomaly objects
+        # 4. Pass the anomalies to /summary endpoint
         return await ai_anomaly_service.get_summary(anomalies)
 
 @router.get("/place-anomalies")

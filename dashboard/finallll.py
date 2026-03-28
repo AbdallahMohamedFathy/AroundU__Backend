@@ -693,11 +693,14 @@ elif selected == "Customer Insights":
             if isinstance(items, list):
                 for item in items:
                     if isinstance(item, dict):
-                        # Use description if present, otherwise fallout to the whole object string
-                        desc = item.get("description", item.get("msg", str(item)))
+                        # Format the anomaly details nicely
+                        a_type = item.get("anomaly_type", "Unknown").replace("_", " ").title()
+                        severity = item.get("severity", "Medium").upper()
+                        details = item.get("details", "")
+                        
+                        st.warning(f"**{a_type} ({severity}):** {details}")
                     else:
-                        desc = str(item)
-                    st.warning(f"**Anomaly Detected:** {desc}")
+                        st.warning(f"**Anomaly Detected:** {str(item)}")
             else:
                 st.warning(f"**Anomaly Status:** {str(items)}")
         else:
