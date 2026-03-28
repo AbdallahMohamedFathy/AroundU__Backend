@@ -829,24 +829,24 @@ elif selected == "Customer Insights":
             sev_lbl = SEV_LABEL.get(severity_raw, severity_raw.capitalize())
 
             table_rows_html += f"""
-            <div class="anomaly-row">
-                <div class="anomaly-name">{display_name}</div>
-                <div class="anomaly-detail">{details_txt}</div>
-                <div><span class="severity-badge {sev_cls}">{sev_lbl}</span></div>
-                <div><span class="category-pill {cat_cls}">{category.capitalize()}</span></div>
-            </div>"""
+<div class="anomaly-row">
+<div class="anomaly-name">{display_name}</div>
+<div class="anomaly-detail">{details_txt}</div>
+<div><span class="severity-badge {sev_cls}">{sev_lbl}</span></div>
+<div><span class="category-pill {cat_cls}">{category.capitalize()}</span></div>
+</div>"""
 
         st.markdown(f"""
-        <div class="anomaly-table-wrapper">
-            <div class="anomaly-table-header">
-                <div>Anomaly</div>
-                <div>Details</div>
-                <div>Level</div>
-                <div>Category</div>
-            </div>
-            {table_rows_html}
-        </div>
-        """, unsafe_allow_html=True)
+<div class="anomaly-table-wrapper">
+<div class="anomaly-table-header">
+<div>Anomaly</div>
+<div>Details</div>
+<div>Level</div>
+<div>Category</div>
+</div>
+{table_rows_html}
+</div>
+""", unsafe_allow_html=True)
 
     else:
         st.success("✅ No anomalies detected. All systems normal.")
@@ -871,37 +871,37 @@ elif selected == "Customer Insights":
         with p_col1:
             if high_items:
                 st.markdown(f"""
-                <div class="priority-block">
-                    <div class="priority-dot dot-high"></div>
-                    <div>
-                        <div class="priority-label">🔴 High Priority ({len(high_items)})</div>
-                        <div class="priority-types">{_names(high_items)}</div>
-                        <div class="priority-impact">Immediate action required — affects data accuracy</div>
-                    </div>
-                </div>""", unsafe_allow_html=True)
+<div class="priority-block">
+<div class="priority-dot dot-high"></div>
+<div>
+<div class="priority-label">🔴 High Priority ({len(high_items)})</div>
+<div class="priority-types">{_names(high_items)}</div>
+<div class="priority-impact">Immediate action required — affects data accuracy</div>
+</div>
+</div>""", unsafe_allow_html=True)
 
             if med_items:
                 st.markdown(f"""
-                <div class="priority-block">
-                    <div class="priority-dot dot-medium"></div>
-                    <div>
-                        <div class="priority-label">🟠 Medium Priority ({len(med_items)})</div>
-                        <div class="priority-types">{_names(med_items)}</div>
-                        <div class="priority-impact">Could be real event or fake visits — needs review</div>
-                    </div>
-                </div>""", unsafe_allow_html=True)
+<div class="priority-block">
+<div class="priority-dot dot-medium"></div>
+<div>
+<div class="priority-label">🟠 Medium Priority ({len(med_items)})</div>
+<div class="priority-types">{_names(med_items)}</div>
+<div class="priority-impact">Could be real event or fake visits — needs review</div>
+</div>
+</div>""", unsafe_allow_html=True)
 
         with p_col2:
             if low_items:
                 st.markdown(f"""
-                <div class="priority-block">
-                    <div class="priority-dot dot-low"></div>
-                    <div>
-                        <div class="priority-label">🟢 Low Priority ({len(low_items)})</div>
-                        <div class="priority-types">{_names(low_items)}</div>
-                        <div class="priority-impact">Monitor — low immediate risk</div>
-                    </div>
-                </div>""", unsafe_allow_html=True)
+<div class="priority-block">
+<div class="priority-dot dot-low"></div>
+<div>
+<div class="priority-label">🟢 Low Priority ({len(low_items)})</div>
+<div class="priority-types">{_names(low_items)}</div>
+<div class="priority-impact">Monitor — low immediate risk</div>
+</div>
+</div>""", unsafe_allow_html=True)
 
             total   = len(detail_items)
             urgent  = len(high_items)
@@ -910,15 +910,15 @@ elif selected == "Customer Insights":
                 urgent = summary.get("urgent_anomalies", urgent)
 
             st.markdown(f"""
-            <div class="priority-block" style="border-left: 4px solid #2F5C85;">
-                <div>
-                    <div class="priority-label">📈 Summary</div>
-                    <div class="priority-types">
-                        Total: <strong>{total}</strong> anomalies &nbsp;|&nbsp;
-                        Urgent: <strong style="color:#e74c3c">{urgent}</strong>
-                    </div>
-                </div>
-            </div>""", unsafe_allow_html=True)
+<div class="priority-block" style="border-left: 4px solid #2F5C85;">
+<div>
+<div class="priority-label">📈 Summary</div>
+<div class="priority-types">
+Total: <strong>{total}</strong> anomalies &nbsp;|&nbsp;
+Urgent: <strong style="color:#e74c3c">{urgent}</strong>
+</div>
+</div>
+</div>""", unsafe_allow_html=True)
     else:
         st.info("No anomaly data to summarise.")
 
@@ -932,10 +932,10 @@ elif selected == "Customer Insights":
             desc  = opp.get("description", str(opp))
             with opp_cols[idx % len(opp_cols)]:
                 st.markdown(f"""
-                <div class="priority-block" style="border-left:4px solid #61A3BB; flex-direction:column; gap:4px;">
-                    <div class="priority-label">💡 {title}</div>
-                    <div class="priority-types">{desc}</div>
-                </div>""", unsafe_allow_html=True)
+<div class="priority-block" style="border-left:4px solid #61A3BB; flex-direction:column; gap:4px;">
+<div class="priority-label">💡 {title}</div>
+<div class="priority-types">{desc}</div>
+</div>""", unsafe_allow_html=True)
     else:
         st.info("No new opportunities identified at the moment.")
 
