@@ -18,18 +18,18 @@ class AIAnomalyService(BaseAIService):
             
         # Wrap list in dictionary as required by AI schema: {"visits": [...]}
         payload = {"visits": data}
-        logger.info(f"Anomaly payload: {payload}")
+        logger.info(f"Anomaly payload (/detect): {payload}")
         res = await self._request_with_retry("POST", "/detect", json=payload)
         return res if res else []
 
     async def get_summary(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Get summary stats for the provided metric data."""
+        """Get summary stats for the provided real anomaly records."""
         if not data:
             return {}
             
         # Wrap list in dictionary as required by AI schema: {"anomalies": [...]}
         payload = {"anomalies": data}
-        logger.info(f"Anomaly payload: {payload}")
+        logger.info(f"Anomaly payload (/summary): {payload}")
         res = await self._request_with_retry("POST", "/summary", json=payload)
         return res if res else {}
 

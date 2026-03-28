@@ -389,24 +389,26 @@ async def get_anomalies_summary(
     uow: Annotated[Any, Depends(get_uow)],
     current_user = Depends(owner_guard)
 ):
-    """Get summary for anomaly data."""
+    """Get summary for anomaly data of the current owner's place."""
     with uow:
         place = uow.place_repository.get_by_owner_id(current_user.id)
         if not place: return {}
         
-        interactions = uow.interaction_repository.get_by_place(place.id)
-        visit_count = len([i for i in interactions if i.type == 'visit'])
-        call_count = len([i for i in interactions if i.type == 'call'])
-        save_count = uow.session.query(func.count(Favorite.id)).filter(Favorite.place_id == place.id).scalar() or 0
-        
-        metrics_data = [
-            {"metric_name": "visits", "value": visit_count},
-            {"metric_name": "calls", "value": call_count},
-            {"metric_name": "saves", "value": save_count}
-        ]
-        
+        # 1. Fetch real anomalies for the place first (uses AI place-anomalies endpoint)
         from src.services.anomaly_service import ai_anomaly_service
-        return await ai_anomaly_service.get_summary(metrics_data)
+        anomalies = await ai_anomaly_service.get_place_anomalies(place.id)
+        
+        # 2. If no anomalies found -> return empty summary response
+        if not anomalies:
+            return {
+                "total_anomalies": 0,
+                "urgent_anomalies": 0,
+                "summary": "No anomalies detected for your place yet.",
+                "details": []
+            }
+        
+        # 3. Pass real anomalies to /summary endpoint which expects a list of anomaly objects
+        return await ai_anomaly_service.get_summary(anomalies)
 
 @router.get("/place-anomalies")
 async def get_place_anomalies(
