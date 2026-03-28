@@ -34,8 +34,8 @@ class AILocationService(BaseAIService):
         if not valid_points:
             return []
 
-        # 3. Log and request
-        payload = {"visits": valid_points}
+        # 3. Log and request (uses 'places' key as required by AI schema)
+        payload = {"places": valid_points}
         logger.info(f"Heatmap payload: {payload}")
         data = await self._request_with_retry("POST", "/heatmap", json=payload)
         
@@ -69,8 +69,8 @@ class AILocationService(BaseAIService):
         if not valid_points:
             return []
 
-        # 3. Log and request
-        payload = {"visits": valid_points}
+        # 3. Log and request (uses 'places' key as required by AI schema)
+        payload = {"places": valid_points}
         logger.info(f"Opportunities payload: {payload}")
         data = await self._request_with_retry("POST", "/opportunities", json=payload)
         
