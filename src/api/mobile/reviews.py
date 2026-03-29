@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from src.core.dependencies import get_review_repository, get_uow, get_current_user
 from src.models.user import User
 from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse
@@ -16,6 +16,8 @@ def list_place_reviews(
     repo=Depends(get_review_repository),
 ):
     """Return reviews using query parameter (?place_id=9)"""
+    if not place_id:
+        raise HTTPException(status_code=422, detail="place_id is required")
     return review_service.get_place_reviews(repo, place_id, page, page_size)
 
 
@@ -27,6 +29,8 @@ def list_place_reviews_by_path(
     repo=Depends(get_review_repository),
 ):
     """Return reviews using path parameter (/place/9)"""
+    if not place_id:
+        raise HTTPException(status_code=422, detail="place_id is required")
     return review_service.get_place_reviews(repo, place_id, page, page_size)
 
 
