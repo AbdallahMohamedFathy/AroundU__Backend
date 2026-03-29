@@ -9,5 +9,5 @@ from .place import (
 from .chat import ChatRequest, ChatResponse
 from .search import SearchParams, TrendingSearch
 from .favorite import FavoriteCreate, FavoriteResponse, FavoriteWithPlace
-from .review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewWithUser
+from .review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse
 from .place_image import PlaceImageCreate, PlaceImageResponse
