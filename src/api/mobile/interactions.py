@@ -105,16 +105,19 @@ async def record_interaction(
     # ── 1. Cluster prediction (visit + coordinates required) ──────────────
     cluster_id: Optional[int] = None
 
-    if (
-        interaction_in.user_lat is not None
-        and interaction_in.user_lon is not None
-    ):
+    if interaction_in.user_lat is not None and interaction_in.user_lon is not None:
         try:
             cluster_data = await ai_location_service.predict_cluster(
                 interaction_in.user_lat, interaction_in.user_lon
             )
-            if cluster_data:
-                cluster_id = cluster_data.get("cluster")
+
+            print("AI RESPONSE:", cluster_data)  # 👈 مهم جدًا
+
+            if cluster_data and "cluster" in cluster_data:
+                cluster_id = int(cluster_data["cluster"])
+            else:
+                logger.warning("[record_interaction] Invalid cluster response")
+
         except Exception as exc:
             logger.warning(f"[record_interaction] Cluster prediction failed: {exc}")
 

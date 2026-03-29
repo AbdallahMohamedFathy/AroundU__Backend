@@ -26,8 +26,11 @@ async def record_view_visit(
     if lat is not None and lon is not None:
         try:
             cluster_data = await ai_location_service.predict_cluster(lat, lon)
-            if cluster_data:
-                cluster_id = cluster_data.get("cluster")
+            print("AI RESPONSE (View):", cluster_data)
+            if cluster_data and "cluster" in cluster_data:
+                cluster_id = int(cluster_data["cluster"])
+            else:
+                logger.warning("[record_view_visit] Invalid cluster response")
         except Exception as exc:
             logger.warning(f"[record_view_visit] Cluster prediction failed: {exc}")
 
