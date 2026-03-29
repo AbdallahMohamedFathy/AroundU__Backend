@@ -8,9 +8,9 @@ router = APIRouter()
 
 
 # ─── LIST FOR PLACE  GET /reviews/place/{id} ────────────────────────────────
-@router.get("/place/{place_id}")
+@router.get("/place")
 def list_place_reviews(
-    place_id: int,
+    place_id: int = Query(...),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     repo=Depends(get_review_repository),

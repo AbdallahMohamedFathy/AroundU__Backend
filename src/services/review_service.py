@@ -27,7 +27,7 @@ async def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate
         if existing:
             raise APIException(
                 "You have already reviewed this place",
-                code=status.HTTP_400_BAD_REQUEST
+                code=status.HTTP_409_CONFLICT
             )
 
         # -----------------------------
