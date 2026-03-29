@@ -147,7 +147,7 @@ class AILocationService(BaseAIService):
             logger.info("[AILocationService] No valid points → skip AI call")
             return []
 
-        payload = {"places": valid_points}
+        payload = {"visits": valid_points}
 
         logger.info(
             f"[AILocationService] POST /opportunities — {len(valid_points)} points"

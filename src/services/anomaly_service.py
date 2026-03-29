@@ -95,23 +95,23 @@ class AIAnomalyService(BaseAIService):
     async def get_place_anomalies(
         self, place_id: int, visits: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """
-        POST /place-anomalies
 
-        Returns anomalies filtered to a specific place, enriched with the
-        place's own visit history so the AI has temporal context.
+        # 🔥 1. detect الأول
+        anomalies = await self.detect_anomalies(visits)
 
-        Expected payload:
-        {
-          "place_id": int,
-          "visits":   [...]          # same schema as /detect
+        if not anomalies:
+            logger.info("[AIAnomalyService] No anomalies detected → skip place-anomalies")
+            return []
+
+        # 🔥 2. ابعت anomalies مش visits
+        payload = {
+            "place_id": place_id,
+            "anomalies": anomalies
         }
-        """
-        payload = {"place_id": place_id, "visits": visits}
+
         logger.info(
             f"[AIAnomalyService] POST /place-anomalies — "
-            f"place_id={place_id}, visits={len(visits)}. "
-            f"Payload preview: {payload!r:.500}"
+            f"place_id={place_id}, anomalies={len(anomalies)}"
         )
 
         res = await self._request_with_retry(
@@ -122,13 +122,13 @@ class AIAnomalyService(BaseAIService):
             return []
 
         if isinstance(res, dict):
-            return res.get("anomalies", res.get("visits", []))
+            return res.get("anomalies", [])
+
         if isinstance(res, list):
             return res
 
-        logger.warning(f"[AIAnomalyService] Unexpected /place-anomalies response type: {type(res)}")
+        logger.warning(f"[AIAnomalyService] Unexpected response type: {type(res)}")
         return []
-
     # ------------------------------------------------------------------
     # get_summary — Aggregated anomaly statistics
     # ------------------------------------------------------------------
