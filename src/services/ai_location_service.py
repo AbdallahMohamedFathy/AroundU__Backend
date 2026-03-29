@@ -93,70 +93,45 @@ class AILocationService(BaseAIService):
     # ------------------------------------------------------------------
     # get_opportunities
     # ------------------------------------------------------------------
-
     
-        
     async def get_opportunities(
         self, points: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """
-        POST /opportunities
 
-        AI expects: {"places": [{"lat","lon","cluster","category","district"}, ...]}
-
-        All five fields MUST be present and non-null.
-        """
-        valid_points = []
-
-        for p in points:
-            try:
-                lat = p.get("lat")
-                lon = p.get("lon")
-                cluster = p.get("cluster")
-                category = p.get("category")
-                district = p.get("district")
-
-                # 🔥 Validation حقيقي
-                if (
-                    lat is None or lon is None or cluster is None
-                    or not category or not district
-                ):
-                    continue
-
-                lat = float(lat)
-                lon = float(lon)
-                cluster = int(cluster)
-
-                # 🔥 Range check (مهم جدًا)
-                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                    continue
-
-                valid_points.append({
-                    "lat": lat,
-                    "lon": lon,
-                    "cluster": cluster,
-                    "category": str(category).strip(),
-                    "district": str(district).strip(),
-                })
-
-            except Exception as e:
-                logger.warning(f"[AI] Skipping bad point: {p} — {e}")
-                continue
+        # 🔥 فلترة البيانات
+        valid_points = [
+            {
+                "lat": float(p["lat"]),
+                "lon": float(p["lon"]),
+                "cluster": int(p["cluster"]),
+                "category": str(p["category"]),
+                "district": str(p["district"]),
+            }
+            for p in points
+            if p.get("lat") is not None
+            and p.get("lon") is not None
+            and p.get("cluster") is not None
+            and p.get("category") is not None
+            and p.get("district") is not None
+            # 🔥 فلترة القيم الغلط
+            and -90 < float(p["lat"]) < 90
+            and -180 < float(p["lon"]) < 180
+        ]
 
         if not valid_points:
-            logger.info("[AILocationService] No valid points → skip AI call")
+            logger.info("[AILocationService] No valid points → skip opportunities")
             return []
 
-        payload = {"visits": valid_points}
+        # 🔥 هنا أهم تعديل
+        payload = {"places": valid_points}
 
         logger.info(
-            f"[AILocationService] POST /opportunities — {len(valid_points)} points"
+            f"[AILocationService] POST /opportunities — "
+            f"{len(valid_points)} places"
         )
 
         data = await self._request_with_retry(
-            "POST",
-            "/opportunities",
-            json=payload
+            "POST", "/opportunities", json=payload
         )
 
         if not data:
@@ -168,7 +143,7 @@ class AILocationService(BaseAIService):
         if isinstance(data, list):
             return data
 
-        logger.warning(f"[AILocationService] Unexpected response type: {type(data)}")
+        logger.warning("Unexpected response format")
         return []
     # ------------------------------------------------------------------
     # get_clusters
