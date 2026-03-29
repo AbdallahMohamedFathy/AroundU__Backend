@@ -106,8 +106,7 @@ async def record_interaction(
     cluster_id: Optional[int] = None
 
     if (
-        interaction_in.type == "visit"
-        and interaction_in.user_lat is not None
+        interaction_in.user_lat is not None
         and interaction_in.user_lon is not None
     ):
         try:

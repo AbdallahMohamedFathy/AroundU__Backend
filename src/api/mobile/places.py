@@ -9,13 +9,37 @@ from src.services.place_service import (
 from src.models.interaction import Interaction
 from src.services import place_image_service
 from src.schemas.place_image import PlaceImageResponse
+from src.core.logger import logger
+from src.services.ai_location_service import ai_location_service
 
 router = APIRouter()
 
 # ─── Helper for background visits ───
-def record_view_visit(place_id: int, uow):
+async def record_view_visit(
+    place_id: int, 
+    uow, 
+    user_id: Optional[int] = None, 
+    lat: Optional[float] = None, 
+    lon: Optional[float] = None
+):
+    cluster_id: Optional[int] = None
+    if lat is not None and lon is not None:
+        try:
+            cluster_data = await ai_location_service.predict_cluster(lat, lon)
+            if cluster_data:
+                cluster_id = cluster_data.get("cluster")
+        except Exception as exc:
+            logger.warning(f"[record_view_visit] Cluster prediction failed: {exc}")
+
     with uow:
-        visit = Interaction(place_id=place_id, type="visit")
+        visit = Interaction(
+            place_id=place_id, 
+            user_id=user_id,
+            user_lat=lat,
+            user_lon=lon,
+            cluster_id=cluster_id,
+            type="visit"
+        )
         uow.interaction_repository.create(visit)
         uow.commit()
 
@@ -88,13 +112,22 @@ def nearby_places(
 def get_place(
     place_id: int, 
     background_tasks: BackgroundTasks,
+    user_lat: Optional[float] = Query(None, ge=-90, le=90),
+    user_lon: Optional[float] = Query(None, ge=-180, le=180),
     repo = Depends(get_place_repository),
     uow = Depends(get_uow),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     """Retrieve a single place by ID and record a visit in the background."""
     place = get_place_by_id(repo, place_id)
-    background_tasks.add_task(record_view_visit, place_id, uow)
+    background_tasks.add_task(
+        record_view_visit, 
+        place_id, 
+        uow, 
+        current_user.id if current_user else None,
+        user_lat,
+        user_lon
+    )
     
     response_data = PlaceResponse.model_validate(place)
     if current_user:
