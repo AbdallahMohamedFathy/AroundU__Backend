@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class ReviewBase(BaseModel):
@@ -32,3 +32,10 @@ class ReviewWithUser(ReviewResponse):
     user_name: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReviewListResponse(BaseModel):
+    items: List[ReviewWithUser]
+    total: int
+    page: int
+    page_size: int

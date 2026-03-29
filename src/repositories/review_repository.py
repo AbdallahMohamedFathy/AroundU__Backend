@@ -9,14 +9,32 @@ class ReviewRepository(BaseRepository[Review]):
     def __init__(self, session: Session):
         super().__init__(Review, session)
 
+    def get_by_id(self, id: int) -> Optional[Review]:
+        return (
+            self.session.query(Review)
+            .options(joinedload(Review.user))
+            .filter(Review.id == id)
+            .first()
+        )
+
     def get_paginated(self, place_id: int, page: int = 1, page_size: int = 10) -> tuple:
-        query = self.session.query(Review).filter(Review.place_id == place_id).order_by(Review.created_at.desc())
+        query = (
+            self.session.query(Review)
+            .options(joinedload(Review.user))
+            .filter(Review.place_id == place_id)
+            .order_by(Review.created_at.desc())
+        )
         total = query.count()
         items = query.offset((page - 1) * page_size).limit(page_size).all()
         return items, total
 
     def get_user_paginated(self, user_id: int, page: int = 1, page_size: int = 10) -> tuple:
-        query = self.session.query(Review).filter(Review.user_id == user_id).order_by(Review.created_at.desc())
+        query = (
+            self.session.query(Review)
+            .options(joinedload(Review.user))
+            .filter(Review.user_id == user_id)
+            .order_by(Review.created_at.desc())
+        )
         total = query.count()
         items = query.offset((page - 1) * page_size).limit(page_size).all()
         return items, total

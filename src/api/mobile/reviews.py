@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, Query, status, HTTPException
 from src.core.dependencies import get_review_repository, get_uow, get_current_user
 from src.models.user import User
-from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse
+from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse
 from src.services import review_service
 
 router = APIRouter()
 
 
 # ─── LIST FOR PLACE  GET /reviews/place/{id} ────────────────────────────────
-@router.get("/place")
+@router.get("/place", response_model=ReviewListResponse)
 def list_place_reviews(
     place_id: int = Query(...),
     page: int = Query(1, ge=1),
@@ -21,7 +21,7 @@ def list_place_reviews(
     return review_service.get_place_reviews(repo, place_id, page, page_size)
 
 
-@router.get("/place/{place_id}")
+@router.get("/place/{place_id}", response_model=ReviewListResponse)
 def list_place_reviews_by_path(
     place_id: int,
     page: int = Query(1, ge=1),
@@ -35,7 +35,7 @@ def list_place_reviews_by_path(
 
 
 # ─── LIST MINE  GET /reviews/me ─────────────────────────────────────────────
-@router.get("/me")
+@router.get("/me", response_model=ReviewListResponse)
 def list_my_reviews(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
@@ -47,7 +47,7 @@ def list_my_reviews(
 
 
 # ─── GET ONE  GET /reviews/{id} ─────────────────────────────────────────────
-@router.get("/{review_id}", response_model=ReviewResponse)
+@router.get("/{review_id}", response_model=ReviewWithUser)
 def get_review(review_id: int, repo=Depends(get_review_repository)):
     """Retrieve a single review by ID."""
     return review_service.get_review_by_id(repo, review_id)

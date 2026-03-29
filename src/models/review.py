@@ -23,3 +23,8 @@ class Review(Base):
     # Relationships
     user = relationship("User", back_populates="reviews")
     place = relationship("Place", back_populates="reviews")
+
+    @property
+    def user_name(self) -> str:
+        """Returns the full name of the reviewer."""
+        return self.user.full_name if self.user else "Anonymous"
