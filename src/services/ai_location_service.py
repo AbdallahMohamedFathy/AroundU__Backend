@@ -94,6 +94,8 @@ class AILocationService(BaseAIService):
     # get_opportunities
     # ------------------------------------------------------------------
 
+    
+        
     async def get_opportunities(
         self, points: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
@@ -104,44 +106,70 @@ class AILocationService(BaseAIService):
 
         All five fields MUST be present and non-null.
         """
-        valid_points = [
-            {
-                "lat":      float(p["lat"]),
-                "lon":      float(p["lon"]),
-                "cluster":  int(p["cluster"]),
-                "category": str(p["category"]),
-                "district": str(p["district"]),
-            }
-            for p in points
-            if p.get("lat") is not None
-            and p.get("lon") is not None
-            and p.get("cluster") is not None
-            and p.get("category") is not None
-            and p.get("district") is not None
-        ]
+        valid_points = []
+
+        for p in points:
+            try:
+                lat = p.get("lat")
+                lon = p.get("lon")
+                cluster = p.get("cluster")
+                category = p.get("category")
+                district = p.get("district")
+
+                # 🔥 Validation حقيقي
+                if (
+                    lat is None or lon is None or cluster is None
+                    or not category or not district
+                ):
+                    continue
+
+                lat = float(lat)
+                lon = float(lon)
+                cluster = int(cluster)
+
+                # 🔥 Range check (مهم جدًا)
+                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                    continue
+
+                valid_points.append({
+                    "lat": lat,
+                    "lon": lon,
+                    "cluster": cluster,
+                    "category": str(category).strip(),
+                    "district": str(district).strip(),
+                })
+
+            except Exception as e:
+                logger.warning(f"[AI] Skipping bad point: {p} — {e}")
+                continue
 
         if not valid_points:
-            logger.info("[AILocationService] get_opportunities: no valid points, skipping.")
+            logger.info("[AILocationService] No valid points → skip AI call")
             return []
 
-        payload = {"places": valid_points}  # AI key is "places"
+        payload = {"places": valid_points}
+
         logger.info(
-            f"[AILocationService] POST /opportunities — "
-            f"{len(valid_points)} points. Payload preview: {payload!r:.500}"
+            f"[AILocationService] POST /opportunities — {len(valid_points)} points"
         )
 
-        data = await self._request_with_retry("POST", "/opportunities", json=payload)
+        data = await self._request_with_retry(
+            "POST",
+            "/opportunities",
+            json=payload
+        )
 
         if not data:
             return []
+
         if isinstance(data, dict):
-            return data.get("opportunities", data.get("places", []))
+            return data.get("opportunities", [])
+
         if isinstance(data, list):
             return data
 
-        logger.warning(f"[AILocationService] Unexpected /opportunities response type: {type(data)}")
+        logger.warning(f"[AILocationService] Unexpected response type: {type(data)}")
         return []
-
     # ------------------------------------------------------------------
     # get_clusters
     # ------------------------------------------------------------------
