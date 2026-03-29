@@ -20,6 +20,7 @@ class ReviewUpdate(BaseModel):
 class ReviewResponse(ReviewBase):
     id: int
     user_id: int
+    user_name: str
     place_id: int
     sentiment: Optional[str] = None
     created_at: datetime
@@ -28,14 +29,8 @@ class ReviewResponse(ReviewBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ReviewWithUser(ReviewResponse):
-    user_name: str
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class ReviewListResponse(BaseModel):
-    items: List[ReviewWithUser]
+    items: List[ReviewResponse]
     total: int
     page: int
     page_size: int

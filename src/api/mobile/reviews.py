@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status, HTTPException
 from src.core.dependencies import get_review_repository, get_uow, get_current_user
 from src.models.user import User
-from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse, ReviewWithUser
+from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse
 from src.services import review_service
 
 router = APIRouter()
@@ -47,7 +47,7 @@ def list_my_reviews(
 
 
 # ─── GET ONE  GET /reviews/{id} ─────────────────────────────────────────────
-@router.get("/{review_id}", response_model=ReviewWithUser)
+@router.get("/{review_id}", response_model=ReviewResponse)
 def get_review(review_id: int, repo=Depends(get_review_repository)):
     """Retrieve a single review by ID."""
     return review_service.get_review_by_id(repo, review_id)
