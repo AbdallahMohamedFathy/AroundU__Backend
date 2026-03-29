@@ -15,7 +15,18 @@ def list_place_reviews(
     page_size: int = Query(10, ge=1, le=100),
     repo=Depends(get_review_repository),
 ):
-    """Return all reviews for a given place (public)."""
+    """Return reviews using query parameter (?place_id=9)"""
+    return review_service.get_place_reviews(repo, place_id, page, page_size)
+
+
+@router.get("/place/{place_id}")
+def list_place_reviews_by_path(
+    place_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    repo=Depends(get_review_repository),
+):
+    """Return reviews using path parameter (/place/9)"""
     return review_service.get_place_reviews(repo, place_id, page, page_size)
 
 
