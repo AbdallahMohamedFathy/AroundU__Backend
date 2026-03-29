@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status, HTTPException
 from src.core.dependencies import get_review_repository, get_uow, get_current_user
 from src.models.user import User
-from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse
+from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse, ReviewWithUser
 from src.services import review_service
 
 router = APIRouter()
