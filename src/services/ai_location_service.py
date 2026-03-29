@@ -94,11 +94,8 @@ class AILocationService(BaseAIService):
     # get_opportunities
     # ------------------------------------------------------------------
     
-    async def get_opportunities(
-        self, points: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def get_opportunities(self, points):
 
-        # 🔥 فلترة البيانات
         valid_points = [
             {
                 "lat": float(p["lat"]),
@@ -111,40 +108,43 @@ class AILocationService(BaseAIService):
             if p.get("lat") is not None
             and p.get("lon") is not None
             and p.get("cluster") is not None
-            and p.get("category") is not None
-            and p.get("district") is not None
-            # 🔥 فلترة القيم الغلط
+            and p.get("category")
+            and p.get("district")
             and -90 < float(p["lat"]) < 90
             and -180 < float(p["lon"]) < 180
         ]
 
         if not valid_points:
-            logger.info("[AILocationService] No valid points → skip opportunities")
             return []
 
-        # 🔥 هنا أهم تعديل
+        # 🔥 جرب places الأول
         payload = {"places": valid_points}
 
-        logger.info(
-            f"[AILocationService] POST /opportunities — "
-            f"{len(valid_points)} places"
-        )
-
-        data = await self._request_with_retry(
+        res = await self._request_with_retry(
             "POST", "/opportunities", json=payload
         )
 
-        if not data:
+        # 🔥 لو فشل → جرب visits
+        if not res:
+            logger.warning("Retrying opportunities with visits payload")
+
+            payload = {"visits": valid_points}
+
+            res = await self._request_with_retry(
+                "POST", "/opportunities", json=payload
+            )
+
+        if not res:
             return []
 
-        if isinstance(data, dict):
-            return data.get("opportunities", [])
+        if isinstance(res, dict):
+            return res.get("opportunities", [])
 
-        if isinstance(data, list):
-            return data
+        if isinstance(res, list):
+            return res
 
-        logger.warning("Unexpected response format")
         return []
+
     # ------------------------------------------------------------------
     # get_clusters
     # ------------------------------------------------------------------
