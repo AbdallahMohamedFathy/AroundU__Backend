@@ -94,8 +94,13 @@ class AILocationService(BaseAIService):
     # get_opportunities
     # ------------------------------------------------------------------
     
-    async def get_opportunities(self, points):
+    async def get_opportunities(self, points: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        POST /opportunities
 
+        AI requires both "places" and "visits" keys in the payload to properly
+        validate even if they contain the same data points.
+        """
         valid_points = [
             {
                 "lat": float(p["lat"]),
@@ -117,33 +122,29 @@ class AILocationService(BaseAIService):
         if not valid_points:
             return []
 
-        # 🔥 جرب places الأول
-        payload = {"places": valid_points}
+        # 🔥 Unified payload with both keys to satisfy schema requirements
+        payload = {
+            "places": valid_points,
+            "visits": valid_points
+        }
+
+        logger.info(f"[AILocationService] POST /opportunities — {len(valid_points)} points")
 
         res = await self._request_with_retry(
             "POST", "/opportunities", json=payload
         )
 
-        # 🔥 لو فشل → جرب visits
-        if not res:
-            logger.warning("Retrying opportunities with visits payload")
-
-            payload = {"visits": valid_points}
-
-            res = await self._request_with_retry(
-                "POST", "/opportunities", json=payload
-            )
-
         if not res:
             return []
 
         if isinstance(res, dict):
-            return res.get("opportunities", [])
+            return res.get("opportunities", res.get("places", []))
 
         if isinstance(res, list):
             return res
 
         return []
+
 
     # ------------------------------------------------------------------
     # get_clusters

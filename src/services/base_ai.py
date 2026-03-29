@@ -32,6 +32,10 @@ class BaseAIService:
                     
                     logger.warning(f"{self.service_name} ({url}) attempt {attempt+1} failed with status {e.response.status_code}: {resp_body}")
                     
+                    # 422 is a schema error - no point in retrying
+                    if e.response.status_code == 422:
+                        return None
+
                     if attempt == self.max_retries - 1:
                         logger.error(f"{self.service_name} exhausted all {self.max_retries} retries for {url}.")
                         return None
