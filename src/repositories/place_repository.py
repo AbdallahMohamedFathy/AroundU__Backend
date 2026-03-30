@@ -311,6 +311,20 @@ class PlaceRepository(BaseRepository[Place]):
                 p.favorite_count,
                 p.is_active,
                 c.name AS category_name,
+                (
+                    SELECT COALESCE(json_agg(
+                        json_build_object(
+                            'id', pi.id,
+                            'place_id', pi.place_id,
+                            'image_url', pi.image_url,
+                            'image_type', pi.image_type,
+                            'caption', pi.caption,
+                            'created_at', pi.created_at
+                        )
+                    ), '[]'::json)
+                    FROM place_images pi
+                    WHERE pi.place_id = p.id
+                ) as images,
                 ST_Distance(p.location, ref_point.pt) / 1000.0 AS distance_km
             FROM places p
             JOIN categories c ON p.category_id = c.id
@@ -350,6 +364,7 @@ class PlaceRepository(BaseRepository[Place]):
                 "favorite_count": int(r.favorite_count or 0),
                 "category": r.category_name,
                 "distance_km": float(r.distance_km) if r.distance_km else 0.0,
+                "images": r.images if hasattr(r, 'images') else []
             }
             for r in results
         ]

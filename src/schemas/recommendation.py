@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
+from src.schemas.place_image import PlaceImageResponse
 
 
 class RecommendedPlaceResponse(BaseModel):
@@ -16,6 +17,7 @@ class RecommendedPlaceResponse(BaseModel):
     review_count: int = Field(0, description="Number of reviews")
     favorite_count: int = Field(0, description="Total times favorited")
     score: float = Field(..., description="Composite recommendation score (0-1)")
+    images: List[PlaceImageResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 

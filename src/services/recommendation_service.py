@@ -197,6 +197,7 @@ def get_recommendations(
             "review_count": c["review_count"],
             "favorite_count": c["favorite_count"],
             "score": round(c["score"], 4),
+            "images": c.get("images", [])
         }
         for c in top_results
     ]
