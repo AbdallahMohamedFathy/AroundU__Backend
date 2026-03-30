@@ -160,6 +160,9 @@ class PlaceRepository(BaseRepository[Place]):
         else:
             dist_score_sql = "0.0"
 
+        params["limit"] = limit
+
+
         # Safe favorite normalization
         # We need the max favorite count from candidates to normalize
         # For simplicity and performance, we use a fixed high value or a subquery
