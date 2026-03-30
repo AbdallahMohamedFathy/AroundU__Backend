@@ -150,7 +150,7 @@ class PlaceRepository(BaseRepository[Place]):
             match_sql = "p.search_vector @@ plainto_tsquery('english', :q)"
             params = {"q": q}
             # Normalized ts_rank
-            text_score_sql = "ts_rank(p.search_vector, plainto_tsquery('english', :q)) / (ts_rank(p.search_vector, plainto_tsquery('english', :q)) + 1)"
+            text_score_sql = "COALESCE(ts_rank(p.search_vector, plainto_tsquery('english', :q)), 0.0) / (COALESCE(ts_rank(p.search_vector, plainto_tsquery('english', :q)), 0.0) + 1.0)"
 
         if has_location:
             params.update({"lat": lat, "lng": lng})
@@ -172,7 +172,7 @@ class PlaceRepository(BaseRepository[Place]):
         final_score_sql = f"""
             LEAST(
                 (0.4 * ({text_score_sql})) + 
-                (0.3 * (p.rating / 5.0)) + 
+                (0.3 * (COALESCE(p.rating, 0.0) / 5.0)) + 
                 (0.2 * ({fav_score_sql})) + 
                 (0.1 * ({dist_score_sql})),
                 1.0
@@ -206,7 +206,7 @@ class PlaceRepository(BaseRepository[Place]):
                     p.id, p.name, p.description, c.name as category_name,
                     p.rating, p.review_count, p.favorite_count,
                     {dist_score_sql if has_location else '0.0'} as distance_meters,
-                    (similarity(p.name, :q) * 0.4) + (0.3 * (p.rating / 5.0)) as score
+                    (similarity(p.name, :q) * 0.4) + (0.3 * (COALESCE(p.rating, 0.0) / 5.0)) as score
                 FROM places p
                 JOIN categories c ON p.category_id = c.id
                 WHERE p.is_active = true AND similarity(p.name, :q) > 0.3
@@ -214,6 +214,7 @@ class PlaceRepository(BaseRepository[Place]):
                 LIMIT :limit
             """
             results = self.session.execute(text(fuzzy_sql), {"q": q, "limit": limit, "lat": lat, "lng": lng} if has_location else {"q": q, "limit": limit}).fetchall()
+
 
         return [
             {
