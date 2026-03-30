@@ -5,6 +5,7 @@ from src.schemas.favorite import FavoriteCreate
 from src.core.exceptions import APIException
 from fastapi import status
 
+
 def add_favorite(uow: UnitOfWork, user_id: int, favorite_data: FavoriteCreate):
     with uow:
         # Check if place exists
@@ -18,16 +19,21 @@ def add_favorite(uow: UnitOfWork, user_id: int, favorite_data: FavoriteCreate):
             raise APIException("Place already in favorites", code=status.HTTP_400_BAD_REQUEST)
 
         # Create favorite
-        from src.models.favorite import Favorite # Lazy import
+        from src.models.favorite import Favorite
         new_favorite = Favorite(user_id=user_id, place_id=favorite_data.place_id)
         uow.favorite_repository.create(new_favorite)
-        
+
+        # Atomically increment favorite_count on the place
+        uow.favorite_repository.increment_place_favorite_count(favorite_data.place_id)
+
         uow.commit()
         return new_favorite
+
 
 def get_user_favorites(repo: FavoriteRepository, user_id: int):
     """Get all favorites for a user with place details."""
     return repo.get_user_favorites(user_id)
+
 
 def remove_favorite(uow: UnitOfWork, user_id: int, place_id: int) -> bool:
     with uow:
@@ -36,8 +42,13 @@ def remove_favorite(uow: UnitOfWork, user_id: int, place_id: int) -> bool:
             raise APIException("Favorite not found", code=status.HTTP_404_NOT_FOUND)
 
         uow.favorite_repository.delete(favorite)
+
+        # Atomically decrement favorite_count on the place
+        uow.favorite_repository.decrement_place_favorite_count(place_id)
+
         uow.commit()
         return True
+
 
 def is_favorited(repo: FavoriteRepository, user_id: int, place_id: int) -> bool:
     favorite = repo.get_by_user_and_place(user_id, place_id)

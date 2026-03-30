@@ -25,3 +25,23 @@ class FavoriteRepository(BaseRepository[Favorite]):
         results = self.session.query(Favorite.place_id)\
             .filter(Favorite.user_id == user_id).all()
         return {r[0] for r in results}
+
+    def increment_place_favorite_count(self, place_id: int) -> None:
+        """Atomically increment favorite_count on the place (race-condition safe)."""
+        from src.models.place import Place
+        self.session.query(Place).filter(Place.id == place_id).update(
+            {Place.favorite_count: Place.favorite_count + 1},
+            synchronize_session=False
+        )
+
+    def decrement_place_favorite_count(self, place_id: int) -> None:
+        """Atomically decrement favorite_count on the place (floor at 0)."""
+        from src.models.place import Place
+        from sqlalchemy import case
+        self.session.query(Place).filter(Place.id == place_id).update(
+            {Place.favorite_count: case(
+                (Place.favorite_count > 0, Place.favorite_count - 1),
+                else_=0
+            )},
+            synchronize_session=False
+        )

@@ -19,6 +19,7 @@ class Place(Base):
     tiktok_url = Column(String, nullable=True)
     rating = Column(Float, default=0.0)
     review_count = Column(Integer, default=0)
+    favorite_count = Column(Integer, default=0, nullable=False, server_default='0')
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     from geoalchemy2 import Geography

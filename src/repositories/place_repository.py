@@ -126,3 +126,93 @@ class PlaceRepository(BaseRepository[Place]):
             stmt = stmt.filter(Category.name.ilike(f"%{category}%"))
             
         return stmt.order_by(Place.rating.desc()).all()
+
+    # ─── RECOMMENDATION ENGINE ────────────────────────────────────────
+    def get_recommendation_candidates(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 10.0,
+        category_id: Optional[int] = None,
+        limit: int = 300
+    ) -> List[dict]:
+        """
+        Fetch candidate places for the recommendation engine.
+        Uses PostGIS ST_DWithin for radius filtering + KNN (<->) for ordering.
+        Returns all fields needed for scoring: rating, review_count, favorite_count, distance_km.
+        """
+        radius_m = radius_km * 1000
+
+        query_str = """
+            SELECT
+                p.id,
+                p.name,
+                p.description,
+                p.address,
+                p.latitude,
+                p.longitude,
+                p.rating,
+                p.review_count,
+                p.favorite_count,
+                p.is_active,
+                c.name AS category_name,
+                ST_Distance(p.location, ref_point.pt) / 1000.0 AS distance_km
+            FROM places p
+            JOIN categories c ON p.category_id = c.id
+            CROSS JOIN (
+                SELECT ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography AS pt
+            ) AS ref_point
+            WHERE p.is_active = true
+              AND ST_DWithin(p.location, ref_point.pt, :radius_m)
+        """
+
+        params = {
+            "lat": latitude,
+            "lng": longitude,
+            "radius_m": radius_m,
+            "limit": limit,
+        }
+
+        if category_id:
+            query_str += " AND p.category_id = :category_id"
+            params["category_id"] = category_id
+
+        # KNN-assisted nearest-neighbor sort, limited to top N candidates
+        query_str += " ORDER BY p.location <-> ref_point.pt LIMIT :limit"
+
+        results = self.session.execute(text(query_str), params).fetchall()
+
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "description": r.description,
+                "address": r.address,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "rating": float(r.rating or 0),
+                "review_count": int(r.review_count or 0),
+                "favorite_count": int(r.favorite_count or 0),
+                "category": r.category_name,
+                "distance_km": float(r.distance_km) if r.distance_km else 0.0,
+            }
+            for r in results
+        ]
+
+    def get_global_rating_stats(self) -> dict:
+        """
+        Return the global average rating and average review count across all active places.
+        Used as the Bayesian prior (C value) for the recommendation scoring.
+        """
+        from sqlalchemy import func
+        result = self.session.query(
+            func.avg(Place.rating),
+            func.avg(Place.review_count),
+            func.count(Place.id),
+        ).filter(Place.is_active == True).first()  # noqa: E712
+
+        return {
+            "global_avg_rating": float(result[0]) if result[0] else 3.0,
+            "avg_review_count": float(result[1]) if result[1] else 0.0,
+            "total_places": int(result[2]) if result[2] else 0,
+        }
