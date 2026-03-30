@@ -351,8 +351,20 @@ class PlaceRepository(BaseRepository[Place]):
 
         results = self.session.execute(text(query_str), params).fetchall()
 
-        return [
-            {
+        import json
+        
+        results_list = []
+        for r in results:
+            images_data = getattr(r, 'images', [])
+            if images_data is None:
+                images_data = []
+            elif isinstance(images_data, str):
+                try:
+                    images_data = json.loads(images_data)
+                except Exception:
+                    images_data = []
+
+            results_list.append({
                 "id": r.id,
                 "name": r.name,
                 "description": r.description,
@@ -364,10 +376,10 @@ class PlaceRepository(BaseRepository[Place]):
                 "favorite_count": int(r.favorite_count or 0),
                 "category": r.category_name,
                 "distance_km": float(r.distance_km) if r.distance_km else 0.0,
-                "images": r.images if hasattr(r, 'images') else []
-            }
-            for r in results
-        ]
+                "images": images_data
+            })
+            
+        return results_list
 
     def get_global_rating_stats(self) -> dict:
         """
