@@ -11,6 +11,12 @@ class SearchHistory(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     query = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    from sqlalchemy import UniqueConstraint
+    __table_args__ = (
+        UniqueConstraint('user_id', 'query', name='unique_user_query'),
+    )
 
     # Relationships
     user = relationship("User", back_populates="search_history")

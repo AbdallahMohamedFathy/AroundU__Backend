@@ -10,3 +10,4 @@ from .conversation import Conversation
 from .message import Message
 from .item import Item
 from .interaction import Interaction
+from .search_trend import SearchTrend
