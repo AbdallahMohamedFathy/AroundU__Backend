@@ -2,6 +2,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from .place import PlaceResponse
 
+class SearchParams(BaseModel):
+    q: Optional[str] = None
+    category: Optional[str] = None
+
 class PlaceSearchResponse(BaseModel):
     id: int
     name: str = Field(..., description="Place name")
