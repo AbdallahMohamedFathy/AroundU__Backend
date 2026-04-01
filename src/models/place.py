@@ -46,7 +46,7 @@ class Place(Base):
 
     # Relationships
     category = relationship("Category", back_populates="places")
-    owner = relationship("User", back_populates="place")
+    owner = relationship("User", back_populates="places")
     images = relationship("PlaceImage", back_populates="place", cascade="all, delete-orphan")
     favorites = relationship("Favorite", back_populates="place", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="place", cascade="all, delete-orphan")
