@@ -8,7 +8,7 @@ class PlaceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
     address: Optional[str] = Field(None, max_length=500)
-    phone: Optional[str] = Field(None, max_length=20)
+    phone: Optional[List[str]] = Field(default_factory=list)
     website: Optional[str] = Field(None, max_length=500)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
@@ -30,7 +30,7 @@ class PlaceUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
     address: Optional[str] = Field(None, max_length=500)
-    phone: Optional[str] = Field(None, max_length=20)
+    phone: Optional[List[str]] = None
     website: Optional[str] = Field(None, max_length=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)

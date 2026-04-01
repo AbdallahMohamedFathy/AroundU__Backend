@@ -1019,57 +1019,86 @@ elif selected == "Manage Place":
         # Map category name to ID for the selectbox
         cat_options = {c['name']: c['id'] for c in categories}
         current_cat_name = next((name for name, id in cat_options.items() if id == place.get('category_id')), "Cafe")
+        
+        # Initialize session state for phone numbers if not present
+        if 'phone_list' not in st.session_state:
+            st.session_state.phone_list = place.get("phone") if isinstance(place.get("phone"), list) else ([place.get("phone")] if place.get("phone") else [""])
 
-        with st.form("edit_place_form"):
-            name = st.text_input("Business Name", value=place.get("name", ""))
-            description = st.text_area("Description", value=place.get("description", ""), height=150)
+        # Display form fields (no st.form to allow interactive buttons)
+        st.markdown("### 📝 Business Basics")
+        name = st.text_input("Business Name", value=place.get("name", ""))
+        description = st.text_area("Description", value=place.get("description", ""), height=150)
+        
+        # --- CATEGORY DROPDOWN ---
+        selected_cat_name = st.selectbox("Category", options=list(cat_options.keys()), index=list(cat_options.keys()).index(current_cat_name) if current_cat_name in cat_options else 0)
+        
+        address = st.text_input("Address", value=place.get("address", ""))
+        
+        # --- DYNAMIC PHONE SECTION ---
+        st.markdown("### 📞 Phone Numbers")
+        st.caption("Add one or more contact numbers for your business.")
+        
+        new_phone_list = []
+        for i, ph in enumerate(st.session_state.phone_list):
+            col1, col2 = st.columns([0.85, 0.15])
+            with col1:
+                updated_ph = st.text_input(f"Phone {i+1}", value=ph, key=f"phone_input_{i}", label_visibility="collapsed")
+                new_phone_list.append(updated_ph)
+            with col2:
+                if st.button("🗑️", key=f"del_phone_{i}", help="Remove this number"):
+                    st.session_state.phone_list.pop(i)
+                    st.rerun()
+        
+        st.session_state.phone_list = new_phone_list
+
+        if st.button("➕ Add Phone", type="secondary"):
+            st.session_state.phone_list.append("")
+            st.rerun()
+
+        website = st.text_input("Website", value=place.get("website", ""))
+        
+        st.markdown("### 📍 Location")
+        st.info("Paste a Google Maps link to automatically update coordinates.")
+        loc_link = st.text_input("Google Maps Link", placeholder="https://www.google.com/maps/...")
+        
+        with st.expander("Raw Coordinates (Optional)"):
+            c1, c2 = st.columns(2)
+            with c1:
+                lat = st.number_input("Latitude", value=place.get("latitude", 0.0), format="%.6f")
+            with c2:
+                lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
+        
+        # --- SOCIAL MEDIA LINKS ---
+        st.markdown("### 📱 Social Media")
+        with st.expander("Social Media & Contact Links"):
+            facebook = st.text_input("Facebook URL", value=place.get("facebook_url", ""))
+            instagram = st.text_input("Instagram URL", value=place.get("instagram_url", ""))
+            tiktok = st.text_input("TikTok URL", value=place.get("tiktok_url", ""))
+            whatsapp = st.text_input("WhatsApp Number", value=place.get("whatsapp_number", ""), help="e.g. +201234567890")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("💾 Save Changes", use_container_width=True, type="primary"):
+            # Clean empty phones
+            valid_phones = [p.strip() for p in st.session_state.phone_list if p.strip()]
             
-            # --- CATEGORY DROPDOWN ---
-            selected_cat_name = st.selectbox("Category", options=list(cat_options.keys()), index=list(cat_options.keys()).index(current_cat_name) if current_cat_name in cat_options else 0)
+            update_data = {
+                "name": name,
+                "description": description,
+                "category_id": cat_options[selected_cat_name],
+                "address": address,
+                "phone": valid_phones,
+                "website": website,
+                "latitude": lat,
+                "longitude": lon,
+                "facebook_url": facebook,
+                "instagram_url": instagram,
+                "whatsapp_number": whatsapp,
+                "tiktok_url": tiktok
+            }
+            if loc_link:
+                update_data["location_link"] = loc_link
             
-            address = st.text_input("Address", value=place.get("address", ""))
-            phone = st.text_input("Phone", value=place.get("phone", ""))
-            website = st.text_input("Website", value=place.get("website", ""))
-            
-            st.markdown("### 📍 Location")
-            st.info("Paste a Google Maps link to automatically update coordinates.")
-            loc_link = st.text_input("Google Maps Link", placeholder="https://www.google.com/maps/...")
-            
-            with st.expander("Raw Coordinates (Optional)"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    lat = st.number_input("Latitude", value=place.get("latitude", 0.0), format="%.6f")
-                with c2:
-                    lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
-            
-            # --- SOCIAL MEDIA LINKS ---
-            st.markdown("### 📱 Social Media")
-            with st.expander("Social Media & Contact Links"):
-                facebook = st.text_input("Facebook URL", value=place.get("facebook_url", ""))
-                instagram = st.text_input("Instagram URL", value=place.get("instagram_url", ""))
-                tiktok = st.text_input("TikTok URL", value=place.get("tiktok_url", ""))
-                whatsapp = st.text_input("WhatsApp Number", value=place.get("whatsapp_number", ""), help="e.g. +201234567890")
-            
-            submit = st.form_submit_button("Save Changes", use_container_width=True)
-            if submit:
-                update_data = {
-                    "name": name,
-                    "description": description,
-                    "category_id": cat_options[selected_cat_name],
-                    "address": address,
-                    "phone": phone,
-                    "website": website,
-                    "latitude": lat,
-                    "longitude": lon,
-                    "facebook_url": facebook,
-                    "instagram_url": instagram,
-                    "whatsapp_number": whatsapp,
-                    "tiktok_url": tiktok
-                }
-                if loc_link:
-                    update_data["location_link"] = loc_link
-                
-                update_place_details(place.get("id"), update_data)
+            update_place_details(place.get("id"), update_data)
         
         st.markdown("---")
         st.subheader("📸 Media Gallery")

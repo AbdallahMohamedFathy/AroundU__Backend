@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Boolean, CheckConstraint
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.core.database import Base
@@ -11,7 +12,7 @@ class Place(Base):
     name = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
     address = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
+    phone = Column(ARRAY(String), nullable=True)
     website = Column(String, nullable=True)
     instagram_url = Column(String, nullable=True)
     facebook_url = Column(String, nullable=True)
@@ -20,7 +21,6 @@ class Place(Base):
     rating = Column(Float, default=0.0)
     review_count = Column(Integer, default=0)
     favorite_count = Column(Integer, default=0, nullable=False, server_default='0')
-    from sqlalchemy.dialects.postgresql import TSVECTOR
     search_vector = Column(TSVECTOR)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
