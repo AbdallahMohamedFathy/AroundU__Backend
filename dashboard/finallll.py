@@ -219,15 +219,18 @@ def login_user(email, password):
     try:
         response = requests.post(
             f"{BACKEND_BASE_URL}/mobile/auth/login",
-            data={"username": email, "password": password}
+            data={"username": email.lower().strip(), "password": password}
         )
         if response.status_code == 200:
-            return response.json().get("access_token")
+            return response.json().get("access_token"), None
         else:
-            return None
+            try:
+                error_detail = response.json().get("detail", "Invalid credentials")
+            except:
+                error_detail = response.text or "Unknown error"
+            return None, f"Backend Error ({response.status_code}): {error_detail}"
     except Exception as e:
-        st.error(f"Login error: {e}")
-        return None
+        return None, f"Connection error: {e}"
 
 def logout():
     st.session_state.token = None
@@ -446,13 +449,13 @@ if st.session_state.token is None:
             submitted = st.form_submit_button("Login", use_container_width=True)
             
             if submitted:
-                token = login_user(email, password)
+                token, error_msg = login_user(email, password)
                 if token:
                     st.session_state.token = token
                     st.success("Login successful!")
                     st.rerun()
                 else:
-                    st.error("Invalid email or password.")
+                    st.error(error_msg or "Invalid email or password.")
     st.stop()
 
 # =========================
