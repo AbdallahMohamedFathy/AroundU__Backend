@@ -1084,22 +1084,49 @@ elif selected == "Manage Place":
         with st.expander("➕ Add New Branch", expanded=False):
             st.write("This will create a new location for your business using your existing images and details.")
             new_addr = st.text_input("Branch Address", placeholder="e.g. Al-Horreya St, Beni Suef")
-            new_link = st.text_input("Google Maps Link", key="new_branch_link", placeholder="https://www.google.com/maps/...")
             
-            if st.button("Create New Branch", type="primary"):
-                if new_link:
-                    lat, lon = extract_coordinates(new_link)
-                    if lat and lon:
-                        add_branch_request({
-                            "location_link": new_link, 
-                            "address": new_addr,
-                            "latitude": lat,
-                            "longitude": lon
-                        })
+            st.markdown("---")
+            col_nb1, col_nb2 = st.columns([0.7, 0.3], vertical_alignment="bottom")
+            with col_nb1:
+                new_link = st.text_input("Google Maps Link", key="new_branch_link", placeholder="https://www.google.com/maps/...")
+            with col_nb2:
+                if st.button("📍 Resolve", key="resolve_new_branch"):
+                    if new_link:
+                        nlat, nlon = extract_coordinates(new_link)
+                        if nlat and nlon:
+                            st.session_state.new_branch_lat = nlat
+                            st.session_state.new_branch_lon = nlon
+                            st.success("Coordinates extracted!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid link!")
                     else:
-                        st.error("Could not extract coordinates from link. Please use a full Google Maps link.")
+                        st.warning("Enter link!")
+
+            # Initialize new branch coords
+            if 'new_branch_lat' not in st.session_state:
+                st.session_state.new_branch_lat = 0.0
+                st.session_state.new_branch_lon = 0.0
+
+            with st.expander("Raw Coordinates (Optional)"):
+                c_nb1, c_nb2 = st.columns(2)
+                with c_nb1:
+                    nb_lat = st.number_input("Latitude", value=st.session_state.new_branch_lat, format="%.6f", key="nb_lat_input")
+                with c_nb2:
+                    nb_lon = st.number_input("Longitude", value=st.session_state.new_branch_lon, format="%.6f", key="nb_lon_input")
+                st.session_state.new_branch_lat = nb_lat
+                st.session_state.new_branch_lon = nb_lon
+
+            if st.button("Create New Branch", type="primary", use_container_width=True):
+                if st.session_state.new_branch_lat != 0:
+                    add_branch_request({
+                        "location_link": new_link, 
+                        "address": new_addr,
+                        "latitude": st.session_state.new_branch_lat,
+                        "longitude": st.session_state.new_branch_lon
+                    })
                 else:
-                    st.error("Please provide a Google Maps link.")
+                    st.error("Please provide a valid location (Link or Coordinates).")
 
         # Map category name to ID for the selectbox
         cat_options = {c['name']: c['id'] for c in categories}
