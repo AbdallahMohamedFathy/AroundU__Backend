@@ -15,13 +15,15 @@ from datetime import datetime, timezone, timedelta
 
 def register_user(uow: UnitOfWork, user_in: UserCreate):
     with uow:
-        existing_user = uow.user_repository.get_by_email(user_in.email)
+        # Normalize email
+        email = user_in.email.lower().strip()
+        existing_user = uow.user_repository.get_by_email(email)
         if existing_user:
             raise APIException("Email already registered", code=status.HTTP_400_BAD_REQUEST)
         
         from src.models.user import User
         new_user = User(
-            email=user_in.email,
+            email=email,
             full_name=user_in.full_name,
             password_hash=get_password_hash(user_in.password),
             verification_token=secrets.token_urlsafe(32),
@@ -47,7 +49,8 @@ def register_user(uow: UnitOfWork, user_in: UserCreate):
 
 def authenticate_user(uow: UnitOfWork, user_in: UserLogin):
     with uow:
-        user = uow.user_repository.get_by_email(user_in.email)
+        email = user_in.email.lower().strip()
+        user = uow.user_repository.get_by_email(email)
         if not user or not verify_password(user_in.password, user.password_hash):
             raise APIException("Incorrect email or password", code=status.HTTP_401_UNAUTHORIZED)
         
