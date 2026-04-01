@@ -1118,15 +1118,25 @@ elif selected == "Manage Place":
                 st.session_state.new_branch_lon = nb_lon
 
             if st.button("Create New Branch", type="primary", use_container_width=True):
-                if st.session_state.new_branch_lat != 0:
+                # Auto-resolve if needed
+                curr_lat = st.session_state.new_branch_lat
+                curr_lon = st.session_state.new_branch_lon
+                
+                if (curr_lat == 0 or curr_lon == 0) and new_link:
+                    with st.spinner("Extracting coordinates from link..."):
+                        extracted_lat, extracted_lon = extract_coordinates(new_link)
+                        if extracted_lat and extracted_lon:
+                            curr_lat, curr_lon = extracted_lat, extracted_lon
+                
+                if curr_lat != 0:
                     add_branch_request({
                         "location_link": new_link, 
                         "address": new_addr,
-                        "latitude": st.session_state.new_branch_lat,
-                        "longitude": st.session_state.new_branch_lon
+                        "latitude": curr_lat,
+                        "longitude": curr_lon
                     })
                 else:
-                    st.error("Please provide a valid location (Link or Coordinates).")
+                    st.error("Please provide a valid location (Link or Coordinates). Use the 'Resolve' button if needed.")
 
         # Map category name to ID for the selectbox
         cat_options = {c['name']: c['id'] for c in categories}
