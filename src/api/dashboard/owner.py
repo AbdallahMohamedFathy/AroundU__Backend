@@ -110,16 +110,20 @@ def add_branch(
         if not primary_place:
             raise APIException("You must have a primary place before adding branches", code=status.HTTP_400_BAD_REQUEST)
         
-        # 2. Extract coordinates from link
-        loc_link = branch_data.get("location_link")
-        if not loc_link:
-            raise APIException("Google Maps link is required", code=status.HTTP_400_BAD_REQUEST)
-            
-        coords = extract_coordinates(loc_link)
-        if not coords:
-            raise APIException("Could not parse location link", code=status.HTTP_400_BAD_REQUEST)
+        # 2. Extract coordinates (prefer pre-extracted from dashboard)
+        lat = branch_data.get("latitude")
+        lng = branch_data.get("longitude")
         
-        lat, lng = coords
+        if lat is None or lng is None:
+            loc_link = branch_data.get("location_link")
+            if not loc_link:
+                raise APIException("Google Maps link or coordinates are required", code=status.HTTP_400_BAD_REQUEST)
+                
+            coords = extract_coordinates(loc_link)
+            if not coords:
+                raise APIException("Could not parse location link", code=status.HTTP_400_BAD_REQUEST)
+            lat, lng = coords
+        
         address = branch_data.get("address") or primary_place.address
 
         # 3. Create new place record

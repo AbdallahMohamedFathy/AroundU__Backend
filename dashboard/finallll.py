@@ -211,6 +211,41 @@ section[data-testid="stSidebar"] span {
 """, unsafe_allow_html=True)
 
 
+# --- UTILITIES ---
+def extract_coordinates(url):
+    """
+    Client-side coordinate extraction for Google Maps links (including short links).
+    """
+    if not url: return None, None
+    
+    try:
+        # 1. Resolve short URL if necessary
+        resolved_url = url
+        if "goo.gl" in url or ".page.link" in url:
+            headers = {"User-Agent": "Mozilla/5.0"}
+            res = requests.get(url, allow_redirects=True, headers=headers, timeout=5.0)
+            resolved_url = res.url
+            
+        decoded_url = requests.utils.unquote(resolved_url)
+        
+        # Prioritized patterns
+        patterns = [
+            r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', # Marker coords
+            r'@(-?\d+\.\d+),(-?\d+\.\d+)',     # Viewport/context
+            r'[?&]q=([-+]?\d*\.\d+|\d+),([-+]?\d*\.\d+|\d+)', # Query param
+            r'/([-+]?\d+\.\d+),([-+]?\d+\.\d+)' # Path coords
+        ]
+
+        for text in [resolved_url, decoded_url]:
+            for pattern in patterns:
+                match = re.search(pattern, text)
+                if match:
+                    return float(match.group(1)), float(match.group(2))
+    except Exception as e:
+        st.error(f"Error parsing map link: {e}")
+    return None, None
+
+
 # --- CONFIGURATION ---
 BACKEND_BASE_URL = "https://aroundubackend-production.up.railway.app/api"
 
@@ -1049,9 +1084,19 @@ elif selected == "Manage Place":
             st.write("This will create a new location for your business using your existing images and details.")
             new_addr = st.text_input("Branch Address", placeholder="e.g. Al-Horreya St, Beni Suef")
             new_link = st.text_input("Google Maps Link", key="new_branch_link", placeholder="https://www.google.com/maps/...")
+            
             if st.button("Create New Branch", type="primary"):
                 if new_link:
-                    add_branch_request({"location_link": new_link, "address": new_addr})
+                    lat, lon = extract_coordinates(new_link)
+                    if lat and lon:
+                        add_branch_request({
+                            "location_link": new_link, 
+                            "address": new_addr,
+                            "latitude": lat,
+                            "longitude": lon
+                        })
+                    else:
+                        st.error("Could not extract coordinates from link. Please use a full Google Maps link.")
                 else:
                     st.error("Please provide a Google Maps link.")
 
@@ -1098,15 +1143,42 @@ elif selected == "Manage Place":
         website = st.text_input("Website", value=place.get("website", ""))
         
         st.markdown("### 📍 Location")
-        st.info("Paste a Google Maps link to automatically update coordinates.")
-        loc_link = st.text_input("Google Maps Link", placeholder="https://www.google.com/maps/...")
+        st.info("Paste a Google Maps link below, then click '📍 Resolve Link' to automatically fill coordinates.")
         
+        col_l1, col_l2 = st.columns([0.7, 0.3], vertical_alignment="bottom")
+        with col_l1:
+            loc_link = st.text_input("Google Maps Link", placeholder="https://www.google.com/maps/...", key="loc_link_input")
+        with col_l2:
+            if st.button("📍 Resolve", use_container_width=True):
+                if loc_link:
+                    plat, plon = extract_coordinates(loc_link)
+                    if plat and plon:
+                        st.session_state[f"lat_{place.get('id')}"] = plat
+                        st.session_state[f"lon_{place.get('id')}"] = plon
+                        st.success("Coordinates updated!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid link!")
+                else:
+                    st.warning("Enter link!")
+
+        # Initialize coordinates in session state if not there
+        if f"lat_{place.get('id')}" not in st.session_state:
+            st.session_state[f"lat_{place.get('id')}"] = place.get("latitude", 0.0)
+            st.session_state[f"lon_{place.get('id')}"] = place.get("longitude", 0.0)
+
         with st.expander("Raw Coordinates (Optional)"):
             c1, c2 = st.columns(2)
             with c1:
-                lat = st.number_input("Latitude", value=place.get("latitude", 0.0), format="%.6f")
+                final_lat = st.number_input("Latitude", value=st.session_state[f"lat_{place.get('id')}"], 
+                                         format="%.6f", key=f"lat_input_{place.get('id')}")
             with c2:
-                lon = st.number_input("Longitude", value=place.get("longitude", 0.0), format="%.6f")
+                final_lon = st.number_input("Longitude", value=st.session_state[f"lon_{place.get('id')}"], 
+                                         format="%.6f", key=f"lon_input_{place.get('id')}")
+            
+            # Keep session state updated if user typed manually
+            st.session_state[f"lat_{place.get('id')}"] = final_lat
+            st.session_state[f"lon_{place.get('id')}"] = final_lon
         
         # --- SOCIAL MEDIA LINKS ---
         st.markdown("### 📱 Social Media")
@@ -1128,8 +1200,8 @@ elif selected == "Manage Place":
                 "address": address,
                 "phone": valid_phones,
                 "website": website,
-                "latitude": lat,
-                "longitude": lon,
+                "latitude": st.session_state.get(f"lat_{place.get('id')}", place.get("latitude")),
+                "longitude": st.session_state.get(f"lon_{place.get('id')}", place.get("longitude")),
                 "facebook_url": facebook,
                 "instagram_url": instagram,
                 "whatsapp_number": whatsapp,
