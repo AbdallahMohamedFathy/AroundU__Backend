@@ -312,16 +312,31 @@ def fetch_my_place():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/owner/my-place", headers=get_headers())
         if res.status_code == 200: 
-            data = res.json()
-            # Debug log for social links specifically
-            # st.sidebar.write(f"DEBUG Social: FB={data.get('facebook_url')}")
-            return data
-        if res.status_code != 401:
-            st.error(f"Backend returned {res.status_code}: {res.text}")
+            return res.json()
         handle_api_error(res)
     except Exception as e:
         st.error(f"Connection error: {e}")
     return None
+
+def fetch_my_places():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/my-places", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
+
+def add_branch_request(data):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/owner/add-branch", json=data, headers=get_headers())
+        if res.status_code == 200:
+            st.success("✅ Branch added successfully!")
+            st.rerun()
+            return True
+        st.error(f"❌ Failed to add branch: {res.text}")
+    except Exception as e:
+        st.error(f"Error: {e}")
+    return False
 
 @st.cache_data(ttl=300)
 def fetch_categories():
@@ -1009,19 +1024,41 @@ Urgent: <strong style="color:#e74c3c">{urgent}</strong>
 # 5️⃣ MANAGE PLACE
 # =========================
 elif selected == "Manage Place":
-    st.title("⚙️ Manage Your Place")
-    st.info("Update your business details visible to customers.")
+    st.title("⚙️ Manage Your Place & Branches")
+    st.info("Update your business details and manage all your locations.")
     
-    place = fetch_my_place()
+    places = fetch_my_places()
     categories = fetch_categories()
     
-    if place and categories:
+    if places and categories:
+        # --- BRANCH SELECTOR ---
+        if len(places) > 1:
+            branch_names = [f"{p['name']} - {p['address'] or 'No Address'}" for p in places]
+            selected_idx = st.selectbox("📍 Select Branch to Edit", range(len(branch_names)), 
+                                        format_func=lambda x: branch_names[x])
+            place = places[selected_idx]
+            st.divider()
+        else:
+            place = places[0]
+
+        # --- ADD NEW BRANCH ---
+        with st.expander("➕ Add New Branch", expanded=False):
+            st.write("This will create a new location for your business using your existing images and details.")
+            new_addr = st.text_input("Branch Address", placeholder="e.g. Al-Horreya St, Beni Suef")
+            new_link = st.text_input("Google Maps Link", key="new_branch_link", placeholder="https://www.google.com/maps/...")
+            if st.button("Create New Branch", type="primary"):
+                if new_link:
+                    add_branch_request({"location_link": new_link, "address": new_addr})
+                else:
+                    st.error("Please provide a Google Maps link.")
+
         # Map category name to ID for the selectbox
         cat_options = {c['name']: c['id'] for c in categories}
         current_cat_name = next((name for name, id in cat_options.items() if id == place.get('category_id')), "Cafe")
         
-        # Initialize session state for phone numbers if not present
-        if 'phone_list' not in st.session_state:
+        # Initialize session state for phone numbers if not present or if branch changed
+        if 'current_place_id' not in st.session_state or st.session_state.current_place_id != place.get('id'):
+            st.session_state.current_place_id = place.get('id')
             st.session_state.phone_list = place.get("phone") if isinstance(place.get("phone"), list) else ([place.get("phone")] if place.get("phone") else [""])
 
         # Display form fields (no st.form to allow interactive buttons)

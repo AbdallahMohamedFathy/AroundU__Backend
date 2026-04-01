@@ -31,7 +31,6 @@ class Place(Base):
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
         index=True
     )
     is_active = Column(Boolean, default=True, nullable=False)

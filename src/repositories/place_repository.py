@@ -17,7 +17,12 @@ class PlaceRepository(BaseRepository[Place]):
             .filter(Place.id == place_id).first()
 
     def get_by_owner_id(self, owner_id: int) -> Optional[Place]:
+        """Returns the primary place for an owner (first one found)."""
         return self.session.query(Place).filter(Place.owner_id == owner_id).first()
+
+    def get_all_by_owner_id(self, owner_id: int) -> List[Place]:
+        """Returns all places owned by a specific user."""
+        return self.session.query(Place).filter(Place.owner_id == owner_id).all()
 
     def get_nearby(
         self, 

@@ -72,9 +72,9 @@ def get_my_place(
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Return the current owner's place details."""
+    """Return the current owner's primary (first) place details."""
     try:
-        place = db.query(Place).filter(Place.owner_id == current_user.id).first()
+        place = db.query(Place).filter(Place.owner_id == current_user.id).order_by(Place.id.asc()).first()
         if not place:
             raise APIException(
                 "No place found for this owner", code=status.HTTP_404_NOT_FOUND
@@ -85,6 +85,86 @@ def get_my_place(
     except Exception:
         logger.error(f"Error in get_my_place: {traceback.format_exc()}")
         raise APIException("Internal error fetching place", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@router.get("/my-places", response_model=List[PlaceResponse])
+def get_my_places(
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Return all places owned by the current owner."""
+    places = db.query(Place).filter(Place.owner_id == current_user.id).order_by(Place.id.asc()).all()
+    return [PlaceResponse.model_validate(p) for p in places]
+
+@router.post("/add-branch", response_model=PlaceResponse)
+def add_branch(
+    branch_data: Dict[str, str], # payload: {"location_link": "...", "address": "..."}
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user=Depends(owner_guard),
+):
+    """Create a new branch by copying data from the owner's primary place."""
+    from src.utils.location_parser import extract_coordinates
+    
+    with uow:
+        # 1. Get primary place to copy from
+        primary_place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not primary_place:
+            raise APIException("You must have a primary place before adding branches", code=status.HTTP_400_BAD_REQUEST)
+        
+        # 2. Extract coordinates from link
+        loc_link = branch_data.get("location_link")
+        if not loc_link:
+            raise APIException("Google Maps link is required", code=status.HTTP_400_BAD_REQUEST)
+            
+        coords = extract_coordinates(loc_link)
+        if not coords:
+            raise APIException("Could not parse location link", code=status.HTTP_400_BAD_REQUEST)
+        
+        lat, lng = coords
+        address = branch_data.get("address") or primary_place.address
+
+        # 3. Create new place record
+        new_branch = Place(
+            name=primary_place.name,
+            description=primary_place.description,
+            address=address,
+            phone=primary_place.phone,
+            website=primary_place.website,
+            category_id=primary_place.category_id,
+            owner_id=current_user.id,
+            latitude=lat,
+            longitude=lng,
+            facebook_url=primary_place.facebook_url,
+            instagram_url=primary_place.instagram_url,
+            whatsapp_number=primary_place.whatsapp_number,
+            tiktok_url=primary_place.tiktok_url,
+            is_active=True
+        )
+        
+        new_branch = uow.place_repository.create(new_branch)
+        
+        # 4. Set PostGIS location
+        uow.session.execute(
+            text("""
+                UPDATE places
+                SET location = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+                WHERE id = :id
+            """),
+            {"lng": lng, "lat": lat, "id": new_branch.id}
+        )
+        
+        # 5. Copy images
+        from src.models.place_image import PlaceImage
+        for img in primary_place.images:
+            new_img = PlaceImage(
+                place_id=new_branch.id,
+                image_url=img.image_url,
+                image_type=img.image_type,
+                caption=img.caption
+            )
+            uow.session.add(new_img)
+            
+        uow.commit()
+        return PlaceResponse.model_validate(new_branch)
 
 
 # ---------------------------------------------------------------------------

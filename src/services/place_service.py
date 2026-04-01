@@ -94,13 +94,9 @@ def create_place(uow: Any, request_data: Any, current_user: Any):
         if target_user.role != "USER":
             raise APIException("Place must be assigned to a standard USER account", code=status.HTTP_400_BAD_REQUEST)
             
-        # 3. Prevent duplicate ownership
-        existing_place = uow.place_repository.get_by_owner_id(request_data.owner_user_id)
-        if existing_place:
-            raise APIException("User already owns a place", code=status.HTTP_400_BAD_REQUEST)
-            
-        # 4. Promote target user to OWNER
-        target_user.role = "OWNER"
+        # 3. Promote target user to OWNER if needed
+        if target_user.role == "USER":
+            target_user.role = "OWNER"
 
         # 5. Create Place
         db_place = Place(
