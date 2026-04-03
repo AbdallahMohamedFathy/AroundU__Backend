@@ -105,70 +105,74 @@ def add_branch(
     from src.utils.location_parser import extract_coordinates
     
     with uow:
-        # 1. Get primary place to copy from
-        primary_place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not primary_place:
-            raise APIException("You must have a primary place before adding branches", code=status.HTTP_400_BAD_REQUEST)
-        
-        # 2. Extract coordinates (prefer pre-extracted from dashboard)
-        lat = branch_data.get("latitude")
-        lng = branch_data.get("longitude")
-        
-        if lat is None or lng is None:
-            loc_link = branch_data.get("location_link")
-            if not loc_link:
-                raise APIException("Google Maps link or coordinates are required", code=status.HTTP_400_BAD_REQUEST)
-                
-            coords = extract_coordinates(loc_link)
-            if not coords:
-                raise APIException("Could not parse location link", code=status.HTTP_400_BAD_REQUEST)
-            lat, lng = coords
-        
-        address = branch_data.get("address") or primary_place.address
-
-        # 3. Create new place record
-        new_branch = Place(
-            name=primary_place.name,
-            description=primary_place.description,
-            address=address,
-            phone=primary_place.phone,
-            website=primary_place.website,
-            category_id=primary_place.category_id,
-            owner_id=current_user.id,
-            latitude=lat,
-            longitude=lng,
-            facebook_url=primary_place.facebook_url,
-            instagram_url=primary_place.instagram_url,
-            whatsapp_number=primary_place.whatsapp_number,
-            tiktok_url=primary_place.tiktok_url,
-            is_active=True
-        )
-        
-        new_branch = uow.place_repository.create(new_branch)
-        
-        # 4. Set PostGIS location
-        uow.session.execute(
-            text("""
-                UPDATE places
-                SET location = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
-                WHERE id = :id
-            """),
-            {"lng": lng, "lat": lat, "id": new_branch.id}
-        )
-        
-        # 5. Copy images
-        from src.models.place_image import PlaceImage
-        for img in primary_place.images:
-            new_img = PlaceImage(
-                place_id=new_branch.id,
-                image_url=img.image_url,
-                image_type=img.image_type,
-                caption=img.caption
-            )
-            uow.session.add(new_img)
+        try:
+            # 1. Get primary place to copy from
+            primary_place = uow.place_repository.get_by_owner_id(current_user.id)
+            if not primary_place:
+                raise APIException("You must have a primary place before adding branches", code=status.HTTP_400_BAD_REQUEST)
             
-        uow.commit()
-        return PlaceResponse.model_validate(new_branch)
+            # 2. Extract coordinates (prefer pre-extracted from dashboard)
+            lat = branch_data.get("latitude")
+            lng = branch_data.get("longitude")
+            
+            if lat is None or lng is None:
+                loc_link = branch_data.get("location_link")
+                if not loc_link:
+                    raise APIException("Google Maps link or coordinates are required", code=status.HTTP_400_BAD_REQUEST)
+                    
+                coords = extract_coordinates(loc_link)
+                if not coords:
+                    raise APIException("Could not parse location link", code=status.HTTP_400_BAD_REQUEST)
+                lat, lng = coords
+            
+            address = branch_data.get("address") or primary_place.address
+
+            # 3. Create new place record
+            new_branch = Place(
+                name=primary_place.name,
+                description=primary_place.description,
+                address=address,
+                phone=primary_place.phone,
+                website=primary_place.website,
+                category_id=primary_place.category_id,
+                owner_id=current_user.id,
+                latitude=float(lat),
+                longitude=float(lng),
+                facebook_url=primary_place.facebook_url,
+                instagram_url=primary_place.instagram_url,
+                whatsapp_number=primary_place.whatsapp_number,
+                tiktok_url=primary_place.tiktok_url,
+                is_active=True
+            )
+            
+            new_branch = uow.place_repository.create(new_branch)
+            
+            # 4. Set PostGIS location
+            uow.session.execute(
+                text("""
+                    UPDATE places
+                    SET location = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+                    WHERE id = :id
+                """),
+                {"lng": float(lng), "lat": float(lat), "id": new_branch.id}
+            )
+            
+            # 5. Copy images
+            from src.models.place_image import PlaceImage
+            for img in primary_place.images:
+                new_img = PlaceImage(
+                    place_id=new_branch.id,
+                    image_url=img.image_url,
+                    image_type=img.image_type,
+                    caption=getattr(img, 'caption', None) # Safe access
+                )
+                uow.session.add(new_img)
+                
+            uow.commit()
+            return PlaceResponse.model_validate(new_branch)
+        except Exception as e:
+            uow.rollback()
+            raise APIException(f"Failed to copy data: {str(e)}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ---------------------------------------------------------------------------
