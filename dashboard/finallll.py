@@ -1089,6 +1089,16 @@ elif selected == "Manage Place":
             col_nb1, col_nb2 = st.columns([0.7, 0.3], vertical_alignment="bottom")
             with col_nb1:
                 new_link = st.text_input("Google Maps Link", key="new_branch_link", placeholder="https://www.google.com/maps/...")
+            
+            # --- AUTO RESOLVE LOGIC FOR NEW BRANCH ---
+            if new_link and new_link != st.session_state.get('last_new_branch_link'):
+                nlat, nlon = extract_coordinates(new_link)
+                if nlat and nlon:
+                    st.session_state.new_branch_lat = nlat
+                    st.session_state.new_branch_lon = nlon
+                    st.session_state.last_new_branch_link = new_link
+                    st.rerun()
+
             with col_nb2:
                 if st.button("📍 Resolve", key="resolve_new_branch"):
                     if new_link:
@@ -1190,6 +1200,16 @@ elif selected == "Manage Place":
         col_l1, col_l2 = st.columns([0.7, 0.3], vertical_alignment="bottom")
         with col_l1:
             loc_link = st.text_input("Google Maps Link", placeholder="https://www.google.com/maps/...", key="loc_link_input")
+        
+        # --- AUTO RESOLVE LOGIC FOR EDITING ---
+        if loc_link and loc_link != st.session_state.get(f"last_link_{place.get('id')}"):
+            plat, plon = extract_coordinates(loc_link)
+            if plat and plon:
+                st.session_state[f"lat_{place.get('id')}"] = plat
+                st.session_state[f"lon_{place.get('id')}"] = plon
+                st.session_state[f"last_link_{place.get('id')}"] = loc_link
+                st.rerun()
+
         with col_l2:
             if st.button("📍 Resolve", use_container_width=True):
                 if loc_link:
