@@ -1129,6 +1129,10 @@ elif selected == "Manage Place":
                             curr_lat, curr_lon = extracted_lat, extracted_lon
                 
                 if curr_lat != 0:
+                    # Clean up session state BEFORE calling the request which triggers rerun
+                    if 'new_branch_lat' in st.session_state: del st.session_state.new_branch_lat
+                    if 'new_branch_lon' in st.session_state: del st.session_state.new_branch_lon
+                    
                     add_branch_request({
                         "location_link": new_link, 
                         "address": new_addr,
@@ -1247,6 +1251,10 @@ elif selected == "Manage Place":
             }
             if loc_link:
                 update_data["location_link"] = loc_link
+            
+            # Clear session state for coordinates BEFORE updating to force re-fetch from the updated 'place' object
+            if f"lat_{place.get('id')}" in st.session_state: del st.session_state[f"lat_{place.get('id')}"]
+            if f"lon_{place.get('id')}" in st.session_state: del st.session_state[f"lon_{place.get('id')}"]
             
             update_place_details(place.get("id"), update_data)
         
