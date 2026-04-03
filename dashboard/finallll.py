@@ -223,22 +223,26 @@ def extract_coordinates(url):
         # 1. Resolve short URL if necessary
         resolved_url = url
         if any(domain in url for domain in ["goo.gl", ".page.link", "maps.app.goo.gl"]):
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-            res = requests.get(url, allow_redirects=True, headers=headers, timeout=6.0)
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            # Aggressive redirect following
+            session = requests.Session()
+            res = session.get(url, allow_redirects=True, headers=headers, timeout=10.0)
             resolved_url = res.url
             
         decoded_url = requests.utils.unquote(resolved_url)
         
-        # Super-comprehensive patterns
+        # Super-comprehensive patterns including CID and FTID variations
         patterns = [
-            r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', # Standard marker coords
-            r'@(-?\d+\.\d+),(-?\d+\.\d+)',     # Viewport/context coords
-            r'[?&]q=([-+]?\d*\.\d+|\d+),([-+]?\d*\.\d+|\d+)', # Search query
-            r'/([-+]?\d+\.\d+),([-+]?\d+\.\d+)', # Path components
-            r'll=([-+]?\d+\.\d+),([-+]?\d+\.\d+)', # Legacy 'll' param
-            r'place/([-+]?\d+\.\d+),([-+]?\d+\.\d+)', # /place/lat,lon format
-            r'place/.*@([-+]?\d+\.\d+),([-+]?\d+\.\d+)', # /place/Name/@lat,lon
-            r'(-?\d+\.\d+)\+(-?\d+\.\d+)' # lat+lon format often in search
+            r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)',
+            r'@(-?\d+\.\d+),(-?\d+\.\d+)',
+            r'[?&]q=([-+]?\d*\.\d+|\d+),([-+]?\d*\.\d+|\d+)',
+            r'/([-+]?\d+\.\d+),([-+]?\d+\.\d+)',
+            r'll=([-+]?\d+\.\d+),([-+]?\d+\.\d+)',
+            r'place/([-+]?\d+\.\d+),([-+]?\d+\.\d+)',
+            r'place/.*@([-+]?\d+\.\d+),([-+]?\d+\.\d+)',
+            r'(-?\d+\.\d+)\+(-?\d+\.\d+)',
+            r'latitude=([-+]?\d+\.\d+)&longitude=([-+]?\d+\.\d+)', # Common in some embedded links
+            r'center=([-+]?\d+\.\d+)%2C([-+]?\d+\.\d+)' # Static maps / embedded
         ]
 
         for text in [resolved_url, decoded_url]:
@@ -246,9 +250,7 @@ def extract_coordinates(url):
                 match = re.search(pattern, text)
                 if match:
                     return float(match.group(1)), float(match.group(2))
-                    
     except Exception as e:
-        # We'll show a toast in the calling UI context if needed
         pass
     return None, None
 
@@ -1098,15 +1100,14 @@ elif selected == "Manage Place":
             
             # --- AUTO RESOLVE LOGIC FOR NEW BRANCH ---
             if new_link and new_link != st.session_state.get('last_new_branch_link'):
-                with st.spinner("📍 Smart-extracting location..."):
+                with st.spinner("📍 Smart-extracting..."):
                     nlat, nlon = extract_coordinates(new_link)
                     if nlat and nlon:
                         st.session_state.new_branch_lat = nlat
                         st.session_state.new_branch_lon = nlon
-                        st.toast("✅ Location detected!", icon="📍")
+                        st.toast(f"✅ Coordinates found: {nlat}, {nlon}", icon="📍")
                     else:
-                        # Don't reset if it failed, just warn once via toast
-                        st.toast("⚠️ Could not auto-extract coords. Try the 'Resolve' button or check the link.", icon="❓")
+                        st.toast("⚠️ Could not extract. Check link or use 'Resolve' button.", icon="❓")
                     
                     st.session_state.last_new_branch_link = new_link
                     st.rerun()
