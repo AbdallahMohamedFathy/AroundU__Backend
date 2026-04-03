@@ -97,7 +97,7 @@ def get_my_places(
 
 @router.post("/add-branch", response_model=PlaceResponse)
 def add_branch(
-    branch_data: Dict[str, str], # payload: {"location_link": "...", "address": "..."}
+    branch_data: Dict[str, Any], # payload: {"location_link": "...", "latitude": 0.0, ...}
     uow: Annotated[Any, Depends(get_uow)],
     current_user=Depends(owner_guard),
 ):
