@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 
 from src.api.dashboard.dependencies import owner_guard
