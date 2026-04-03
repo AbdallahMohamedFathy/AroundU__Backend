@@ -1129,16 +1129,16 @@ elif selected == "Manage Place":
                             curr_lat, curr_lon = extracted_lat, extracted_lon
                 
                 if curr_lat != 0:
-                    # Clean up session state BEFORE calling the request which triggers rerun
-                    if 'new_branch_lat' in st.session_state: del st.session_state.new_branch_lat
-                    if 'new_branch_lon' in st.session_state: del st.session_state.new_branch_lon
-                    
-                    add_branch_request({
+                    if add_branch_request({
                         "location_link": new_link, 
                         "address": new_addr,
                         "latitude": curr_lat,
                         "longitude": curr_lon
-                    })
+                    }):
+                        # Clean up session state ONLY on success
+                        if 'new_branch_lat' in st.session_state: del st.session_state.new_branch_lat
+                        if 'new_branch_lon' in st.session_state: del st.session_state.new_branch_lon
+                        st.rerun()
                 else:
                     st.error("Please provide a valid location (Link or Coordinates). Use the 'Resolve' button if needed.")
 
@@ -1252,11 +1252,14 @@ elif selected == "Manage Place":
             if loc_link:
                 update_data["location_link"] = loc_link
             
-            # Clear session state for coordinates BEFORE updating to force re-fetch from the updated 'place' object
-            if f"lat_{place.get('id')}" in st.session_state: del st.session_state[f"lat_{place.get('id')}"]
-            if f"lon_{place.get('id')}" in st.session_state: del st.session_state[f"lon_{place.get('id')}"]
+            if loc_link:
+                update_data["location_link"] = loc_link
             
-            update_place_details(place.get("id"), update_data)
+            if update_place_details(place.get("id"), update_data):
+                # Only clear session state after a confirmed success to force re-fetch
+                if f"lat_{place.get('id')}" in st.session_state: del st.session_state[f"lat_{place.get('id')}"]
+                if f"lon_{place.get('id')}" in st.session_state: del st.session_state[f"lon_{place.get('id')}"]
+                st.rerun()
         
         st.markdown("---")
         st.subheader("📸 Media Gallery")
