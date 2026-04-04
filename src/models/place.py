@@ -33,6 +33,12 @@ class Place(Base):
         nullable=False,
         index=True
     )
+    parent_id = Column(
+        Integer, 
+        ForeignKey("places.id", ondelete="SET NULL"), 
+        nullable=True,
+        index=True
+    )
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -51,3 +57,7 @@ class Place(Base):
     favorites = relationship("Favorite", back_populates="place", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="place", cascade="all, delete-orphan")
     items = relationship('Item', back_populates='place', cascade='all, delete-orphan')
+    
+    # Branch relationship (Self-referential)
+    from sqlalchemy.orm import backref
+    branches = relationship("Place", backref=backref("parent", remote_side=[id]), cascade="all, delete-orphan")

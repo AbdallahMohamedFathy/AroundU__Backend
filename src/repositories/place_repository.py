@@ -11,9 +11,12 @@ class PlaceRepository(BaseRepository[Place]):
         super().__init__(Place, session)
 
     def get_by_id_with_details(self, place_id: int) -> Optional[Place]:
-        """Get place with category eager loaded to prevent N+1."""
+        """Get place with category and branches eager loaded to prevent N+1."""
         return self.session.query(Place)\
-            .options(joinedload(Place.category))\
+            .options(
+                joinedload(Place.category),
+                joinedload(Place.branches)
+            )\
             .filter(Place.id == place_id).first()
 
     def get_by_owner_id(self, owner_id: int) -> Optional[Place]:

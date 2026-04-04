@@ -13,6 +13,7 @@ class PlaceBase(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     category_id: int
+    parent_id: Optional[int] = None
     instagram_url: Optional[str] = None
     facebook_url: Optional[str] = None
     whatsapp_number: Optional[str] = None
@@ -36,6 +37,7 @@ class PlaceUpdate(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     location_link: Optional[str] = None
     category_id: Optional[int] = None
+    parent_id: Optional[int] = None
     instagram_url: Optional[str] = None
     facebook_url: Optional[str] = None
     whatsapp_number: Optional[str] = None
@@ -53,6 +55,7 @@ class PlaceResponse(PlaceBase):
     created_at: datetime
     distance_km: Optional[float] = None  # Calculated field
     images: List[PlaceImageResponse] = []
+    branches: List['PlaceResponse'] = []
     is_favorited: Optional[bool] = False  # Calculated field based on current user
 
     model_config = ConfigDict(from_attributes=True)

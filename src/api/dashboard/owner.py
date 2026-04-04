@@ -136,6 +136,7 @@ def add_branch(
                 website=primary_place.website,
                 category_id=primary_place.category_id,
                 owner_id=current_user.id,
+                parent_id=primary_place.id,  # Establishment of hierarchy
                 latitude=float(lat),
                 longitude=float(lng),
                 facebook_url=primary_place.facebook_url,
