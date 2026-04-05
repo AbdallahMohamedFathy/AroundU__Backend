@@ -7,6 +7,7 @@ from src.core.security import get_password_hash
 from src.models.user import User
 from src.models.place import Place
 from src.models.property import Property
+from src.models.property_image import PropertyImage
 from src.schemas.admin import PlaceCreationResponse, PropertyCreationResponse
 from src.utils.location_parser import extract_coordinates
 from sqlalchemy import text
@@ -173,3 +174,46 @@ def create_property_with_owner(uow: UnitOfWork, property_in, current_admin):
             owner_id=new_owner.id,
             owner_email=new_owner.email
         )
+
+
+from fastapi import UploadFile
+from src.services.cloudinary_service import upload_image
+
+MAX_PROPERTY_IMAGES = 5
+
+def upload_property_images(uow, property_id: int, images: list, current_admin):
+    """
+    Upload images for an existing property. Admin only.
+    """
+    with uow:
+        require_admin(current_admin)
+
+        prop = uow.property_repository.get_by_id_with_images(property_id)
+        if not prop:
+            raise APIException("Property not found", code=status.HTTP_404_NOT_FOUND)
+
+        current_count = len(prop.images)
+        if current_count + len(images) > MAX_PROPERTY_IMAGES:
+            raise APIException(
+                f"Cannot upload {len(images)} images. Property already has {current_count} images. Max allowed: {MAX_PROPERTY_IMAGES}",
+                code=status.HTTP_400_BAD_REQUEST
+            )
+
+        uploaded_urls = []
+        for image in images:
+            url = upload_image(image, folder="properties")
+            new_img = PropertyImage(property_id=prop.id, image_url=url)
+            uow.session.add(new_img)
+            uploaded_urls.append(url)
+
+            # Set first image as main_image_url if not already set
+            if not prop.main_image_url:
+                prop.main_image_url = url
+
+        uow.commit()
+
+        return {
+            "property_id": property_id,
+            "uploaded": len(uploaded_urls),
+            "urls": uploaded_urls
+        }
