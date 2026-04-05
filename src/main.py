@@ -22,6 +22,7 @@ from src.api.mobile import favorites as mobile_favorites
 from src.api.mobile import items as mobile_items
 from src.api.mobile import interactions as mobile_interactions
 from src.api.mobile import recommendations as mobile_recommendations
+from src.api.mobile import properties as mobile_properties
 
 from src.api.dashboard import places as dashboard_places
 from src.api.dashboard import items as dashboard_items
@@ -140,6 +141,7 @@ app.include_router(mobile_reviews.router, prefix="/api/mobile/reviews", tags=["M
 app.include_router(mobile_items.router, prefix="/api/mobile/items", tags=["Mobile - Items"])
 app.include_router(mobile_interactions.router, prefix="/api/mobile/interactions", tags=["Mobile - Interactions"])
 app.include_router(mobile_recommendations.router, prefix="/api/mobile/recommendations", tags=["Mobile - Recommendations"])
+app.include_router(mobile_properties.router, prefix="/api/mobile/properties", tags=["Mobile - Properties"])
 
 # ─── DASHBOARD API ──────────────────────────────────────────
 app.include_router(dashboard_places.router, prefix="/api/dashboard/places", tags=["Dashboard - Places"])
