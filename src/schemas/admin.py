@@ -13,6 +13,12 @@ class PlaceCreateWithOwner(BaseModel):
     owner_email: str
     owner_password: str
 
+class PlaceCreationResponse(BaseModel):
+    place_id: int
+    owner_id: int
+    owner_email: str
+
+
 class PropertyCreationResponse(BaseModel):
     property_id: int
     owner_id: int
