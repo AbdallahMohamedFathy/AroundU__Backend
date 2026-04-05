@@ -6,7 +6,8 @@ from fastapi import status
 from src.core.security import get_password_hash
 from src.models.user import User
 from src.models.place import Place
-from src.schemas.admin import PlaceCreationResponse
+from src.models.property import Property
+from src.schemas.admin import PlaceCreationResponse, PropertyCreationResponse
 from src.utils.location_parser import extract_coordinates
 from sqlalchemy import text
 
@@ -110,6 +111,50 @@ def create_place_with_owner(uow: UnitOfWork, place_in, current_admin):
 
         return PlaceCreationResponse(
             place_id=new_place.id,
+            owner_id=new_owner.id,
+            owner_email=new_owner.email
+        )
+
+def create_property_with_owner(uow: UnitOfWork, property_in, current_admin):
+    """
+    Business flow: Create an owner user, then create a property linked to that user.
+    """
+    with uow:
+        # 1. Admin permission check
+        require_admin(current_admin)
+
+        # 2. Check if owner email already exists
+        existing_user = uow.user_repository.get_by_email(property_in.owner_email)
+        if existing_user:
+            raise APIException("A user with this email already exists", code=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Create the Owner user
+        new_owner = User(
+            full_name=f"Owner of {property_in.title}",
+            email=property_in.owner_email,
+            password_hash=get_password_hash(property_in.owner_password),
+            role="OWNER",
+            is_active=True,
+            is_verified=True
+        )
+        uow.user_repository.create(new_owner)
+        
+        # 4. Create the Property
+        new_property = Property(
+            title=property_in.title,
+            description=property_in.description,
+            price=property_in.price,
+            latitude=property_in.latitude,
+            longitude=property_in.longitude,
+            owner_id=new_owner.id,
+            is_available=True
+        )
+        new_property = uow.property_repository.create(new_property)
+
+        uow.commit()
+
+        return PropertyCreationResponse(
+            property_id=new_property.id,
             owner_id=new_owner.id,
             owner_email=new_owner.email
         )

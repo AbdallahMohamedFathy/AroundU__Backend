@@ -13,7 +13,17 @@ class PlaceCreateWithOwner(BaseModel):
     owner_email: str
     owner_password: str
 
-class PlaceCreationResponse(BaseModel):
-    place_id: int
+class PropertyCreationResponse(BaseModel):
+    property_id: int
     owner_id: int
     owner_email: str
+
+
+class PropertyCreateWithOwner(BaseModel):
+    title: str
+    description: str = None
+    price: float
+    latitude: float
+    longitude: float
+    owner_email: str
+    owner_password: str

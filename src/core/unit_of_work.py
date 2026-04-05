@@ -12,6 +12,7 @@ from src.repositories.category_repository import CategoryRepository
 from src.repositories.place_image_repository import PlaceImageRepository
 from src.repositories.item_repository import ItemRepository
 from src.repositories.interaction_repository import InteractionRepository
+from src.repositories.property_repository import PropertyRepository
 
 class UnitOfWork:
     """
@@ -38,6 +39,7 @@ class UnitOfWork:
         self.search_repository = SearchRepository(self.session)
         self.item_repository = ItemRepository(self.session)
         self.interaction_repository = InteractionRepository(self.session)
+        self.property_repository = PropertyRepository(self.session)
         
         return self
 
