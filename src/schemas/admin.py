@@ -29,7 +29,8 @@ class PropertyCreateWithOwner(BaseModel):
     title: str
     description: str = None
     price: float
-    latitude: float
-    longitude: float
+    location_link: str = None
+    latitude: float = None
+    longitude: float = None
     owner_email: str
     owner_password: str

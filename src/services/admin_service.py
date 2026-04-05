@@ -139,13 +139,28 @@ def create_property_with_owner(uow: UnitOfWork, property_in, current_admin):
         )
         uow.user_repository.create(new_owner)
         
-        # 4. Create the Property
+        # 4. Handle Location Parsing
+        lat = property_in.latitude
+        lng = property_in.longitude
+
+        if property_in.location_link:
+            try:
+                coords = extract_coordinates(property_in.location_link)
+                if coords:
+                    lat, lng = coords
+            except Exception as e:
+                pass
+
+        if lat is None or lng is None:
+            raise APIException("Latitude and Longitude are required if location_link is not provided", code=status.HTTP_400_BAD_REQUEST)
+
+        # 5. Create the Property
         new_property = Property(
             title=property_in.title,
             description=property_in.description,
             price=property_in.price,
-            latitude=property_in.latitude,
-            longitude=property_in.longitude,
+            latitude=lat,
+            longitude=lng,
             owner_id=new_owner.id,
             is_available=True
         )
