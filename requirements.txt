@@ -51,3 +51,5 @@ pandas
 plotly
 numpy
 streamlit-option-menu
+folium
+streamlit-folium

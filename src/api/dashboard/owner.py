@@ -417,6 +417,78 @@ async def get_location_heatmap(
     from src.services.ai_location_service import ai_location_service
     return await ai_location_service.get_heatmap(points)
 
+@router.get("/active-visitors")
+async def get_active_visitors(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user=Depends(owner_guard),
+):
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return []
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        if not visits: return []
+        points = [
+            {
+                "lat": v.user_lat, 
+                "lon": v.user_lon, 
+                "cluster": v.cluster_id, 
+                "visited_at": v.created_at.isoformat() if v.created_at else None
+            }
+            for v in visits
+            if v.user_lat is not None and v.user_lon is not None and v.cluster_id is not None
+        ]
+
+    from src.services.ai_location_service import ai_location_service
+    return await ai_location_service.get_active_visitors(points)
+
+@router.get("/peak-hour")
+async def get_peak_hour(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user=Depends(owner_guard),
+):
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return {}
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        if not visits: return {}
+        points = [
+            {
+                "lat": v.user_lat, 
+                "lon": v.user_lon, 
+                "cluster": v.cluster_id, 
+                "visited_at": v.created_at.isoformat() if v.created_at else None
+            }
+            for v in visits
+            if v.user_lat is not None and v.user_lon is not None and v.cluster_id is not None
+        ]
+
+    from src.services.ai_location_service import ai_location_service
+    return await ai_location_service.get_peak_hour(points)
+
+@router.get("/location-summary")
+async def get_location_summary(
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user=Depends(owner_guard),
+):
+    with uow:
+        place = uow.place_repository.get_by_owner_id(current_user.id)
+        if not place: return {}
+        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        if not visits: return {}
+        points = [
+            {
+                "lat": v.user_lat, 
+                "lon": v.user_lon, 
+                "cluster": v.cluster_id, 
+                "visited_at": v.created_at.isoformat() if v.created_at else None
+            }
+            for v in visits
+            if v.user_lat is not None and v.user_lon is not None and v.cluster_id is not None
+        ]
+
+    from src.services.ai_location_service import ai_location_service
+    return await ai_location_service.get_owner_summary(points)
+
 
 # ---------------------------------------------------------------------------
 # Opportunities

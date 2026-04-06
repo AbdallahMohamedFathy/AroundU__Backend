@@ -3,6 +3,9 @@ import re
 import pandas as pd
 import plotly.express as px
 import numpy as np
+import folium
+from streamlit_folium import st_folium
+from folium.plugins import HeatMap
 from streamlit_option_menu import option_menu
 from datetime import datetime, timedelta
 import requests
@@ -474,6 +477,62 @@ def fetch_interactions_locations():
         handle_api_error(res)
     except: pass
     return pd.DataFrame()
+
+@st.cache_data(ttl=30)
+def fetch_active_visitors():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/active-visitors", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
+
+@st.cache_data(ttl=30)
+def fetch_peak_hour():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/peak-hour", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return {}
+
+@st.cache_data(ttl=60)
+def fetch_location_summary():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/location-summary", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return {}
+
+def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, place_lat, place_lon):
+    m = folium.Map(location=[place_lat, place_lon], zoom_start=14, tiles="CartoDB positron")
+    
+    folium.Marker(
+        [place_lat, place_lon], 
+        tooltip="Your Place", 
+        icon=folium.Icon(color="red", icon="info-sign")
+    ).add_to(m)
+
+    if show_heatmap and not all_locations.empty:
+        heat_data = [[row['lat'], row['lon']] for index, row in all_locations.iterrows() if pd.notna(row['lat']) and pd.notna(row['lon'])]
+        if heat_data:
+            HeatMap(heat_data, radius=15, blur=10).add_to(m)
+
+    if show_pins and active_visitors:
+        for visitor in active_visitors:
+            if visitor.get("lat") and visitor.get("lon"):
+                folium.CircleMarker(
+                    location=[visitor["lat"], visitor["lon"]],
+                    radius=6,
+                    color="#055e9b",
+                    fill=True,
+                    fill_color="#055e9b",
+                    fill_opacity=0.7,
+                    tooltip=f"Visitor (Cluster: {visitor.get('cluster', 'N/A')})"
+                ).add_to(m)
+
+    return m
 
 # --- MAIN APP LOGIC ---
 if 'token' not in st.session_state:
@@ -1450,35 +1509,52 @@ elif selected == "Location Logic":
     st.divider()
 
     # ── Fetch data ────────────────────────────────────────────────────
-    with st.spinner("Loading visitor locations..."):
-        all_df    = fetch_user_locations(place_id)
-        active_df = filter_active(all_df, active_minutes) if not all_df.empty else pd.DataFrame()
+    with st.spinner("Loading AI visitor insights and locations..."):
+        all_df = fetch_interactions_locations()
+        active_visitors = fetch_active_visitors()
+        peak_hour_data = fetch_peak_hour()
+        owner_summary = fetch_location_summary()
 
     # ── KPI cards ─────────────────────────────────────────────────────
-    k1, k2 = st.columns(2)
+    k1, k2, k3 = st.columns(3)
     total_count  = len(all_df)
-    active_count = len(active_df)
+    active_count = len(active_visitors)
+    
+    # From peak hour data
+    peak_time_str = "N/A"
+    if peak_hour_data and "peak" in peak_hour_data:
+        peak_time_str = str(peak_hour_data["peak"])
 
     k1.markdown(f"""<div class="kpi-card">
         <div class="kpi-title">👥 Total Visitors (all time)</div>
         <div class="kpi-value">{total_count}</div>
-        <div class="kpi-delta">All recorded sessions</div>
+        <div class="kpi-delta">Recorded map interactions</div>
     </div>""", unsafe_allow_html=True)
 
     k2.markdown(f"""<div class="kpi-card">
-        <div class="kpi-title">🟢 Active ({window_label})</div>
+        <div class="kpi-title">🟢 Active Visitors</div>
         <div class="kpi-value">{active_count}</div>
-        <div class="kpi-delta">Recent sessions</div>
+        <div class="kpi-delta">AI Live Detection</div>
+    </div>""", unsafe_allow_html=True)
+
+    k3.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">⏳ Peak Traffic Hour</div>
+        <div class="kpi-value">{peak_time_str}</div>
+        <div class="kpi-delta">AI Predicted Focus Time</div>
     </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ── AI Summary Block ──────────────────────────────────────────────
+    if owner_summary and "summary" in owner_summary:
+        st.info(f"🧠 **AI Location Summary:** {owner_summary['summary']}")
 
     # ── Map — always rendered, data is optional ───────────────────────
     if all_df.empty:
-        st.info("No visitor location data yet — showing your place on the map.")
+        st.warning("No visitor location data yet — showing your place on the map.")
 
     loc_map = build_location_map(
-        all_df, active_df,
+        all_df, active_visitors,
         show_pins, show_heatmap,
         place_lat, place_lon
     )
