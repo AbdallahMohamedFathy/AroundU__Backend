@@ -505,14 +505,21 @@ def fetch_location_summary():
     except: pass
     return {}
 
-def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, place_lat, place_lon):
-    m = folium.Map(location=[place_lat, place_lon], zoom_start=14, tiles="CartoDB positron")
+def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, places_list, center_lat, center_lon):
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles="CartoDB positron")
     
-    folium.Marker(
-        [place_lat, place_lon], 
-        tooltip="Your Place", 
-        icon=folium.Icon(color="red", icon="info-sign")
-    ).add_to(m)
+    for p in places_list:
+        lat = p.get("latitude")
+        lon = p.get("longitude")
+        name = p.get("name") or "Branch"
+        address = p.get("address") or ""
+        if lat and lon:
+            tooltip_html = f"<b>{name}</b><br>{address}" if address else f"<b>{name}</b>"
+            folium.Marker(
+                [float(lat), float(lon)], 
+                tooltip=tooltip_html, 
+                icon=folium.Icon(color="red", icon="home")
+            ).add_to(m)
 
     if show_heatmap and not all_locations.empty:
         heat_data = [[row['lat'], row['lon']] for index, row in all_locations.iterrows() if pd.notna(row['lat']) and pd.notna(row['lon'])]
@@ -1514,6 +1521,7 @@ elif selected == "Location Logic":
         active_visitors = fetch_active_visitors()
         peak_hour_data = fetch_peak_hour()
         owner_summary = fetch_location_summary()
+        places_list = fetch_my_places()
 
     # ── KPI cards ─────────────────────────────────────────────────────
     k1, k2, k3 = st.columns(3)
@@ -1556,14 +1564,14 @@ elif selected == "Location Logic":
     loc_map = build_location_map(
         all_df, active_visitors,
         show_pins, show_heatmap,
-        place_lat, place_lon
+        places_list, place_lat, place_lon
     )
     st_folium(loc_map, width="100%", height=520, returned_objects=[])
 
     # Legend
     st.markdown("""
     <div style='font-size:13px; color:#65797E; margin-top:8px; display:flex; gap:20px;'>
-        <span>🔴 <b>Your Place</b></span>
+        <span>🔴 <b>Your Branches</b></span>
         <span>🔵 <b>Active visitors (pins)</b></span>
         <span>🌡️ <b>All visitors density (heatmap)</b></span>
     </div>
