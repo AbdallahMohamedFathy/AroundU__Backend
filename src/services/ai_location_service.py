@@ -24,7 +24,7 @@ class AILocationService(BaseAIService):
     def __init__(self) -> None:
         super().__init__(
             service_name="AI Location Service",
-            base_url="https://mazenmaher26-aroundu-location-clustering.hf.space",
+            base_url="https://mazenmaher26-aroundu-location-logic.hf.space",
             timeout=20.0,
             max_retries=3,
         )
@@ -162,6 +162,44 @@ class AILocationService(BaseAIService):
         if isinstance(data, dict):
             return data.get("clusters", [])
         return []
+
+    # ------------------------------------------------------------------
+    # Additional logic endpoints provided by AI Team
+    # ------------------------------------------------------------------
+
+    async def get_health(self) -> Dict[str, Any]:
+        """GET /health"""
+        res = await self._request_with_retry("GET", "/health")
+        return res if isinstance(res, dict) else {}
+
+    async def get_active_visitors(self, visits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """POST /active-visitors"""
+        if not visits: return []
+        payload = {"visits": visits}
+        res = await self._request_with_retry("POST", "/active-visitors", json=payload)
+        if isinstance(res, dict): return res.get("visitors", res.get("data", res.get("active_visitors", [])))
+        return res if isinstance(res, list) else []
+
+    async def get_peak_hour(self, visits: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """POST /peak-hour"""
+        if not visits: return {}
+        payload = {"visits": visits}
+        res = await self._request_with_retry("POST", "/peak-hour", json=payload)
+        return res if isinstance(res, dict) else {}
+
+    async def get_owner_summary(self, visits: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """POST /owner-summary"""
+        if not visits: return {}
+        payload = {"visits": visits}
+        res = await self._request_with_retry("POST", "/owner-summary", json=payload)
+        return res if isinstance(res, dict) else {}
+
+    async def get_admin_summary(self, visits: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """POST /admin-summary"""
+        if not visits: return {}
+        payload = {"visits": visits}
+        res = await self._request_with_retry("POST", "/admin-summary", json=payload)
+        return res if isinstance(res, dict) else {}
 
 
 # ---------------------------------------------------------------------------

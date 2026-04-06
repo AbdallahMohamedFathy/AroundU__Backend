@@ -878,7 +878,7 @@ elif selected == "Customer Insights":
             if not isinstance(item, dict):
                 continue
 
-            raw_type  = str(item.get("anomaly_type", item.get("type", "unknown"))).lower().replace(" ", "_")
+            raw_type  = str(item.get("anomaly_type", item.get("type", "unknown"))).lower().replace(" ", "_").replace("-", "_")
             defaults  = KNOWN_DISPLAY.get(raw_type, (raw_type.replace("_", " ").title(), "place", "medium"))
 
             display_name = defaults[0]
@@ -924,7 +924,7 @@ elif selected == "Customer Insights":
 
         def _names(lst):
             return ", ".join(
-                str(a.get("anomaly_type", a.get("type","?"))).replace("_"," ").title()
+                str(a.get("anomaly_type", a.get("type","?"))).replace("_"," ").replace("-", " ").title()
                 for a in lst[:4]
             ) or "—"
 
@@ -1375,7 +1375,9 @@ elif selected == "Manage Place":
             st.info("No menu photos uploaded yet.")
     else:
         st.error("Could not load data. Please refresh.")
-
+# =========================
+# 3️⃣ OPERATIONS
+# =========================
 elif selected == "Operations":
     st.title("⏰ Operational Efficiency")
     st.info("Operational analytics based on historical interaction patterns.")
@@ -1398,59 +1400,95 @@ elif selected == "Operations":
 # 4️⃣ LOCATION LOGIC
 # =========================
 elif selected == "Location Logic":
-    st.title("📍 Location Analysis: Beni Suef")
-    
-    # Map Mode Toggle
-    mode = st.radio("Map Mode", ["Heatmap", "Users"], horizontal=True)
-    
-    BS_LAT, BS_LON = 29.0661, 31.0994
+    st.title("📍 Location Logic")
+    st.markdown("See where your visitors are coming from — all time and recently active.")
 
-    if mode == "Heatmap":
-        map_data = fetch_location_data()
-        if not map_data.empty:
-            fig_map = px.density_mapbox(map_data, lat='lat', lon='lon', z='intensity',
-                radius=30, center=dict(lat=BS_LAT, lon=BS_LON), zoom=13,
-                mapbox_style="open-street-map", height=700)
-            fig_map.update_layout(
-                coloraxis_colorbar=dict(title="Intensity",
-                    title_font=dict(color="#1D3143"), tickfont=dict(color="#1D3143")),
-                margin={"r":0,"t":0,"l":0,"b":0})
-            st.plotly_chart(fig_map, use_container_width=True)
+    # ── Get owner's place coords ──────────────────────────────────────
+    place       = my_place or {}
+    place_id    = place.get("id", None)
+    place_lat   = float(place.get("latitude",  29.0661))
+    place_lon   = float(place.get("longitude", 31.0994))
+
+    if not place_id:
+        st.error("Could not load your place info. Please refresh.")
+        st.stop()
+
+    # ── Controls row ─────────────────────────────────────────────────
+    ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([2, 1, 1, 1])
+
+    with ctrl1:
+        window_label = st.selectbox(
+            "Active session window",
+            options=["Last 15 minutes", "Last 1 hour", "Last 3 hours",
+                     "Last 6 hours", "Last 24 hours", "Custom"],
+            index=1,
+        )
+        window_map = {
+            "Last 15 minutes": 15,
+            "Last 1 hour":     60,
+            "Last 3 hours":    180,
+            "Last 6 hours":    360,
+            "Last 24 hours":   1440,
+        }
+        if window_label == "Custom":
+            custom_h = st.number_input("Custom window (hours)", min_value=1, max_value=168, value=2)
+            active_minutes = custom_h * 60
         else:
-            st.warning("No location interaction data available for heatmap.")
-    
-    else: # Users Mode
-        scatter_data = fetch_interactions_locations()
-        if not scatter_data.empty:
-            # Color mapping per instruction: visit -> red, call -> blue, save -> green
-            color_map = {
-                "visit": "#E63946", # Red
-                "call": "#2F5C85", # Blue
-                "save": "#61A3BB"  # Green
-            }
-            
-            fig_scatter = px.scatter_mapbox(
-                scatter_data, 
-                lat="lat", 
-                lon="lon", 
-                color="type",
-                color_discrete_map=color_map,
-                zoom=14,
-                center=dict(lat=BS_LAT, lon=BS_LON),
-                height=700,
-                hover_name="type" # Show interaction type on hover
-            )
-            fig_scatter.update_layout(
-                mapbox_style="open-street-map",
-                margin={"r":0,"t":0,"l":0,"b":0},
-                legend=dict(
-                    title="Interaction Type",
-                    yanchor="top", y=0.99, xanchor="left", x=0.01,
-                    bgcolor="rgba(255, 255, 255, 0.8)"
-                )
-            )
-            st.plotly_chart(fig_scatter, use_container_width=True)
-        else:
-            st.warning("No individual user interactions yet.")
-else:
-    st.warning("Please select a valid section from the sidebar.")
+            active_minutes = window_map[window_label]
+
+    with ctrl2:
+        show_heatmap = st.toggle("🔥 All visitors heatmap", value=True)
+
+    with ctrl3:
+        show_pins = st.toggle("📌 Active visitor pins", value=True)
+
+    with ctrl4:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    st.divider()
+
+    # ── Fetch data ────────────────────────────────────────────────────
+    with st.spinner("Loading visitor locations..."):
+        all_df    = fetch_user_locations(place_id)
+        active_df = filter_active(all_df, active_minutes) if not all_df.empty else pd.DataFrame()
+
+    # ── KPI cards ─────────────────────────────────────────────────────
+    k1, k2 = st.columns(2)
+    total_count  = len(all_df)
+    active_count = len(active_df)
+
+    k1.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">👥 Total Visitors (all time)</div>
+        <div class="kpi-value">{total_count}</div>
+        <div class="kpi-delta">All recorded sessions</div>
+    </div>""", unsafe_allow_html=True)
+
+    k2.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">🟢 Active ({window_label})</div>
+        <div class="kpi-value">{active_count}</div>
+        <div class="kpi-delta">Recent sessions</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Map — always rendered, data is optional ───────────────────────
+    if all_df.empty:
+        st.info("No visitor location data yet — showing your place on the map.")
+
+    loc_map = build_location_map(
+        all_df, active_df,
+        show_pins, show_heatmap,
+        place_lat, place_lon
+    )
+    st_folium(loc_map, width="100%", height=520, returned_objects=[])
+
+    # Legend
+    st.markdown("""
+    <div style='font-size:13px; color:#65797E; margin-top:8px; display:flex; gap:20px;'>
+        <span>🔴 <b>Your Place</b></span>
+        <span>🔵 <b>Active visitors (pins)</b></span>
+        <span>🌡️ <b>All visitors density (heatmap)</b></span>
+    </div>
+    """, unsafe_allow_html=True)
