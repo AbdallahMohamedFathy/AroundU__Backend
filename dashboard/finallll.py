@@ -479,6 +479,44 @@ def fetch_interactions_locations():
     return pd.DataFrame()
 
 @st.cache_data(ttl=30)
+def fetch_user_locations(place_id: int, place_lat: float = 29.0661, place_lon: float = 31.0994) -> pd.DataFrame:
+    """Fetch all user interaction locations from /mobile/interactions/."""
+    try:
+        params = {"place_id": place_id}
+        res = requests.get(
+            f"{BACKEND_BASE_URL}/mobile/interactions/",
+            headers=get_headers(),
+            params=params,
+            timeout=10
+        )
+        if res.status_code == 200:
+            data = res.json()
+            records = data if isinstance(data, list) else data.get("results", data.get("data", []))
+            if records:
+                df = pd.DataFrame(records)
+                df.columns = [c.lower() for c in df.columns]
+                if "timestamp" in df.columns:
+                    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+                for col in ["latitude", "longitude"]:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors="coerce")
+                return df.dropna(subset=["latitude", "longitude"])
+        handle_api_error(res)
+    except Exception as e:
+        st.error(f"Failed to fetch user locations: {e}")
+    return pd.DataFrame()
+
+def filter_active(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
+    """Return only rows within the given time window."""
+    if df.empty or "timestamp" not in df.columns:
+        return df
+    cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(minutes=minutes)
+    ts = df["timestamp"].copy()
+    if ts.dt.tz is not None:
+        ts = ts.dt.tz_localize(None)
+    return df[ts >= cutoff]
+
+@st.cache_data(ttl=30)
 def fetch_active_visitors():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/owner/active-visitors", headers=get_headers())
@@ -505,7 +543,7 @@ def fetch_location_summary():
     except: pass
     return {}
 
-def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, places_list, center_lat, center_lon):
+def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, places_list, center_lat, center_lon, active_df=None):
     m = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles="CartoDB positron")
     
     for p in places_list:
@@ -532,19 +570,38 @@ def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, 
                 gradient={"0.3": "#055e9b", "0.6": "#61A3BB", "1.0": "#E63946"}
             ).add_to(m)
 
-    if show_pins and active_visitors:
-        for visitor in active_visitors:
-            if visitor.get("lat") and visitor.get("lon"):
-                cluster_str = visitor.get('cluster', 'N/A')
+    if show_pins:
+        # Use active_df (timestamp-filtered DataFrame with user_id) when available
+        if active_df is not None and not active_df.empty:
+            for _, row in active_df.iterrows():
+                ts_str = (
+                    row["timestamp"].strftime("%Y-%m-%d %H:%M")
+                    if "timestamp" in row and pd.notna(row["timestamp"])
+                    else "N/A"
+                )
+                uid = row.get("user_id", "N/A")
                 folium.CircleMarker(
-                    location=[visitor["lat"], visitor["lon"]],
+                    location=[row["latitude"], row["longitude"]],
                     radius=8,
                     color="#055e9b",
                     fill=True,
                     fill_color="#61A3BB",
                     fill_opacity=0.9,
-                    tooltip=f"👤 Active Visitor (Cluster: {cluster_str})"
+                    tooltip=f"👤 User {uid}  ·  {ts_str}",
                 ).add_to(m)
+        elif active_visitors:
+            for visitor in active_visitors:
+                if visitor.get("lat") and visitor.get("lon"):
+                    cluster_str = visitor.get('cluster', 'N/A')
+                    folium.CircleMarker(
+                        location=[visitor["lat"], visitor["lon"]],
+                        radius=8,
+                        color="#055e9b",
+                        fill=True,
+                        fill_color="#61A3BB",
+                        fill_opacity=0.9,
+                        tooltip=f"👤 Active Visitor (Cluster: {cluster_str})"
+                    ).add_to(m)
 
     return m
 
@@ -1529,6 +1586,8 @@ elif selected == "Location Logic":
         peak_hour_data = fetch_peak_hour()
         owner_summary = fetch_location_summary()
         places_list = fetch_my_places()
+        loc_all_df = fetch_user_locations(place_id, place_lat, place_lon)
+        active_df = filter_active(loc_all_df, active_minutes) if not loc_all_df.empty else pd.DataFrame()
 
     # ── KPI cards ─────────────────────────────────────────────────────
     k1, k2, k3 = st.columns(3)
@@ -1571,7 +1630,8 @@ elif selected == "Location Logic":
     loc_map = build_location_map(
         all_df, active_visitors,
         show_pins, show_heatmap,
-        places_list, place_lat, place_lon
+        places_list, place_lat, place_lon,
+        active_df=active_df
     )
     st_folium(loc_map, width="100%", height=520, returned_objects=[])
 
