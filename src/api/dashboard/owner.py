@@ -553,7 +553,14 @@ async def get_interactions_locations(
             return []
         interactions = uow.interaction_repository.get_by_place(place.id)
         return [
-            {"lat": i.user_lat, "lon": i.user_lon, "type": i.type}
+            {
+                "lat": i.user_lat, 
+                "lon": i.user_lon, 
+                "type": i.type,
+                "user_id": i.user_id,
+                "timestamp": i.created_at.isoformat() if i.created_at else None,
+                "cluster": i.cluster_id
+            }
             for i in interactions
             if i.user_lat is not None and i.user_lon is not None
         ]
