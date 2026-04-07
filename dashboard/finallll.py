@@ -514,29 +514,36 @@ def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, 
         name = p.get("name") or "Branch"
         address = p.get("address") or ""
         if lat and lon:
-            tooltip_html = f"<b>{name}</b><br>{address}" if address else f"<b>{name}</b>"
+            tooltip_html = f"📍 <b>{name}</b><br>{address}" if address else f"📍 <b>{name}</b>"
             folium.Marker(
                 [float(lat), float(lon)], 
                 tooltip=tooltip_html, 
-                icon=folium.Icon(color="red", icon="home")
+                icon=folium.Icon(color="red", icon="home", prefix="fa")
             ).add_to(m)
 
     if show_heatmap and not all_locations.empty:
         heat_data = [[row['lat'], row['lon']] for index, row in all_locations.iterrows() if pd.notna(row['lat']) and pd.notna(row['lon'])]
         if heat_data:
-            HeatMap(heat_data, radius=15, blur=10).add_to(m)
+            HeatMap(
+                heat_data, 
+                radius=22, 
+                blur=18,
+                min_opacity=0.35,
+                gradient={"0.3": "#055e9b", "0.6": "#61A3BB", "1.0": "#E63946"}
+            ).add_to(m)
 
     if show_pins and active_visitors:
         for visitor in active_visitors:
             if visitor.get("lat") and visitor.get("lon"):
+                cluster_str = visitor.get('cluster', 'N/A')
                 folium.CircleMarker(
                     location=[visitor["lat"], visitor["lon"]],
-                    radius=6,
+                    radius=8,
                     color="#055e9b",
                     fill=True,
-                    fill_color="#055e9b",
-                    fill_opacity=0.7,
-                    tooltip=f"Visitor (Cluster: {visitor.get('cluster', 'N/A')})"
+                    fill_color="#61A3BB",
+                    fill_opacity=0.9,
+                    tooltip=f"👤 Active Visitor (Cluster: {cluster_str})"
                 ).add_to(m)
 
     return m
