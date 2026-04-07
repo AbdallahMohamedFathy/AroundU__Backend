@@ -7,13 +7,15 @@ from src.services.base_ai import BaseAIService
 
 class AISentimentService(BaseAIService):
     def __init__(self):
-        timeout = getattr(settings, "AI_TIMEOUT_SECONDS", 10.0)
         super().__init__(
             service_name="AI Sentiment Service", 
-            timeout=timeout,
-            base_url=getattr(settings, "AI_SENTIMENT_BASE_URL", "") # Assume base url or full url handled
+            base_url="https://mazenmaher26-aroundu-sentiment.hf.space",
+            timeout=10.0,
+            max_retries=3
         )
-        self.full_url = settings.AI_SENTIMENT_URL
+
+    async def get_health(self):
+        return await self._request_with_retry("GET", "/health")
 
     async def analyze_sentiment(self, comment: str) -> Optional[str]:
         """
@@ -22,11 +24,10 @@ class AISentimentService(BaseAIService):
         if not comment or not comment.strip():
             return None
 
-        # Use the shared retry logic from BaseAIService
-        # If base_url is not set, _request_with_retry treats the path as a full URL
+        # Hit the new /predict endpoint
         data = await self._request_with_retry(
             "POST", 
-            self.full_url, 
+            "/predict", 
             json={"text": comment}
         )
 
