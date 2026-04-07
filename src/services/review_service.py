@@ -73,8 +73,8 @@ async def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate
 
         uow.commit()
 
-        return new_review
-
+        # Fetch fully hydrated object with user relationship loaded
+        return uow.review_repository.get_by_id(new_review.id)
 
 def get_place_reviews(repo: ReviewRepository, place_id: int, page: int = 1, page_size: int = 10):
 
