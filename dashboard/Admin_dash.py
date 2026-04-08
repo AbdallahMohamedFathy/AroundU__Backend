@@ -442,9 +442,12 @@ def fetch_chatbot_analytics():
 def list_db_tables():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/db/tables", headers=get_headers(), timeout=15)
-        if res.status_code == 200: return res.json()
+        if res.status_code == 200: 
+            return res.json()
+        else:
+            st.sidebar.error(f"DB Tables API Error ({res.status_code}): {res.text[:100]}")
     except Exception as e:
-        st.sidebar.error(f"DB Tables Error: {e}")
+        st.sidebar.error(f"Connection Error: {e}")
     return []
 
 def fetch_table_content(table_name):
