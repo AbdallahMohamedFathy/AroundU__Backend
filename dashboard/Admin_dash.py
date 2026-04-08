@@ -128,6 +128,39 @@ h1, h2, h3 {
     overflow: hidden;
 }
 
+/* Sidebar Widget Styling (Ghost Style) */
+section[data-testid="stSidebar"] .stButton > button {
+    background-color: rgba(255,255,255,0.1) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background-color: rgba(255,255,255,0.2) !important;
+    border-color: white !important;
+}
+
+section[data-testid="stSidebar"] [data-baseweb="base-input"],
+section[data-testid="stSidebar"] [data-baseweb="input"],
+section[data-testid="stSidebar"] [data-baseweb="input"] > div {
+    background-color: rgba(255,255,255,0.1) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    border-radius: 10px !important;
+    color: white !important;
+}
+
+section[data-testid="stSidebar"] [data-baseweb="input"] input {
+    color: white !important;
+}
+
+section[data-testid="stSidebar"] label p {
+    color: white !important;
+    font-weight: 600 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
