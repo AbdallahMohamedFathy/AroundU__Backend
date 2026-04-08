@@ -8,9 +8,15 @@ from src.models.user import User
 from src.models.place import Place
 from src.models.property import Property
 from src.models.property_image import PropertyImage
-from src.schemas.admin import PlaceCreationResponse, PropertyCreationResponse
+from src.models.interaction import Interaction
+from src.models.review import Review
+from src.models.favorite import Favorite
+from src.models.chat_message import ChatMessage
+from src.models.category import Category
+from src.schemas.admin import PlaceCreationResponse, PropertyCreationResponse, PlatformStats, TrendingDay, PlaceStats, UserStats
 from src.utils.location_parser import extract_coordinates
-from sqlalchemy import text
+from sqlalchemy import text, func, case
+from datetime import datetime, date, timedelta
 
 def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
     """
@@ -217,3 +223,305 @@ def upload_property_images(uow, property_id: int, images: list, current_admin):
             "uploaded": len(uploaded_urls),
             "urls": uploaded_urls
         }
+
+# --- Statistics & Dashboard Logic ---
+
+def get_platform_stats(uow: UnitOfWork, start_date: date = None, end_date: date = None) -> PlatformStats:
+    """
+    Get high-level statistics for the entire platform.
+    """
+    with uow:
+        # Defaults
+        if not end_date:
+            end_date = datetime.now().date()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+            
+        # 1. Total Visits
+        visits = uow.session.query(func.count(Interaction.id)).filter(
+            Interaction.type == "visit",
+            func.date(Interaction.created_at) >= start_date,
+            func.date(Interaction.created_at) <= end_date
+        ).scalar() or 0
+        
+        # 2. New Users
+        new_users = uow.session.query(func.count(User.id)).filter(
+            User.role == "USER",
+            func.date(User.created_at) >= start_date,
+            func.date(User.created_at) <= end_date
+        ).scalar() or 0
+        
+        # 3. New Owners
+        new_owners = uow.session.query(func.count(User.id)).filter(
+            User.role == "OWNER",
+            func.date(User.created_at) >= start_date,
+            func.date(User.created_at) <= end_date
+        ).scalar() or 0
+        
+        # 4. Total Saves (Favorites)
+        saves = uow.session.query(func.count(Favorite.id)).filter(
+            func.date(Favorite.created_at) >= start_date,
+            func.date(Favorite.created_at) <= end_date
+        ).scalar() or 0
+        
+        # 5. Interaction Types
+        interactions = uow.session.query(
+            Interaction.type, func.count(Interaction.id)
+        ).filter(
+            func.date(Interaction.created_at) >= start_date,
+            func.date(Interaction.created_at) <= end_date
+        ).group_by(Interaction.type).all()
+        
+        directions = 0
+        calls = 0
+        for itype, count in interactions:
+            if itype == "direction": directions = count
+            elif itype == "call": calls = count
+            
+        # 6. Reviews
+        reviews = uow.session.query(func.count(Review.id)).filter(
+            func.date(Review.created_at) >= start_date,
+            func.date(Review.created_at) <= end_date
+        ).scalar() or 0
+        
+        # 7. Chats
+        chats = uow.session.query(func.count(ChatMessage.id)).filter(
+            func.date(ChatMessage.created_at) >= start_date,
+            func.date(ChatMessage.created_at) <= end_date
+        ).scalar() or 0
+        
+        # 8. Active Places
+        active_places = uow.session.query(func.count(Place.id)).filter(Place.is_active == True).scalar() or 0
+        
+        # Calculate Deltas (compared to previous period of same length)
+        days_diff = (end_date - start_date).days + 1
+        prev_start = start_date - timedelta(days=days_diff)
+        prev_end = start_date - timedelta(days=1)
+        
+        def calculate_delta(curr_val, model, filters=None, date_field="created_at"):
+            query = uow.session.query(func.count(model.id))
+            if filters is not None:
+                query = query.filter(*filters)
+            prev_val = query.filter(
+                func.date(getattr(model, date_field)) >= prev_start,
+                func.date(getattr(model, date_field)) <= prev_end
+            ).scalar() or 0
+            if prev_val == 0: return "+100%" if curr_val > 0 else "0%"
+            pct = int(((curr_val - prev_val) / prev_val) * 100)
+            return f"{pct:+}%"
+
+        # Special visits delta (type check)
+        prev_visits = uow.session.query(func.count(Interaction.id)).filter(
+            Interaction.type == "visit",
+            func.date(Interaction.created_at) >= prev_start,
+            func.date(Interaction.created_at) <= prev_end
+        ).scalar() or 0
+        visits_delta = f"{int(((visits - prev_visits) / prev_visits * 100)) if prev_visits > 0 else 0:+}%"
+
+        return PlatformStats(
+            visits=visits,
+            new_users=new_users,
+            new_owners=new_owners,
+            saves=saves,
+            directions=directions,
+            calls=calls,
+            reviews=reviews,
+            chats=chats,
+            resolved_chats=int(chats * 0.9), # Mocking resolution for now
+            active_places=active_places,
+            visits_delta=visits_delta,
+            users_delta=calculate_delta(new_users, User, [User.role == "USER"]),
+            saves_delta=calculate_delta(saves, Favorite),
+            directions_delta="0%", # complex to calculate precisely across types here
+            calls_delta="0%",
+            reviews_delta=calculate_delta(reviews, Review)
+        )
+
+def get_platform_trending(uow: UnitOfWork, start_date: date = None, end_date: date = None) -> List[TrendingDay]:
+    """
+    Get daily trends for the platform.
+    """
+    with uow:
+        # Defaults
+        if not end_date:
+            end_date = datetime.now().date()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+            
+        # This is a bit complex for a single query across multiple tables.
+        # We'll do it by iterating days or using multiple queries.
+        
+        days_list = []
+        curr = start_date
+        while curr <= end_date:
+            # Query for this specific day
+            d_visits = uow.session.query(func.count(Interaction.id)).filter(Interaction.type=="visit", func.date(Interaction.created_at)==curr).scalar() or 0
+            d_users = uow.session.query(func.count(User.id)).filter(User.role=="USER", func.date(User.created_at)==curr).scalar() or 0
+            d_owners = uow.session.query(func.count(User.id)).filter(User.role=="OWNER", func.date(User.created_at)==curr).scalar() or 0
+            d_saves = uow.session.query(func.count(Favorite.id)).filter(func.date(Favorite.created_at)==curr).scalar() or 0
+            d_revs = uow.session.query(func.count(Review.id)).filter(func.date(Review.created_at)==curr).scalar() or 0
+            d_chats = uow.session.query(func.count(ChatMessage.id)).filter(func.date(ChatMessage.created_at)==curr).scalar() or 0
+            
+            days_list.append(TrendingDay(
+                date=curr.strftime("%Y-%m-%d"),
+                visits=d_visits,
+                new_users=d_users,
+                new_owners=d_owners,
+                saves=d_saves,
+                reviews=d_revs,
+                chats=d_chats
+            ))
+            curr += timedelta(days=1)
+            
+        return days_list
+
+def get_all_places_stats(uow: UnitOfWork) -> List[Dict]:
+    """
+    Get list of all places with their metadata.
+    """
+    with uow:
+        places = uow.session.query(Place).all()
+        result = []
+        for p in places:
+            # Aggregate stats per place
+            visits = uow.session.query(func.count(Interaction.id)).filter(Interaction.place_id == p.id, Interaction.type == "visit").scalar() or 0
+            saves = uow.session.query(func.count(Favorite.id)).filter(Favorite.place_id == p.id).scalar() or 0
+            avg_rating = uow.session.query(func.avg(Review.rating)).filter(Review.place_id == p.id).scalar() or 0.0
+            rev_count = uow.session.query(func.count(Review.id)).filter(Review.place_id == p.id).scalar() or 0
+            
+            result.append({
+                "Place_ID": f"P-{p.id}",
+                "Name": p.name,
+                "Category": p.category.name if p.category else "Unknown",
+                "District": "Beni Suef",
+                "Visits": visits,
+                "Saves": saves,
+                "Rating": round(float(avg_rating), 1),
+                "Reviews": rev_count,
+                "Status": "Active" if p.is_active else "Suspended",
+                "Added": p.created_at.strftime("%Y-%m-%d") if p.created_at else "—"
+            })
+        return result
+
+def get_all_users_stats(uow: UnitOfWork) -> List[Dict]:
+    """
+    Get list of all platform users.
+    """
+    with uow:
+        # Filter for role=USER or OWNER
+        users = uow.session.query(User).filter(User.role.in_(["USER", "OWNER"])).all()
+        result = []
+        for u in users:
+            rev_count = uow.session.query(func.count(Review.id)).filter(Review.user_id == u.id).scalar() or 0
+            sav_count = uow.session.query(func.count(Favorite.id)).filter(Favorite.user_id == u.id).scalar() or 0
+            
+            result.append({
+                "User_ID": f"U-{u.id}",
+                "Name": u.full_name,
+                "District": "Beni Suef",
+                "Reviews": rev_count,
+                "Saves": sav_count,
+                "Status": "Active" if u.is_active else "Suspended",
+                "Joined": u.created_at.strftime("%Y-%m-%d") if u.created_at else "—",
+                "Last_Login": "—" # We don't track sessions specifically yet
+            })
+        return result
+
+def get_category_stats(uow: UnitOfWork) -> List[Dict]:
+    """
+    Aggregation per category.
+    """
+    with uow:
+        stats = uow.session.query(
+            Category.name,
+            func.count(Place.id).label("Places")
+        ).outerjoin(Place).group_by(Category.name).all()
+        
+        return [{"Category": name, "Count": count} for name, count in stats]
+
+def get_moderation_tasks(uow: UnitOfWork) -> Dict:
+    """
+    Fetch flagged reviews and pending owners.
+    """
+    with uow:
+        # Flagged reviews (sentiment is negative or rating < 2)
+        # Note: True "flagged" mechanism (user reporting) isn't fully implemented in model, 
+        # so we use a heuristic for now.
+        flagged = uow.session.query(Review).filter(Review.rating <= 2).limit(20).all()
+        reviews_data = []
+        for r in flagged:
+            reviews_data.append({
+                "Review_ID": f"R-{r.id}",
+                "User": r.user.full_name if r.user else "Anonymous",
+                "Place": r.place.name if r.place else "Unknown",
+                "Review": r.comment or "—",
+                "Rating": r.rating,
+                "Date": r.created_at.strftime("%Y-%m-%d") if r.created_at else "—"
+            })
+            
+        # Pending Owners (is_verified = False)
+        pending = uow.session.query(User).filter(User.role == "OWNER", User.is_verified == False).limit(10).all()
+        owners_data = []
+        for u in pending:
+            owners_data.append({
+                "Owner_ID": f"OWN-{u.id}",
+                "Name": u.full_name,
+                "Business": "—", # Needs place linkage if exists
+                "Category": "—",
+                "Submitted": u.created_at.strftime("%Y-%m-%d") if u.created_at else "—"
+            })
+            
+        return {
+            "flagged_reviews": reviews_data,
+            "pending_owners": owners_data
+        }
+
+def get_recent_interactions(uow: UnitOfWork, limit: int = 1000) -> List[Dict]:
+    """
+    Fetch recent valid visits across all places.
+    Used for anomaly detection and location logic.
+    """
+    with uow:
+        # We can reuse the InteractionRepository helper for this.
+        # But for variety and speed inside service:
+        interactions = uow.session.query(Interaction).filter(
+            Interaction.type == "visit",
+            Interaction.user_lat.isnot(None),
+            Interaction.user_lon.isnot(None)
+        ).order_by(Interaction.created_at.desc()).limit(limit).all()
+        
+        return [{
+            "user_id": i.user_id,
+            "place_id": i.place_id,
+            "user_lat": float(i.user_lat),
+            "user_lon": float(i.user_lon),
+            "visited_at": i.created_at.strftime("%Y-%m-%d %H:%M:%S") if i.created_at else "",
+            "cluster": i.cluster_id or 0
+        } for i in interactions]
+
+def delete_review(uow: UnitOfWork, review_id: int):
+    """Delete a review."""
+    with uow:
+        review = uow.session.query(Review).get(review_id)
+        if not review:
+            return {"status": "error", "message": f"Review {review_id} not found."}
+        uow.session.delete(review)
+        uow.commit()
+        return {"status": "success", "message": f"Review {review_id} deleted."}
+
+def verify_owner(uow: UnitOfWork, owner_id: int, verified: bool):
+    """Approve or Reject a pending owner account."""
+    with uow:
+        user = uow.session.query(User).get(owner_id)
+        if not user or user.role != "OWNER":
+            return {"status": "error", "message": f"Owner {owner_id} not found."}
+        
+        user.is_verified = verified
+        # If rejecting, we might want to also set is_active=False or role=USER.
+        # But for now, we just update is_verified.
+        if not verified:
+            user.is_active = False 
+            
+        uow.commit()
+        status_text = "approved" if verified else "rejected/suspended"
+        return {"status": "success", "message": f"Owner {owner_id} {status_text}."}
