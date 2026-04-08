@@ -524,15 +524,23 @@ def insert_db_record(table_name, data):
     except: return False
 
 # --- CREATE PROPERTY ---------------------------------------------
-def create_property_with_owner_api(data):
-    try:
-        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/properties", json=data, headers=get_headers())
-        if res.status_code == 200:
-            st.toast("✅ Property and Owner created!", icon="🏠")
-            return res.json(), None
-        return None, res.text
     except Exception as e:
         return None, str(e)
+
+def update_place_status_api(place_id, active):
+    try:
+        res = requests.post(
+            f"{BACKEND_BASE_URL}/dashboard/admin/places/{place_id}/status",
+            params={"active": str(active).lower()},
+            headers=get_headers()
+        )
+        if res.status_code == 200:
+            status_txt = "activated" if active else "suspended"
+            st.toast(f"✅ Place {place_id} {status_txt} successfully!", icon="🚫")
+            return True, res.json().get("message")
+        return False, res.text
+    except Exception as e:
+        return False, str(e)
 
 # ── MODERATION ACTIONS ──────────────────────────────────────────
 def delete_review(review_id_str):
@@ -895,12 +903,64 @@ elif selected == "Places Analytics":
     if sta_f != "All":
         fp = fp[fp["Status"] == sta_f]
 
-    st.caption(f"Showing {len(fp)} places")
     st.dataframe(
         fp[["Place_ID","Name","Category","District","Rating","Visits","Saves","Status"]]
         .reset_index(drop=True),
         use_container_width=True,
     )
+
+    # ══════════════════════════════════════════════════════════
+    # 🚫 SUSPEND PLACE TOOL
+    # ══════════════════════════════════════════════════════════
+    st.divider()
+    st.subheader("🚫 Suspend a Place")
+    st.caption("Suspend a place directly by entering its ID")
+
+    # ── Init session state ────────────────────────────────────
+    if "suspended_places_log" not in st.session_state:
+        st.session_state.suspended_places_log = []
+
+    sp_col1, sp_col2 = st.columns([2, 1])
+    with sp_col1:
+        place_id_input = st.text_input(
+            "Place ID", placeholder="e.g. P-1012", key="suspend_place_input",
+        )
+    with sp_col2:
+        st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
+        do_suspend_place = st.button("🚫 Suspend Place", key="btn_suspend_place", use_container_width=True)
+
+    if do_suspend_place:
+        pid = place_id_input.strip().upper()
+        if not pid:
+            st.warning("⚠️ Please enter a Place ID.")
+        elif pid not in df_places["Place_ID"].values:
+            st.error(f"❌ Place ID `{pid}` not found in the system.")
+        else:
+            success, msg = update_place_status_api(pid, active=False)
+            if success:
+                st.session_state.suspended_places_log.append({
+                    "id": pid,
+                    "ts": datetime.now().strftime("%H:%M:%S")
+                })
+                st.success(f"✅ {msg}")
+                st.rerun()
+            else:
+                st.error(f"❌ Failed to suspend place: {msg}")
+
+    # ── Place Suspension Log ──────────────────────────────────
+    if st.session_state.suspended_places_log:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("📋 Recent Suspensions")
+        for item in reversed(st.session_state.suspended_places_log[-5:]):
+            st.markdown(
+                f"""<div style="background:rgba(239,68,68,0.07);
+                                border-left:3px solid #EF4444;
+                                border-radius:8px;padding:10px 14px;
+                                margin:5px 0;font-size:14px;">
+                    🚫 <b>{item['id']}</b> &nbsp;·&nbsp; Suspended at {item['ts']}
+                </div>""",
+                unsafe_allow_html=True,
+            )
 
 
 # ═══════════════════════════════════════════════════════════

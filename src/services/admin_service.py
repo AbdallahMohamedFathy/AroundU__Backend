@@ -615,3 +615,23 @@ def verify_owner(uow: UnitOfWork, owner_id: int, verified: bool):
         uow.commit()
         status_text = "approved" if verified else "rejected/suspended"
         return {"status": "success", "message": f"Owner {owner_id} {status_text}."}
+
+def update_place_status(uow: UnitOfWork, place_id_str: str, active: bool, current_admin):
+    """Toggle a place's active status. Admin only."""
+    require_admin(current_admin)
+    try:
+        # Extract numeric ID from "P-123"
+        numeric_id = int(place_id_str.replace("P-", ""))
+    except ValueError:
+        raise APIException("Invalid Place ID format. Expected 'P-ID' (e.g., P-1001)", code=status.HTTP_400_BAD_REQUEST)
+        
+    with uow:
+        place = uow.place_repository.get_by_id(numeric_id)
+        if not place:
+            raise APIException(f"Place `{place_id_str}` not found", code=status.HTTP_404_NOT_FOUND)
+        
+        place.is_active = active
+        uow.commit()
+        
+        status_text = "activated" if active else "suspended"
+        return {"status": "success", "message": f"Place {place_id_str} has been successfully {status_text}."}

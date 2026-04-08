@@ -200,3 +200,13 @@ def delete_table_record(
 ):
     """Delete a record from a table. Requires ADMIN privilege."""
     return admin_service.execute_db_operation(uow, table_name, "DELETE", {}, row_id, current_user)
+
+@router.post("/places/{place_id}/status")
+def update_place_status(
+    place_id: str,
+    active: bool = Query(..., description="Set to True to activate, False to suspend"),
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Toggle a place's active status. Requires ADMIN privilege."""
+    return admin_service.update_place_status(uow, place_id, active, current_user)
