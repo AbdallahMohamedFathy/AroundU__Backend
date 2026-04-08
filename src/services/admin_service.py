@@ -1,3 +1,4 @@
+from typing import List, Dict
 from src.core.unit_of_work import UnitOfWork
 from src.core.permissions import require_admin
 from src.schemas.user import UserResponse
