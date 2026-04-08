@@ -32,7 +32,7 @@ st.markdown("""
 
 /* Sidebar Style Sync with Owner Dash */
 section[data-testid="stSidebar"] {
-    background-color: #F8F9FB !important;
+    background-color: #055e9b !important;
 }
 
 section[data-testid="stSidebar"] > div:first-child {
@@ -239,7 +239,12 @@ def fetch_all_places():
                 return df[cols]
     except Exception as e:
         st.sidebar.error(f"Places API Error: {e}")
-    return pd.DataFrame(columns=cols)
+    
+    # Robust empty fallback with correct types
+    df_empty = pd.DataFrame(columns=cols)
+    for nc in ["Visits", "Saves", "Rating", "Reviews"]:
+        df_empty[nc] = pd.to_numeric(df_empty[nc])
+    return df_empty
 
 @st.cache_data(ttl=300)
 def fetch_all_users():
@@ -264,7 +269,11 @@ def fetch_all_users():
                 return df[cols]
     except Exception as e:
         st.sidebar.error(f"Users API Error: {e}")
-    return pd.DataFrame(columns=cols)
+    
+    df_empty = pd.DataFrame(columns=cols)
+    for nc in ["Reviews", "Saves"]:
+        df_empty[nc] = pd.to_numeric(df_empty[nc])
+    return df_empty
 
 @st.cache_data(ttl=300)
 def fetch_category_stats():
@@ -319,7 +328,10 @@ def fetch_moderation_data():
             return df_rev, df_own
     except Exception as e:
         st.sidebar.error(f"Moderation API Error: {e}")
-    return pd.DataFrame(columns=rev_cols), pd.DataFrame(columns=own_cols)
+    
+    df_rev = pd.DataFrame(columns=rev_cols)
+    df_rev["Rating"] = pd.to_numeric(df_rev["Rating"])
+    return df_rev, pd.DataFrame(columns=own_cols)
 
 @st.cache_data(ttl=60)
 def fetch_recent_interactions(limit=1000):
@@ -360,7 +372,10 @@ def fetch_all_properties():
                 return df[cols]
     except Exception as e:
         st.sidebar.error(f"Properties API Error: {e}")
-    return pd.DataFrame(columns=cols)
+    
+    df_empty = pd.DataFrame(columns=cols)
+    df_empty["Price"] = pd.to_numeric(df_empty["Price"])
+    return df_empty
 
 def fetch_chatbot_analytics():
     # Placeholder/Mock data to fix crash
