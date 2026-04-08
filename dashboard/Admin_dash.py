@@ -437,6 +437,42 @@ def fetch_chatbot_analytics():
     ])
     return types, places
 
+# --- Database Management Helpers ---
+
+def list_db_tables():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/db/tables", headers=get_headers(), timeout=15)
+        if res.status_code == 200: return res.json()
+    except Exception as e:
+        st.sidebar.error(f"DB Tables Error: {e}")
+    return []
+
+def fetch_table_content(table_name):
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/db/table/{table_name}", headers=get_headers(), timeout=15)
+        if res.status_code == 200: return res.json()
+    except Exception as e:
+        st.error(f"Fetch Content Error: {e}")
+    return {"columns": [], "data": []}
+
+def update_db_record(table_name, row_id, data):
+    try:
+        res = requests.put(f"{BACKEND_BASE_URL}/dashboard/admin/db/table/{table_name}/{row_id}", json=data, headers=get_headers())
+        return res.status_code == 200
+    except: return False
+
+def delete_db_record(table_name, row_id):
+    try:
+        res = requests.delete(f"{BACKEND_BASE_URL}/dashboard/admin/db/table/{table_name}/{row_id}", headers=get_headers())
+        return res.status_code == 200
+    except: return False
+
+def insert_db_record(table_name, data):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/db/table/{table_name}", json=data, headers=get_headers())
+        return res.status_code == 200
+    except: return False
+
 # --- CREATE PROPERTY ---------------------------------------------
 def create_property_with_owner_api(data):
     try:
@@ -500,13 +536,13 @@ with st.sidebar:
             "Overview", "Places Analytics", "User Analytics",
             "Property Management", "Reviews", "Chatbot",
             "Category Analytics", "Moderation", "Anomaly Detection",
-            "Location Logic",
+            "Location Logic", "Database Manager"
         ],
         icons=[
             "grid-1x2", "shop", "people",
             "house", "star", "robot",
             "tags", "shield-lock", "exclamation-triangle",
-            "geo-alt",
+            "geo-alt", "database"
         ],
         default_index=0,
         styles={
@@ -1502,3 +1538,102 @@ elif selected == "Location Logic":
         st.success("📍 'New Beni Suef' has high search volume for Pharmacies but 0 registered.")
         st.info   ("📍 'Nile Corniche' has the highest concentration of Direction Clicks.")
         st.warning("📍 'El Wasta' has only 1 Cafe — potential market gap.")
+
+
+# ═══════════════════════════════════════════════════════════
+# 11. DATABASE MANAGER
+# ═══════════════════════════════════════════════════════════
+elif selected == "Database Manager":
+    st.title("🗄️ Database Manager")
+    st.caption("Direct CRUD access to all system tables. Use with caution.")
+
+    tables = list_db_tables()
+    if not tables:
+        st.error("Could not fetch tables or API is unavailable.")
+        st.stop()
+
+    t_col1, t_col2 = st.columns([1, 2])
+    with t_col1:
+        target_table = st.selectbox("Select Table to Manage", tables)
+    
+    if target_table:
+        content = fetch_table_content(target_table)
+        cols = content.get("columns", [])
+        data = content.get("data", [])
+        
+        df = pd.DataFrame(data, columns=cols)
+        
+        tab_view, tab_add = st.tabs(["👁️ View & Edit Data", "➕ Add New Record"])
+        
+        with tab_view:
+            st.subheader(f"Table: {target_table}")
+            st.info("💡 You can edit cells directly in the table below. Use the 'Save Changes' button to apply.")
+            
+            # Data Editor for editing/deleting
+            edited_df = st.data_editor(
+                df, 
+                num_rows="dynamic", 
+                use_container_width=True,
+                key=f"editor_{target_table}",
+                disabled=["id"] if "id" in cols else []
+            )
+            
+            if st.button("💾 Save Changes", use_container_width=True):
+                # Simple logic for updates/deletes in st.data_editor is complex for generic tables.
+                # For this generic tool, we focus on manual edits for now or bulk update if possible.
+                # But st.data_editor 'edited_rows' is the way.
+                state = st.session_state.get(f"editor_{target_table}")
+                if state:
+                    edited = state.get("edited_rows", {})
+                    deleted = state.get("deleted_rows", [])
+                    added = state.get("added_rows", [])
+                    
+                    success_count = 0
+                    
+                    # Handle Deletes
+                    for idx in deleted:
+                        row_id = df.iloc[idx]["id"] if "id" in df.columns else None
+                        if row_id and delete_db_record(target_table, row_id):
+                            success_count += 1
+                    
+                    # Handle Edits
+                    for idx, values in edited.items():
+                        row_id = df.iloc[int(idx)]["id"] if "id" in df.columns else None
+                        if row_id and update_db_record(target_table, row_id, values):
+                            success_count += 1
+                    
+                    if success_count > 0:
+                        st.success(f"Successfully processed {success_count} changes!")
+                        st.rerun()
+                    elif not edited and not deleted:
+                        st.info("No changes detected.")
+
+        with tab_add:
+            st.subheader(f"Add to {target_table}")
+            with st.form(f"add_row_{target_table}"):
+                new_row_data = {}
+                # Create form fields dynamically
+                # Sort columns into 2 columns for better layout
+                f_col1, f_col2 = st.columns(2)
+                for i, c in enumerate(cols):
+                    if c == "id" or c == "created_at" or c == "updated_at":
+                        continue
+                    
+                    target_col = f_col1 if i % 2 == 0 else f_col2
+                    with target_col:
+                        # Heuristic for input type
+                        if "is_" in c or "has_" in c:
+                            new_row_data[c] = st.checkbox(c)
+                        elif "id" in c and c != "id": # likely foreign key
+                            new_row_data[c] = st.number_input(c, step=1, value=0)
+                        elif "price" in c or "lat" in c or "lon" in c:
+                            new_row_data[c] = st.number_input(c, format="%.6f", value=0.0)
+                        else:
+                            new_row_data[c] = st.text_input(c)
+                
+                if st.form_submit_button("🚀 Insert Record", use_container_width=True):
+                    if insert_db_record(target_table, new_row_data):
+                        st.success("Record inserted successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to insert record. Check data types and constraints.")

@@ -16,8 +16,77 @@ from src.models.chat_message import ChatMessage
 from src.models.category import Category
 from src.schemas.admin import PlaceCreationResponse, PropertyCreationResponse, PlatformStats, TrendingDay, PlaceStats, UserStats
 from src.utils.location_parser import extract_coordinates
-from sqlalchemy import text, func, case
+from sqlalchemy import text, func, case, inspect
 from datetime import datetime, date, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+
+# --- Database Management Logic (Generic CRUD) ---
+
+def get_db_tables(uow: UnitOfWork, current_admin):
+    """List all table names in the database."""
+    require_admin(current_admin)
+    with uow:
+        inspector = inspect(uow.session.bind)
+        return inspector.get_table_names()
+
+def get_table_data(uow: UnitOfWork, table_name: str, current_admin):
+    """Fetch all rows and columns for a specific table."""
+    require_admin(current_admin)
+    with uow:
+        # Check if table exists to prevent SQL injection
+        inspector = inspect(uow.session.bind)
+        if table_name not in inspector.get_table_names():
+            raise APIException(f"Table '{table_name}' not found", code=status.HTTP_404_NOT_FOUND)
+            
+        columns = [c["name"] for c in inspector.get_columns(table_name)]
+        query = text(f"SELECT * FROM {table_name}")
+        rows = uow.session.execute(query).mappings().all()
+        
+        # Convert rows to dicts, handling non-serializable types
+        data = []
+        for row in rows:
+            r_dict = {}
+            for k, v in row.items():
+                if isinstance(v, (datetime, date)):
+                    r_dict[k] = v.isoformat()
+                elif hasattr(v, "__str__") and "ST_" in str(type(v)): # Geo types
+                    r_dict[k] = "Geo Data"
+                else:
+                    r_dict[k] = v
+            data.append(r_dict)
+            
+        return {"columns": columns, "data": data}
+
+def execute_db_operation(uow: UnitOfWork, table_name: str, operation: str, data: dict, row_id: int, current_admin):
+    """Perform Insert, Update, or Delete on any table."""
+    require_admin(current_admin)
+    with uow:
+        inspector = inspect(uow.session.bind)
+        if table_name not in inspector.get_table_names():
+            raise APIException(f"Table '{table_name}' not found", code=status.HTTP_404_NOT_FOUND)
+
+        if operation == "DELETE":
+            query = text(f"DELETE FROM {table_name} WHERE id = :id")
+            uow.session.execute(query, {"id": row_id})
+        
+        elif operation == "UPDATE":
+            if not data: return
+            cols_str = ", ".join([f"{k} = :{k}" for k in data.keys() if k != "id"])
+            query = text(f"UPDATE {table_name} SET {cols_str} WHERE id = :id")
+            data["id"] = row_id
+            uow.session.execute(query, data)
+            
+        elif operation == "INSERT":
+            if not data: return
+            cols = ", ".join(data.keys())
+            placeholders = ", ".join([f":{k}" for k in data.keys()])
+            query = text(f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})")
+            uow.session.execute(query, data)
+            
+        uow.commit()
+        return {"status": "success", "message": f"{operation} successful on {table_name}"}
 
 def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
     """

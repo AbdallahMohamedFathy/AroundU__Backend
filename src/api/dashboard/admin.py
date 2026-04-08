@@ -150,3 +150,53 @@ def verify_owner(
 ):
     """Approve or Reject a pending owner account. Requires ADMIN privilege."""
     return admin_service.verify_owner(uow, owner_id, verified)
+
+# --- Database Management (Generic CRUD) ---
+
+@router.get("/db/tables")
+def list_db_tables(
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """List all database tables. Requires ADMIN privilege."""
+    return admin_service.get_db_tables(uow, current_user)
+
+@router.get("/db/table/{table_name}")
+def get_table_content(
+    table_name: str,
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Fetch all records from a specific table. Requires ADMIN privilege."""
+    return admin_service.get_table_data(uow, table_name, current_user)
+
+@router.post("/db/table/{table_name}")
+def insert_table_record(
+    table_name: str,
+    data: Dict[str, Any],
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Insert a new record into a table. Requires ADMIN privilege."""
+    return admin_service.execute_db_operation(uow, table_name, "INSERT", data, 0, current_user)
+
+@router.put("/db/table/{table_name}/{row_id}")
+def update_table_record(
+    table_name: str,
+    row_id: int,
+    data: Dict[str, Any],
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Update an existing record in a table. Requires ADMIN privilege."""
+    return admin_service.execute_db_operation(uow, table_name, "UPDATE", data, row_id, current_user)
+
+@router.delete("/db/table/{table_name}/{row_id}")
+def delete_table_record(
+    table_name: str,
+    row_id: int,
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Delete a record from a table. Requires ADMIN privilege."""
+    return admin_service.execute_db_operation(uow, table_name, "DELETE", {}, row_id, current_user)
