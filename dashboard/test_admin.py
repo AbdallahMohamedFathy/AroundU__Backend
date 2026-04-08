@@ -213,101 +213,60 @@ st.markdown("""
 
 
 # ═══════════════════════════════════════════════════════════
-# BACKEND API CONFIG
+# DASHBOARD DATA (MOCK MODE)
 # ═══════════════════════════════════════════════════════════
-BACKEND_BASE = "https://aroundubackend-production.up.railway.app/api"
+# This dashboard is currently in "View-Only" mode with hardcoded data.
 
-def api_get(path: str, params: dict = None):
-    try:
-        r = requests.get(f"{BACKEND_BASE}{path}", params=params, timeout=15)
-        r.raise_for_status()
-        return r.json(), None
-    except requests.exceptions.Timeout:
-        return None, f"Request timed out: {path}"
-    except requests.exceptions.RequestException as e:
-        return None, str(e)
+def load_dashboard_data():
+    """Generates 100% mock data for UI visualization."""
+    dates = pd.date_range(start="2024-01-01", periods=30)
+    df_ts = pd.DataFrame({
+        "Date": dates,
+        "Visits": np.random.randint(300, 800, 30),
+        "New_Users": np.random.randint(20, 60, 30),
+        "Saves": np.random.randint(10, 40, 30),
+        "Directions": np.random.randint(80, 200, 30),
+        "Calls": np.random.randint(10, 30, 30),
+        "Reviews": np.random.randint(2, 15, 30),
+        "Chats": np.random.randint(50, 120, 30),
+        "Resolved_Chats": np.random.randint(40, 100, 30),
+        "New_Owners": np.random.randint(1, 4, 30)
+    })
+    
+    df_places = pd.DataFrame([
+        {"Place_ID": f"P-{1000+i}", "Name": f"AroundU Place {i}", "Category": np.random.choice(["Cafe", "Restaurant", "Pharmacy", "Library", "Gym"]), 
+         "District": np.random.choice(["Kornish", "Salah Salem", "Downtown"]), "Status": "Active", "Rating": round(np.random.uniform(4.0, 5.0), 1), 
+         "Visits": np.random.randint(500, 5000), "Saves": np.random.randint(100, 1200), "Reviews": np.random.randint(10, 300), "Added": datetime.now()}
+        for i in range(30)
+    ])
+    
+    df_users = pd.DataFrame([
+        {"User_ID": f"U-{2000+i}", "Name": f"Premium User {i}", "District": "Kornish", "Status": "Active", "Reviews": 15, "Saves": 25, "Joined": datetime.now(), "Last_Login": datetime.now()}
+        for i in range(25)
+    ])
+    
+    flagged = pd.DataFrame([
+        {"Review_ID": "R-101", "User": "Mazen", "Place": "Cafe Elite", "Review": "Test flagged review content.", "Rating": 1, "Date": "2024-01-15"},
+        {"Review_ID": "R-102", "User": "Hassan", "Place": "Super Market", "Review": "Irrelevant text.", "Rating": 2, "Date": "2024-01-16"}
+    ])
+    
+    pending = pd.DataFrame([
+        {"Owner_ID": "O-500", "Name": "Ibrahim", "Business": "Ibrahim Grill", "Category": "Restaurant", "Submitted": "2024-01-20"},
+        {"Owner_ID": "O-501", "Name": "Fatma", "Business": "Fatma Salon", "Category": "Beauty", "Submitted": "2024-01-21"}
+    ])
+    
+    chat_types = pd.DataFrame({"Type": ["Information", "Booking", "Location", "Price"], "Val": [45, 25, 20, 10]})
+    top_chat = pd.DataFrame({"Place": ["Cafe Elite", "The Library"], "Chats": [130, 95], "Resolved": [120, 90]})
+    admin_log = pd.DataFrame({"Admin": ["SuperAdmin"], "Action": ["Verified Place"], "Target_ID": ["P-1002"], "Timestamp": [str(datetime.now())]})
+    
+    return df_ts, df_places, df_users, flagged, pending, chat_types, top_chat, admin_log
 
-def api_post(path: str, payload: dict):
-    try:
-        r = requests.post(f"{BACKEND_BASE}{path}", json=payload, timeout=15)
-        r.raise_for_status()
-        return r.json(), None
-    except requests.exceptions.Timeout:
-        return None, f"Request timed out: {path}"
-    except requests.exceptions.RequestException as e:
-        return None, str(e)
-
-
-@st.cache_data(ttl=300)
-def load_all_platform_data():
-    """Fetch all platform data from the backend API."""
-
-    # ── Time series analytics ────────────────────────────────
-    ts_data, ts_err = api_get("/admin/analytics/timeseries")
-    if ts_err or not ts_data:
-        st.error(f"⚠️ Failed to load time series data — {ts_err}")
-        st.stop()
-    df_ts = pd.DataFrame(ts_data)
-    df_ts["Date"] = pd.to_datetime(df_ts["Date"])
-
-    # ── Places ───────────────────────────────────────────────
-    places_data, places_err = api_get("/admin/places")
-    if places_err or not places_data:
-        st.error(f"⚠️ Failed to load places — {places_err}")
-        st.stop()
-    df_places = pd.DataFrame(places_data)
-    if "Added" in df_places.columns:
-        df_places["Added"] = pd.to_datetime(df_places["Added"])
-
-    # ── Users ────────────────────────────────────────────────
-    users_data, users_err = api_get("/admin/users")
-    if users_err or not users_data:
-        st.error(f"⚠️ Failed to load users — {users_err}")
-        st.stop()
-    df_users = pd.DataFrame(users_data)
-
-    # ── Flagged reviews ──────────────────────────────────────
-    reviews_data, reviews_err = api_get("/admin/reviews/flagged")
-    if reviews_err or not reviews_data:
-        flagged_reviews = pd.DataFrame(columns=["Review_ID","User","Place","Review","Rating","Date"])
-    else:
-        flagged_reviews = pd.DataFrame(reviews_data)
-
-    # ── Pending owners ───────────────────────────────────────
-    owners_data, owners_err = api_get("/admin/owners/pending")
-    if owners_err or not owners_data:
-        pending_owners = pd.DataFrame(columns=["Owner_ID","Name","Business","Category","Submitted"])
-    else:
-        pending_owners = pd.DataFrame(owners_data)
-
-    # ── Chatbot query types ──────────────────────────────────
-    chat_types_data, _ = api_get("/admin/chatbot/query-types")
-    if chat_types_data:
-        chat_types = pd.DataFrame(chat_types_data)
-    else:
-        chat_types = pd.DataFrame({"Type": [], "Val": []})
-
-    # ── Top chatbot places ───────────────────────────────────
-    top_chat_data, _ = api_get("/admin/chatbot/top-places")
-    if top_chat_data:
-        top_chat_places = pd.DataFrame(top_chat_data).sort_values("Chats", ascending=False).reset_index(drop=True)
-    else:
-        top_chat_places = pd.DataFrame({"Place": [], "Chats": [], "Resolved": []})
-
-    # ── Admin action log ─────────────────────────────────────
-    log_data, _ = api_get("/admin/action-log")
-    if log_data:
-        admin_log = pd.DataFrame(log_data)
-    else:
-        admin_log = pd.DataFrame({"Admin": [], "Action": [], "Target_ID": [], "Timestamp": []})
-
-    return df_ts, df_places, df_users, flagged_reviews, pending_owners, chat_types, top_chat_places, admin_log
-
-
-with st.spinner("Loading platform data..."):
+with st.spinner("Initializing Offline Dashboard..."):
     (df_ts, df_places, df_users,
      flagged_reviews, pending_owners,
-     chat_types, top_chat_places, admin_log) = load_all_platform_data()
+     chat_types, top_chat_places, admin_log) = load_dashboard_data()
+
+st.success("✅ **Offline Mode Enabled**: You are viewing the dashboard design with 100% independent data.")
 
 
 # ═══════════════════════════════════════════════════════════
