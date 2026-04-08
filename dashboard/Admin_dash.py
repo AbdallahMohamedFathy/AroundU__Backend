@@ -12,8 +12,8 @@ import os
 BACKEND_BASE_URL = "https://aroundubackend-production.up.railway.app/api"
 
 # ── API URLs ──────────────────────────────────────────────────────
-CLUSTERING_API = "https://mazenmaher26-aroundu-location-clustering.hf.space"
-ANOMALY_API    = "https://mazenmaher26-aroundu-anomaly-detection.hf.space"
+CLUSTERING_API = "https://mazenmaher26-admin-location.hf.space"
+ANOMALY_API    = "https://mazenmaher26-admin-anomaly.hf.space"
 
 # ═══════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -21,60 +21,106 @@ ANOMALY_API    = "https://mazenmaher26-aroundu-anomaly-detection.hf.space"
 st.set_page_config(page_title="AroundU | Admin Dashboard", layout="wide")
 
 st.markdown("""
-    <style>
-    .main { background-color: #F8FAFC; }
+<style>
+.stApp {
+    background-color: #F8F9FB;
+}
 
-    section[data-testid="stSidebar"] {
-        background-color: #1E293B !important;
-        min-width: 280px !important;
-    }
-    section[data-testid="stSidebar"] * { color: white !important; }
+[data-testid="stHeader"] {
+    background-color: rgba(255, 255, 255, 0);
+}
 
-    div[data-testid="stMetric"] {
-        background-color: white;
-        border-left: 5px solid #2563EB;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    }
+/* Sidebar Style Sync with Owner Dash */
+section[data-testid="stSidebar"] {
+    background-color: #F8F9FB !important;
+}
 
-    .plot-container {
-        background-color: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        margin-bottom: 25px;
-    }
+section[data-testid="stSidebar"] > div:first-child {
+    background-color: #055e9b !important;
+    border-radius: 0px 40px 40px 0px !important;
+    margin-right: 0px !important;
+    height: 96vh !important;
+    margin-top: 2vh !important;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.1) !important;
+}
 
-    /* Section divider label */
-    .section-label {
-        font-size: 13px;
-        font-weight: 600;
-        color: #64748B;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin: 8px 0 4px 0;
-    }
+section[data-testid="stSidebar"] .stMarkdown h1 {
+    font-size: 26px !important;
+    color: #FFFFFF !important;
+    padding-top: 10px !important;
+    font-weight: 800 !important;
+    margin-bottom: 0px !important;
+    letter-spacing: -0.5px;
+}
 
-    /* Alert badge */
-    .badge-red {
-        background: #FEE2E2; color: #DC2626;
-        padding: 2px 10px; border-radius: 20px;
-        font-size: 12px; font-weight: 600;
-    }
-    .badge-green {
-        background: #D1FAE5; color: #065F46;
-        padding: 2px 10px; border-radius: 20px;
-        font-size: 12px; font-weight: 600;
-    }
-    .badge-yellow {
-        background: #FEF3C7; color: #92400E;
-        padding: 2px 10px; border-radius: 20px;
-        font-size: 12px; font-weight: 600;
-    }
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] p {
+    font-size: 14px !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    margin-bottom: 25px !important;
+}
 
-    h1, h2, h3 { color: #1E293B; font-family: 'Inter', sans-serif; font-weight: 700; }
-    </style>
+section[data-testid="stSidebar"] * {
+    color: white !important;
+}
+
+/* Sidebar selected background logic */
+.nav-link-selected {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Premium Metric Cards */
+div[data-testid="stMetric"] {
+    background-color: white;
+    border-left: 5px solid #055e9b;
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease-in-out;
+}
+
+div[data-testid="stMetric"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06);
+}
+
+/* Plot Containers */
+.plot-container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+}
+
+h1, h2, h3 { 
+    color: #1E293B; 
+    font-family: 'Inter', sans-serif; 
+    font-weight: 700; 
+}
+
+/* Custom Tabs styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 32px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 52px;
+    background-color: transparent;
+    padding: 10px 16px;
+    font-weight: 600;
+}
+
+.stTabs [aria-selected="true"] {
+    color: #055e9b !important;
+    border-bottom: 3px solid #055e9b !important;
+}
+
+/* Table styling fixes */
+.stDataFrame {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
 
@@ -138,79 +184,183 @@ if st.session_state.token is None:
 @st.cache_data(ttl=60)
 def fetch_admin_stats(start_date, end_date):
     try:
-        params = {"start_date": start_date, "end_date": end_date}
+        params = {"start_date": str(start_date), "end_date": str(end_date)}
         res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/overview", params=params, headers=get_headers())
         if res.status_code == 200: return res.json()
     except: pass
-    return None
+    return {} # Always return empty dict to prevent AttributeError .get()
 
 @st.cache_data(ttl=60)
 def fetch_trending_data(start_date, end_date):
+    cols = ["Date", "Visits", "New_Users", "New_Owners", "Saves", "Reviews", "Chats", "Directions"]
     try:
-        params = {"start_date": start_date, "end_date": end_date}
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/trending", params=params, headers=get_headers())
+        params = {"start_date": str(start_date), "end_date": str(end_date)}
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/trending", params=params, headers=get_headers(), timeout=15)
         if res.status_code == 200:
-            df = pd.DataFrame(res.json())
+            data = res.json()
+            df = pd.DataFrame(data)
             if not df.empty:
                 df['Date'] = pd.to_datetime(df['date'])
-                # Rename columns to match components
                 df.rename(columns={
                     "visits": "Visits", "new_users": "New_Users", "new_owners": "New_Owners",
                     "saves": "Saves", "reviews": "Reviews", "chats": "Chats", "directions": "Directions"
                 }, inplace=True)
-            return df
-    except: pass
-    return pd.DataFrame()
+                for c in cols:
+                    if c not in df.columns: df[c] = 0
+                return df[cols].sort_values("Date")
+    except Exception as e:
+        st.sidebar.warning(f"Trending Data API delay: {e}")
+    return pd.DataFrame(columns=cols)
 
 @st.cache_data(ttl=300)
 def fetch_all_places():
+    cols = ["Place_ID", "Name", "Category", "District", "Visits", "Saves", "Rating", "Reviews", "Status", "Added"]
     try:
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/places", headers=get_headers())
-        if res.status_code == 200: return pd.DataFrame(res.json())
-    except: pass
-    return pd.DataFrame()
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/places", headers=get_headers(), timeout=15)
+        if res.status_code == 200: 
+            df = pd.DataFrame(res.json())
+            if not df.empty:
+                # Ensure snake_case from API is mapped to Title Case if needed
+                mapping = {
+                    "place_id": "Place_ID", "name": "Name", "category": "Category",
+                    "district": "District", "visits": "Visits", "saves": "Saves",
+                    "rating": "Rating", "reviews": "Reviews", "status": "Status", "added": "Added"
+                }
+                df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
+                # Ensure all expected columns exist
+                for c in cols:
+                    if c not in df.columns: df[c] = None
+                
+                # Numeric conversions for safety
+                numeric_cols = ["Visits", "Saves", "Rating", "Reviews"]
+                for nc in numeric_cols:
+                    df[nc] = pd.to_numeric(df[nc], errors='coerce').fillna(0)
+                    
+                return df[cols]
+    except Exception as e:
+        st.sidebar.error(f"Places API Error: {e}")
+    return pd.DataFrame(columns=cols)
 
 @st.cache_data(ttl=300)
 def fetch_all_users():
+    cols = ["User_ID", "Name", "District", "Reviews", "Saves", "Status", "Joined", "Last_Login"]
     try:
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/users", headers=get_headers())
-        if res.status_code == 200: return pd.DataFrame(res.json())
-    except: pass
-    return pd.DataFrame()
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/users", headers=get_headers(), timeout=15)
+        if res.status_code == 200: 
+            df = pd.DataFrame(res.json())
+            if not df.empty:
+                mapping = {
+                    "user_id": "User_ID", "name": "Name", "district": "District",
+                    "reviews": "Reviews", "saves": "Saves", "status": "Status",
+                    "joined": "Joined", "last_login": "Last_Login"
+                }
+                df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
+                for c in cols:
+                    if c not in df.columns: df[c] = None
+                
+                # Numeric conversions
+                for nc in ["Reviews", "Saves"]:
+                    df[nc] = pd.to_numeric(df[nc], errors='coerce').fillna(0)
+                return df[cols]
+    except Exception as e:
+        st.sidebar.error(f"Users API Error: {e}")
+    return pd.DataFrame(columns=cols)
 
 @st.cache_data(ttl=300)
 def fetch_category_stats():
+    cols = ["Category", "Count", "Visits", "Saves"]
     try:
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/categories", headers=get_headers())
-        if res.status_code == 200: return pd.DataFrame(res.json())
-    except: pass
-    return pd.DataFrame()
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/categories", headers=get_headers(), timeout=15)
+        if res.status_code == 200: 
+            df = pd.DataFrame(res.json())
+            if not df.empty:
+                mapping = {"category": "Category", "count": "Count", "visits": "Visits", "saves": "Saves"}
+                df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
+                for c in cols:
+                    if c not in df.columns: df[c] = None
+                
+                # Numeric conversions
+                for nc in ["Count", "Visits", "Saves"]:
+                    df[nc] = pd.to_numeric(df[nc], errors='coerce').fillna(0)
+                return df[cols]
+    except Exception as e:
+        pass
+    return pd.DataFrame(columns=cols)
 
 @st.cache_data(ttl=60)
 def fetch_moderation_data():
+    rev_cols = ["Review_ID", "User", "Place", "Review", "Rating", "Date"]
+    own_cols = ["Owner_ID", "Name", "Business", "Category", "Submitted"]
     try:
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/moderation/pending", headers=get_headers())
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/moderation/pending", headers=get_headers(), timeout=15)
         if res.status_code == 200: 
             data = res.json()
-            return pd.DataFrame(data["flagged_reviews"]), pd.DataFrame(data["pending_owners"])
-    except: pass
-    return pd.DataFrame(), pd.DataFrame()
+            df_rev = pd.DataFrame(data.get("flagged_reviews", []))
+            df_own = pd.DataFrame(data.get("pending_owners", []))
+            
+            if not df_rev.empty:
+                mapping = {"review_id": "Review_ID", "user": "User", "place": "Place", "review": "Review", "rating": "Rating", "date": "Date"}
+                df_rev.rename(columns={k: v for k, v in mapping.items() if k in df_rev.columns}, inplace=True)
+                for c in rev_cols:
+                    if c not in df_rev.columns: df_rev[c] = None
+                df_rev = df_rev[rev_cols]
+            else:
+                df_rev = pd.DataFrame(columns=rev_cols)
+
+            if not df_own.empty:
+                mapping = {"owner_id": "Owner_ID", "name": "Name", "business": "Business", "category": "Category", "submitted": "Submitted"}
+                df_own.rename(columns={k: v for k, v in mapping.items() if k in df_own.columns}, inplace=True)
+                for c in own_cols:
+                    if c not in df_own.columns: df_own[c] = None
+                df_own = df_own[own_cols]
+            else:
+                df_own = pd.DataFrame(columns=own_cols)
+                
+            return df_rev, df_own
+    except Exception as e:
+        st.sidebar.error(f"Moderation API Error: {e}")
+    return pd.DataFrame(columns=rev_cols), pd.DataFrame(columns=own_cols)
 
 @st.cache_data(ttl=60)
 def fetch_recent_interactions(limit=1000):
+    cols = ["user_id", "place_id", "user_lat", "user_lon", "visited_at", "cluster"]
     try:
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/interactions/recent", params={"limit": limit}, headers=get_headers())
-        if res.status_code == 200: return pd.DataFrame(res.json())
-    except: pass
-    return pd.DataFrame()
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/interactions/recent", params={"limit": limit}, headers=get_headers(), timeout=15)
+        if res.status_code == 200:
+            df = pd.DataFrame(res.json())
+            if not df.empty:
+                # Ensure numeric types for coordinates and cluster
+                for nc in ["user_lat", "user_lon", "cluster"]:
+                    if nc in df.columns:
+                        df[nc] = pd.to_numeric(df[nc], errors='coerce').fillna(0)
+                return df
+    except Exception as e:
+        pass
+    return pd.DataFrame(columns=cols)
 
 @st.cache_data(ttl=300)
 def fetch_all_properties():
+    cols = ["Property_ID", "Title", "Price", "District", "Status", "Owner", "Owner_Email", "Added"]
     try:
-        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/properties", headers=get_headers())
-        if res.status_code == 200: return pd.DataFrame(res.json())
-    except: pass
-    return pd.DataFrame()
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/properties", headers=get_headers(), timeout=15)
+        if res.status_code == 200: 
+            df = pd.DataFrame(res.json())
+            if not df.empty:
+                mapping = {
+                    "property_id": "Property_ID", "title": "Title", "price": "Price",
+                    "district": "District", "status": "Status", "owner": "Owner",
+                    "owner_email": "Owner_Email", "added": "Added"
+                }
+                df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
+                for c in cols:
+                    if c not in df.columns: df[c] = None
+                
+                # Numeric conversions
+                df["Price"] = pd.to_numeric(df["Price"], errors='coerce').fillna(0)
+                return df[cols]
+    except Exception as e:
+        st.sidebar.error(f"Properties API Error: {e}")
+    return pd.DataFrame(columns=cols)
 
 def fetch_chatbot_analytics():
     # Placeholder/Mock data to fix crash
@@ -301,11 +451,16 @@ with st.sidebar:
         ],
         default_index=0,
         styles={
-            "container":         {"background-color": "transparent"},
-            "nav-link":          {"font-size": "14px", "text-align": "left", "color": "white"},
-            "nav-link-selected": {"background-color": "#2563EB"},
+            "container":         {"background-color": "transparent", "padding": "0px !important"},
+            "nav-link":          {"font-size": "15px", "text-align": "left", "color": "rgba(255,255,255,0.8)", "padding": "12px 20px"},
+            "nav-link-selected": {"background-color": "rgba(255,255,255,0.15)", "color": "white", "font-weight": "600"},
         },
     )
+
+    st.divider()
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
     st.divider()
     st.markdown("### 📅 Date Range")
@@ -322,19 +477,20 @@ with st.sidebar:
 
     # Alert counts in sidebar
     st.divider()
-    st.markdown('<p class="section-label">⚠️ Alerts</p>', unsafe_allow_html=True)
-    st.markdown(
-        f'🚩 Flagged reviews &nbsp; <span class="badge-red">{len(flagged_reviews) if not flagged_reviews.empty else 0}</span>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        f'👤 Pending owners &nbsp;&nbsp; <span class="badge-yellow">{len(pending_owners) if not pending_owners.empty else 0}</span>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        f'🚫 Suspended users &nbsp; <span class="badge-red">{len(df_users[df_users["Status"]=="Suspended"]) if not df_users.empty else 0}</span>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<p style="color:rgba(255,255,255,0.6); font-size:12px; font-weight:700; text-transform:uppercase;">⚠️ Priority Alerts</p>', unsafe_allow_html=True)
+    
+    def alert_item(label, count, color="red"):
+        bg = "#EF4444" if color == "red" else "#F59E0B"
+        return f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:14px; color:rgba(255,255,255,0.85);">{label}</span>
+            <span style="background:{bg}; color:white; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">{count}</span>
+        </div>
+        """
+
+    st.markdown(alert_item("Flagged Reviews", len(flagged_reviews) if not flagged_reviews.empty else 0), unsafe_allow_html=True)
+    st.markdown(alert_item("Pending Owners", len(pending_owners) if not pending_owners.empty else 0, "yellow"), unsafe_allow_html=True)
+    st.markdown(alert_item("Suspended Users", len(df_users[df_users["Status"]=="Suspended"]) if not df_users.empty else 0), unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -398,7 +554,7 @@ if selected == "Overview":
         heat_data = np.random.randint(10, 100, size=(7, 24))
         heat_data[:, 18:22] += 60
         fig_heat = px.imshow(heat_data, x=hours, y=days,
-                             color_continuous_scale="Blues",
+                             color_continuous_scale="Viridis",
                              aspect="auto", template=TEMPLATE)
         st.plotly_chart(fig_heat, use_container_width=True)
 
@@ -406,7 +562,7 @@ if selected == "Overview":
         st.subheader("🚀 Signup Velocity")
         fig_v = px.bar(df_filtered, x="Date", y=["New_Users","New_Owners"],
                        barmode="group",
-                       color_discrete_sequence=["#2563EB","#F59E0B"],
+                       color_discrete_sequence=["#6366f1","#f59e0b"],
                        template=TEMPLATE)
         st.plotly_chart(fig_v, use_container_width=True)
 
@@ -423,7 +579,7 @@ if selected == "Overview":
         st.subheader("📈 Trending: Visits & Signups")
         if not df_filtered.empty:
             fig_trend = px.line(df_filtered, x="Date", y=["Visits", "New_Users"],
-                               color_discrete_sequence=["#2563EB", "#10B981"],
+                               color_discrete_sequence=["#055e9b", "#10B981"],
                                template=TEMPLATE)
             st.plotly_chart(fig_trend, use_container_width=True)
         else:
@@ -719,10 +875,10 @@ elif selected == "Reviews":
     st.title("⭐ Reviews & Sentiment Analysis")
 
     r1, r2, r3, r4 = st.columns(4)
-    r1.metric("Total Reviews (Period)", stats.get("reviews", 0), stats.get("reviews_delta"))
+    r1.metric("Total Reviews (Period)", stats.get("reviews", 0), stats.get("reviews_delta", "0%"))
     r2.metric("Positive Sentiment",     "75%")
     r3.metric("Negative Sentiment",     "25%")
-    r4.metric("Flagged Reviews",        len(flagged_reviews))
+    r4.metric("Flagged Reviews",        len(flagged_reviews) if not flagged_reviews.empty else 0)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -810,7 +966,7 @@ elif selected == "Chatbot":
         # ✅ NEW: chat volume over time
         st.subheader("📅 Chat Volume Over Time")
         fig_cv = px.area(df_filtered, x="Date", y="Chats",
-                         color_discrete_sequence=["#8B5CF6"], template=TEMPLATE)
+                         color_discrete_sequence=["#055e9b"], template=TEMPLATE)
         st.plotly_chart(fig_cv, use_container_width=True)
 
     with col2:
@@ -827,7 +983,7 @@ elif selected == "Chatbot":
         st.subheader("🏆 Most Active Chatbot Places")
         fig_tcp = px.bar(top_chat_places.head(8), x="Chats", y="Place",
                          orientation="h", color="Chats",
-                         color_continuous_scale="Purples", template=TEMPLATE)
+                         color_continuous_scale="Blues", template=TEMPLATE)
         fig_tcp.update_layout(yaxis={"categoryorder":"total ascending"})
         st.plotly_chart(fig_tcp, use_container_width=True)
 
@@ -1058,13 +1214,15 @@ elif selected == "Anomaly Detection":
             resp = requests.post(
                 f"{ANOMALY_API}/detect",
                 json={"visits": visits},
-                timeout=30,
+                timeout=20,
             )
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("anomalies", []), data.get("total_anomalies", 0)
-        except Exception:
-            pass
+            else:
+                st.warning(f"Anomaly API returned {resp.status_code}")
+        except Exception as e:
+            st.error(f"Anomaly Detection Connection error: {e}")
         return [], 0
 
     @st.cache_data(ttl=120)
@@ -1133,7 +1291,7 @@ elif selected == "Anomaly Detection":
             st.subheader("🗺️ Anomaly Activity per Cluster")
             sum_df = pd.DataFrame(summary)
             fig_cl = px.bar(sum_df, x="cluster", y="total_anomalies",
-                            color="total_anomalies", color_continuous_scale="OrRd",
+                            color="total_anomalies", color_continuous_scale="Reds",
                             text_auto=True, template=TEMPLATE,
                             labels={"cluster": "Cluster", "total_anomalies": "Total Anomalies"})
             fig_cl.update_xaxes(type="category")
@@ -1179,44 +1337,42 @@ elif selected == "Location Logic":
             return None
             
         try:
+            # Prepare data: Ensure expected fields for the clustering API
             visits = df_int.rename(columns={"user_lat": "lat", "user_lon": "lon"}).to_dict(orient="records")
             resp = requests.post(
                 f"{CLUSTERING_API}/heatmap",
                 json={"visits": visits},
-                timeout=15,
+                timeout=20,
             )
             if resp.status_code == 200:
-                return resp.json()["hotspots"]
-        except Exception:
-            pass
+                return resp.json().get("hotspots")
+        except Exception as e:
+            st.warning(f"Clustering API Heatmap Error: {e}")
         return None
 
     @st.cache_data(ttl=300)
     def fetch_opportunities():
-        """Calls POST /opportunities on the clustering API."""
+        """Calls POST /opportunities on the clustering API using current district/category context."""
         try:
-            np.random.seed(42)
-            districts_list = ["City Center","Biba","New Beni Suef",
-                               "South District","University Area","Nile Corniche"]
-            cats = ["Restaurant","Cafe","Pharmacy","House","Super Market"]
-            visits = []
-            for i, d in enumerate(districts_list):
-                n = np.random.randint(60, 400)
-                for _ in range(n):
-                    visits.append({"cluster": i, "district": d})
-            places = []
-            for d in districts_list[:3]:
-                for c in cats[:3]:
-                    places.append({"category": c, "district": d})
+            # We fetch all places to understand existing distribution
+            df_p = fetch_all_places()
+            df_i = fetch_recent_interactions(limit=1000)
+            
+            if df_p.empty or df_i.empty:
+                return None
+
+            places = df_p[["Category", "District"]].rename(columns={"Category":"category", "District":"district"}).to_dict(orient="records")
+            visits = df_i[["cluster"]].to_dict(orient="records") # The API might need more, but let's see
+            
             resp = requests.post(
                 f"{CLUSTERING_API}/opportunities",
                 json={"visits": visits, "places": places},
-                timeout=15,
+                timeout=20,
             )
             if resp.status_code == 200:
-                return resp.json()["opportunities"]
-        except Exception:
-            pass
+                return resp.json().get("opportunities")
+        except Exception as e:
+            st.warning(f"Clustering API Opportunities Error: {e}")
         return None
 
     hotspots      = fetch_heatmap_data()
