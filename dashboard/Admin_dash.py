@@ -524,9 +524,6 @@ def insert_db_record(table_name, data):
     except: return False
 
 # --- CREATE PROPERTY ---------------------------------------------
-    except Exception as e:
-        return None, str(e)
-
 def update_place_status_api(place_id, active):
     try:
         res = requests.post(
@@ -537,6 +534,21 @@ def update_place_status_api(place_id, active):
         if res.status_code == 200:
             status_txt = "activated" if active else "suspended"
             st.toast(f"✅ Place {place_id} {status_txt} successfully!", icon="🚫")
+            return True, res.json().get("message")
+        return False, res.text
+    except Exception as e:
+        return False, str(e)
+
+def update_user_status_api(user_id, active):
+    try:
+        res = requests.post(
+            f"{BACKEND_BASE_URL}/dashboard/admin/users/{user_id}/status",
+            params={"active": str(active).lower()},
+            headers=get_headers()
+        )
+        if res.status_code == 200:
+            status_txt = "activated" if active else "suspended"
+            st.toast(f"✅ User {user_id} {status_txt} successfully!", icon="👤")
             return True, res.json().get("message")
         return False, res.text
     except Exception as e:
@@ -1034,12 +1046,64 @@ elif selected == "User Analytics":
     if u_sta != "All":
         fu = fu[fu["Status"] == u_sta]
 
-    st.caption(f"Showing {len(fu)} users")
     st.dataframe(
         fu[["User_ID","Name","District","Reviews","Saves","Status","Joined","Last_Login"]]
         .reset_index(drop=True),
         use_container_width=True,
     )
+
+    # ══════════════════════════════════════════════════════════
+    # 👤 SUSPEND USER TOOL
+    # ══════════════════════════════════════════════════════════
+    st.divider()
+    st.subheader("👤 Suspend a User")
+    st.caption("Deactivate a user account directly by entering their ID")
+
+    # ── Init session state ────────────────────────────────────
+    if "suspended_users_log" not in st.session_state:
+        st.session_state.suspended_users_log = []
+
+    su_col1, su_col2 = st.columns([2, 1])
+    with su_col1:
+        user_id_input = st.text_input(
+            "User ID", placeholder="e.g. U-2001", key="suspend_user_input",
+        )
+    with su_col2:
+        st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
+        do_suspend_user = st.button("🚫 Suspend User", key="btn_suspend_user", use_container_width=True)
+
+    if do_suspend_user:
+        uid = user_id_input.strip().upper()
+        if not uid:
+            st.warning("⚠️ Please enter a User ID.")
+        elif uid not in df_users["User_ID"].values:
+            st.error(f"❌ User ID `{uid}` not found in the system.")
+        else:
+            success, msg = update_user_status_api(uid, active=False)
+            if success:
+                st.session_state.suspended_users_log.append({
+                    "id": uid,
+                    "ts": datetime.now().strftime("%H:%M:%S")
+                })
+                st.success(f"✅ {msg}")
+                st.rerun()
+            else:
+                st.error(f"❌ Failed to suspend user: {msg}")
+
+    # ── User Suspension Log ───────────────────────────────────
+    if st.session_state.suspended_users_log:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("📋 Recent User Suspensions")
+        for item in reversed(st.session_state.suspended_users_log[-5:]):
+            st.markdown(
+                f"""<div style="background:rgba(239,68,68,0.07);
+                                border-left:3px solid #EF4444;
+                                border-radius:8px;padding:10px 14px;
+                                margin:5px 0;font-size:14px;">
+                    👤 <b>{item['id']}</b> &nbsp;·&nbsp; Suspended at {item['ts']}
+                </div>""",
+                unsafe_allow_html=True,
+            )
 
 
 # ═══════════════════════════════════════════════════════════

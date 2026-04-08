@@ -635,3 +635,27 @@ def update_place_status(uow: UnitOfWork, place_id_str: str, active: bool, curren
         
         status_text = "activated" if active else "suspended"
         return {"status": "success", "message": f"Place {place_id_str} has been successfully {status_text}."}
+
+def update_user_status(uow: UnitOfWork, user_id_str: str, active: bool, current_admin):
+    """Toggle a user's active status. Admin only."""
+    require_admin(current_admin)
+    try:
+        # Extract numeric ID from "U-123"
+        numeric_id = int(user_id_str.replace("U-", ""))
+    except ValueError:
+        raise APIException("Invalid User ID format. Expected 'U-ID' (e.g., U-2001)", code=status.HTTP_400_BAD_REQUEST)
+        
+    with uow:
+        user = uow.user_repository.get_by_id(numeric_id)
+        if not user:
+            raise APIException(f"User `{user_id_str}` not found", code=status.HTTP_404_NOT_FOUND)
+        
+        # Prevent self-suspension
+        if user.id == current_admin.id:
+            raise APIException("You cannot suspend your own account", code=status.HTTP_400_BAD_REQUEST)
+            
+        user.is_active = active
+        uow.commit()
+        
+        status_text = "activated" if active else "suspended"
+        return {"status": "success", "message": f"User {user_id_str} ({user.full_name}) has been successfully {status_text}."}

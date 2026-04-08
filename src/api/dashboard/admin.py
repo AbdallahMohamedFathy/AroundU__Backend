@@ -210,3 +210,13 @@ def update_place_status(
 ):
     """Toggle a place's active status. Requires ADMIN privilege."""
     return admin_service.update_place_status(uow, place_id, active, current_user)
+
+@router.post("/users/{user_id}/status")
+def update_user_status(
+    user_id: str,
+    active: bool = Query(..., description="Set to True to activate, False to suspend"),
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Toggle a user's active status. Requires ADMIN privilege."""
+    return admin_service.update_user_status(uow, user_id, active, current_user)
