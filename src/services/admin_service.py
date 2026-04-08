@@ -403,6 +403,26 @@ def get_all_places_stats(uow: UnitOfWork) -> List[Dict]:
             })
         return result
 
+def get_all_properties_stats(uow: UnitOfWork) -> List[Dict]:
+    """
+    Get list of all properties with their metadata.
+    """
+    with uow:
+        properties = uow.session.query(Property).all()
+        result = []
+        for p in properties:
+            result.append({
+                "Property_ID": f"PROP-{p.id}",
+                "Title": p.title,
+                "Price": p.price,
+                "District": "Beni Suef",
+                "Status": "Available" if p.is_available else "Sold/Rented",
+                "Owner": p.owner.full_name if p.owner else "Unknown",
+                "Owner_Email": p.owner.email if p.owner else "—",
+                "Added": p.created_at.strftime("%Y-%m-%d") if p.created_at else "—"
+            })
+        return result
+
 def get_all_users_stats(uow: UnitOfWork) -> List[Dict]:
     """
     Get list of all platform users.

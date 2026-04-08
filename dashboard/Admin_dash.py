@@ -204,6 +204,41 @@ def fetch_recent_interactions(limit=1000):
     except: pass
     return pd.DataFrame()
 
+@st.cache_data(ttl=300)
+def fetch_all_properties():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/properties", headers=get_headers())
+        if res.status_code == 200: return pd.DataFrame(res.json())
+    except: pass
+    return pd.DataFrame()
+
+def fetch_chatbot_analytics():
+    # Placeholder/Mock data to fix crash
+    types = pd.DataFrame([
+        {"Type": "Menu/Pricing", "Val": 45},
+        {"Type": "Availability", "Val": 30},
+        {"Type": "Location/Directions", "Val": 15},
+        {"Type": "General Info", "Val": 10}
+    ])
+    places = pd.DataFrame([
+        {"Place": "Sultan Restaurant", "Chats": 120, "Resolved": 115},
+        {"Place": "City Cafe", "Chats": 85, "Resolved": 80},
+        {"Place": "Pharmacy El-Ezaby", "Chats": 50, "Resolved": 48},
+        {"Place": "Beni Suef University", "Chats": 40, "Resolved": 35}
+    ])
+    return types, places
+
+# --- CREATE PROPERTY ---------------------------------------------
+def create_property_with_owner_api(data):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/properties", json=data, headers=get_headers())
+        if res.status_code == 200:
+            st.toast("✅ Property and Owner created!", icon="🏠")
+            return res.json(), None
+        return None, res.text
+    except Exception as e:
+        return None, str(e)
+
 # ── MODERATION ACTIONS ──────────────────────────────────────────
 def delete_review(review_id_str):
     try:
@@ -254,13 +289,15 @@ with st.sidebar:
         menu_title=None,
         options=[
             "Overview", "Places Analytics", "User Analytics",
-            "Reviews", "Chatbot", "Category Analytics",
-            "Moderation", "Anomaly Detection", "Location Logic",
+            "Property Management", "Reviews", "Chatbot",
+            "Category Analytics", "Moderation", "Anomaly Detection",
+            "Location Logic",
         ],
         icons=[
             "grid-1x2", "shop", "people",
-            "star", "robot", "tags",
-            "shield-lock", "exclamation-triangle", "geo-alt",
+            "house", "star", "robot",
+            "tags", "shield-lock", "exclamation-triangle",
+            "geo-alt",
         ],
         default_index=0,
         styles={
@@ -280,6 +317,7 @@ with st.sidebar:
     # Fetch global data for sidebars/alerts
     df_places = fetch_all_places()
     df_users = fetch_all_users()
+    df_props = fetch_all_properties()
     flagged_reviews, pending_owners = fetch_moderation_data()
 
     # Alert counts in sidebar
@@ -575,7 +613,107 @@ elif selected == "User Analytics":
 
 
 # ═══════════════════════════════════════════════════════════
-# 4. REVIEWS  (expanded)
+# 4. PROPERTY MANAGEMENT
+# ═══════════════════════════════════════════════════════════
+elif selected == "Property Management":
+    st.title("🏠 Property & Housing Management")
+    
+    pr1, pr2, pr3, pr4 = st.columns(4)
+    pr1.metric("Total Properties", len(df_props))
+    pr2.metric("Available", len(df_props[df_props["Status"]=="Available"]) if not df_props.empty else 0)
+    pr3.metric("Beni Suef Listings", len(df_props[df_props["District"]=="Beni Suef"]) if not df_props.empty else 0)
+    pr4.metric("Average Price", f"{df_props['Price'].mean():,.0f} EGP" if not df_props.empty and "Price" in df_props.columns else "N/A")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    tab_list, tab_add = st.tabs(["📋 Property List", "➕ Add New Property"])
+
+    with tab_list:
+        st.subheader("🔍 Search & Filter Properties")
+        p_col1, p_col2 = st.columns(2)
+        with p_col1:
+            p_srch = st.text_input("Search by title or ID...")
+        with p_col2:
+            p_sta = st.selectbox("Status Filter", ["All", "Available", "Sold/Rented"])
+        
+        fp = df_props.copy()
+        if not fp.empty:
+            if p_srch:
+                fp = fp[fp["Title"].str.contains(p_srch, case=False) | fp["Property_ID"].str.contains(p_srch, case=False)]
+            if p_sta != "All":
+                fp = fp[fp["Status"] == p_sta]
+            
+            st.dataframe(fp.reset_index(drop=True), use_container_width=True)
+        else:
+            st.info("No properties found in the system.")
+
+    with tab_add:
+        st.subheader("🏙️ Create Property & Owner Account")
+        with st.form("add_property_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                title = st.text_input("Property Title *")
+                price = st.number_input("Price (EGP) *", min_value=0.0)
+                lat   = st.number_input("Latitude", format="%.6f", value=29.0661)
+            with col2:
+                email = st.text_input("Owner Email *")
+                pwd   = st.text_input("Owner Password *", type="password")
+                lon   = st.number_input("Longitude", format="%.6f", value=31.0994)
+            
+            desc = st.text_area("Description")
+            link = st.text_input("Location Link (Google Maps)")
+            
+            submitted = st.form_submit_button("Create Property", use_container_width=True)
+            if submitted:
+                if not title or not email or not pwd:
+                    st.error("Please fill required fields (*)")
+                else:
+                    prop_data = {
+                        "title": title,
+                        "description": desc,
+                        "price": price,
+                        "location_link": link,
+                        "latitude": lat,
+                        "longitude": lon,
+                        "owner_email": email,
+                        "owner_password": pwd
+                    }
+                    with st.spinner("Creating property and owner..."):
+                        res, err = create_property_with_owner_api(prop_data)
+                        if res:
+                            st.success(f"Success! Property {res['property_id']} created.")
+                            st.rerun()
+                        else:
+                            st.error(f"Creation failed: {err}")
+
+    # Section for image upload
+    st.divider()
+    st.subheader("🖼️ Upload Property Images")
+    if not df_props.empty:
+        target_prop = st.selectbox("Select Property", df_props["Property_ID"].tolist())
+        uploaded_files = st.file_uploader("Choose images (Max 5)", accept_multiple_files=True, type=['png', 'jpg', 'jpeg'], key="prop_images")
+        if st.button("Upload Selected Images"):
+            if not uploaded_files:
+                st.warning("Please select files.")
+            else:
+                # API call for images
+                prop_id_int = int(target_prop.replace("PROP-", ""))
+                files = [("images", (f.name, f.getvalue(), f.type)) for f in uploaded_files]
+                with st.spinner("Uploading images..."):
+                    try:
+                        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/properties/{prop_id_int}/images", files=files, headers=get_headers())
+                        if res.status_code == 200:
+                            st.success("Images uploaded successfully!")
+                        else:
+                            st.error(f"Upload failed: {res.text}")
+                    except Exception as e:
+                        st.error(f"Connection error: {e}")
+    else:
+        st.info("No properties available to upload images for.")
+
+
+# ═══════════════════════════════════════════════════════════
+# 5. REVIEWS  (expanded)
 # ═══════════════════════════════════════════════════════════
 elif selected == "Reviews":
     st.title("⭐ Reviews & Sentiment Analysis")
@@ -650,7 +788,7 @@ elif selected == "Reviews":
 
 
 # ═══════════════════════════════════════════════════════════
-# 5. CHATBOT  (fixed + expanded)
+# 6. CHATBOT  (fixed + expanded)
 # ═══════════════════════════════════════════════════════════
 elif selected == "Chatbot":
     st.title("🤖 Chatbot Intelligence")
@@ -676,6 +814,7 @@ elif selected == "Chatbot":
         st.plotly_chart(fig_cv, use_container_width=True)
 
     with col2:
+        chat_types, top_chat_places = fetch_chatbot_analytics()
         st.subheader("🔍 Query Types Distribution")
         fig_qt = px.pie(chat_types, values="Val", names="Type", hole=0.55,
                         color_discrete_sequence=px.colors.qualitative.Set2,
@@ -708,7 +847,7 @@ elif selected == "Chatbot":
 
 
 # ═══════════════════════════════════════════════════════════
-# 6. CATEGORY ANALYTICS  ✅ ENTIRELY NEW SECTION
+# 7. CATEGORY ANALYTICS
 # ═══════════════════════════════════════════════════════════
 elif selected == "Category Analytics":
     st.title("🏷️ Category Analytics")
@@ -778,7 +917,7 @@ elif selected == "Category Analytics":
 
 
 # ═══════════════════════════════════════════════════════════
-# 7. MODERATION  (fully rebuilt)
+# 8. MODERATION
 # ═══════════════════════════════════════════════════════════
 elif selected == "Moderation":
     st.title("🛡️ Moderation Center")
@@ -901,7 +1040,7 @@ elif selected == "Moderation":
 
 
 # ═══════════════════════════════════════════════════════════
-# 8. ANOMALY DETECTION
+# 9. ANOMALY DETECTION
 # ═══════════════════════════════════════════════════════════
 elif selected == "Anomaly Detection":
     st.title("🚨 Anomaly Detection")
@@ -1024,7 +1163,7 @@ elif selected == "Anomaly Detection":
 
 
 # ═══════════════════════════════════════════════════════════
-# 9. LOCATION LOGIC
+# 10. LOCATION LOGIC
 # ═══════════════════════════════════════════════════════════
 elif selected == "Location Logic":
     st.title("📍 Location Intelligence: Beni Suef")

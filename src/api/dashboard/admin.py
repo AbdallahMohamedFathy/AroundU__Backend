@@ -105,6 +105,14 @@ def get_category_analytics(
     """Get distribution and performance data per category."""
     return admin_service.get_category_stats(uow)
 
+@router.get("/stats/properties")
+def get_all_properties_stats(
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """Get a list of all properties with their metadata and performance stats."""
+    return admin_service.get_all_properties_stats(uow)
+
 @router.get("/moderation/pending")
 def get_moderation_pending(
     uow=Depends(get_uow),
