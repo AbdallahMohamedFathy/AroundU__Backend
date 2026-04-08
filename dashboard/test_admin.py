@@ -215,7 +215,7 @@ st.markdown("""
 # ═══════════════════════════════════════════════════════════
 # BACKEND API CONFIG
 # ═══════════════════════════════════════════════════════════
-BACKEND_BASE = st.secrets.get("BACKEND_BASE", "https://your-backend.com/api")
+BACKEND_BASE = "https://aroundubackend-production.up.railway.app/api"
 
 def api_get(path: str, params: dict = None):
     try:
