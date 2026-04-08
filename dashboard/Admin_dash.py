@@ -477,10 +477,10 @@ with st.sidebar:
         ],
         default_index=0,
         styles={
-            "container":         {"background-color": "transparent", "padding": "0px !important"},
+            "container":         {"background-color": "#055e9b !important", "padding": "0px !important"},
             "nav-link":          {
                 "font-size": "15px", "text-align": "left", "color": "rgba(255,255,255,0.8)", 
-                "padding": "12px 20px", "background-color": "transparent",
+                "padding": "12px 20px", "background-color": "transparent !important",
                 "--hover-color": "rgba(255,255,255,0.1)"
             },
             "nav-link-selected": {"background-color": "rgba(255,255,255,0.15)", "color": "white", "font-weight": "600"},
