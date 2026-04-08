@@ -4,6 +4,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from streamlit_option_menu import option_menu
+import folium
+from streamlit_folium import st_folium
+from folium.plugins import HeatMap
 from datetime import datetime, timedelta
 import requests
 import os
@@ -499,7 +502,72 @@ def delete_review(review_id_str):
         st.error(f"Error deleting review: {e}")
     return False
 
-def approve_owner(owner_id_str, verified=True):
+# --- Location Logic Helpers ---
+
+def filter_active(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
+    """Return only rows within the given time window."""
+    if df.empty or "visited_at" not in df.columns:
+        return df
+    cutoff = datetime.now() - timedelta(minutes=minutes)
+    
+    # Ensure visited_at is datetime
+    df['visited_at'] = pd.to_datetime(df['visited_at'], errors="coerce")
+    ts = df['visited_at'].copy()
+    return df[ts >= cutoff]
+
+def build_location_map(all_locations, show_pins, show_heatmap, places_list, center_lat, center_lon, active_df=None):
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=13, tiles="CartoDB positron")
+    
+    # Render Places
+    for _, p in places_list.iterrows():
+        lat = p.get("Latitude")
+        lon = p.get("Longitude")
+        name = p.get("Name") or "Place"
+        dist = p.get("District") or ""
+        if lat and lon:
+            tooltip_html = f"📍 <b>{name}</b><br>{dist}"
+            folium.Marker(
+                [float(lat), float(lon)], 
+                tooltip=tooltip_html, 
+                icon=folium.Icon(color="red", icon="home", prefix="fa")
+            ).add_to(m)
+
+    # Render Heatmap
+    if show_heatmap and not all_locations.empty:
+        heat_data = [[row['user_lat'], row['user_lon']] for _, row in all_locations.iterrows() if pd.notna(row['user_lat']) and pd.notna(row['user_lon'])]
+        if heat_data:
+            HeatMap(
+                heat_data, 
+                radius=22, 
+                blur=18,
+                min_opacity=0.35,
+                gradient={"0.3": "#055e9b", "0.6": "#61A3BB", "1.0": "#E63946"}
+            ).add_to(m)
+
+    # Render Visitor Pins
+    if show_pins:
+        target_df = active_df if active_df is not None else all_locations
+        if not target_df.empty:
+            for _, row in target_df.iterrows():
+                ts_str = row["visited_at"].strftime("%H:%M") if pd.notna(row["visited_at"]) else "N/A"
+                uid = row.get("user_id", "Anon")
+                cluster = row.get("cluster", "N/A")
+                lat = row.get("user_lat")
+                lon = row.get("user_lon")
+                
+                if lat and lon:
+                    folium.CircleMarker(
+                        location=[lat, lon],
+                        radius=6,
+                        color="#055e9b",
+                        fill=True,
+                        fill_color="#61A3BB",
+                        fill_opacity=0.8,
+                        tooltip=f"👤 User {uid} (Cluster: {cluster}) · {ts_str}"
+                    ).add_to(m)
+    return m
+
+def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
     try:
         oid = int(owner_id_str.replace("OWN-", ""))
         res = requests.post(
@@ -1431,26 +1499,16 @@ elif selected == "Location Logic":
 
     BS_LAT, BS_LON = 29.0661, 31.0994
 
-    # ── Fetch real hotspots from clustering API ───────────────────
+    # --- Fetch real hotspots from clustering API ---
     @st.cache_data(ttl=300)
     def fetch_heatmap_data():
-        """Calls POST /heatmap on the clustering API with real interaction data."""
         df_int = fetch_recent_interactions(limit=1000)
-        if df_int.empty:
-            return None
-            
+        if df_int.empty: return None
         try:
-            # Prepare data: Ensure expected fields and sanitize NaNs
             visits = df_int.rename(columns={"user_lat": "lat", "user_lon": "lon"}).replace({np.nan: None}).to_dict(orient="records")
-            resp = requests.post(
-                f"{CLUSTERING_API}/heatmap",
-                json={"visits": visits},
-                timeout=20,
-            )
-            if resp.status_code == 200:
-                return resp.json().get("hotspots")
-        except Exception as e:
-            st.warning(f"Clustering API Heatmap Error: {e}")
+            resp = requests.post(f"{CLUSTERING_API}/heatmap", json={"visits": visits}, timeout=20)
+            if resp.status_code == 200: return resp.json().get("hotspots")
+        except: pass
         return None
 
     @st.cache_data(ttl=300)
@@ -1481,29 +1539,37 @@ elif selected == "Location Logic":
     hotspots      = fetch_heatmap_data()
     opportunities = fetch_opportunities()
 
-    # ── Heatmap ───────────────────────────────────────────────────
-    if hotspots:
-        map_data = pd.DataFrame(hotspots)
-        map_data.rename(columns={"lon": "lon", "lat": "lat", "intensity": "intensity"}, inplace=True)
-        st.caption("🟢 Live data from Location Clustering API")
-    else:
-        st.caption("⚠️ Using fallback data — API unavailable")
-        map_data = pd.DataFrame({
-            "lat":       np.random.uniform(BS_LAT - 0.015, BS_LAT + 0.015, 300),
-            "lon":       np.random.uniform(BS_LON - 0.015, BS_LON + 0.015, 300),
-            "intensity": np.random.randint(1, 100, 300),
-        })
+    # ── Map Controls ──────────────────────────────────────────────
+    st.markdown("### 🗺️ Interactive Map Controls")
+    c1, c2, c3 = st.columns([1, 1, 2])
+    with c1:
+        show_pins = st.checkbox("📍 Show Interaction Pins", value=True)
+    with c2:
+        show_heatmap = st.checkbox("🔥 Show AIC Heatmap", value=True)
+    with c3:
+        window = st.slider("🕒 Active Window (Last X mins)", 5, 1440, 60)
 
-    fig_map = px.density_mapbox(
-        map_data, lat="lat", lon="lon", z="intensity", radius=15,
-        center=dict(lat=BS_LAT, lon=BS_LON), zoom=12.5,
-        mapbox_style="open-street-map", height=550,
-    )
-    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-    st.plotly_chart(fig_map, use_container_width=True)
+    # Prepare Data
+    df_i = fetch_recent_interactions(limit=1000)
+    df_active = filter_active(df_i, window)
+    
+    # Render Map
+    with st.container():
+        m = build_location_map(
+            all_locations=df_i,
+            show_pins=show_pins,
+            show_heatmap=show_heatmap,
+            places_list=df_places,
+            center_lat=BS_LAT,
+            center_lon=BS_LON,
+            active_df=df_active if show_pins else None
+        )
+        st_folium(m, use_container_width=True, height=550)
+        st.caption(f"🟢 Showing {len(df_active)} active interactions in the last {window} minutes.")
 
     st.divider()
 
+    # ── Analytics Below Map ───────────────────────────────────────
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("🗺️ Most Active Districts")
@@ -1520,24 +1586,20 @@ elif selected == "Location Logic":
         dcat = df_places.groupby(["District","Category"]).size().reset_index(name="Count")
         fig_dcat = px.bar(dcat, x="District", y="Count", color="Category",
                           barmode="stack", template=TEMPLATE)
-        fig_dcat.update_xaxes(tickangle=30)
         st.plotly_chart(fig_dcat, use_container_width=True)
 
-    # ── Opportunity Map — real API data ───────────────────────────
+    # ── Opportunity Map ──────────────────────────────────────────
     st.subheader("💡 Opportunity Map")
     if opportunities:
         st.caption("🟢 Live data from Location Clustering API")
         for opp in opportunities[:6]:
             urgency = opp["urgency"]
-            msg     = opp["message"]
-            if urgency == "High":
-                st.error(f"🔴 {msg}")
-            elif urgency == "Medium":
-                st.warning(f"🟡 {msg}")
-            else:
-                st.info(f"🔵 {msg}")
+            msg = opp["message"]
+            if urgency == "High": st.error(f"🔴 {msg}")
+            elif urgency == "Medium": st.warning(f"🟡 {msg}")
+            else: st.info(f"🔵 {msg}")
     else:
-        st.caption("⚠️ Using fallback data — API unavailable")
+        st.caption("⚠️ API unavailable — showing market heuristics")
         st.success("📍 'New Beni Suef' has high search volume for Pharmacies but 0 registered.")
         st.info   ("📍 'Nile Corniche' has the highest concentration of Direction Clicks.")
         st.warning("📍 'El Wasta' has only 1 Cafe — potential market gap.")
