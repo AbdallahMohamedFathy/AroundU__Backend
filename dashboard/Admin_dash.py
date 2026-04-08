@@ -68,6 +68,10 @@ section[data-testid="stSidebar"] * {
     background-color: rgba(255, 255, 255, 0.15) !important;
 }
 
+.nav-link {
+    background-color: transparent !important;
+}
+
 /* Premium Metric Cards */
 div[data-testid="stMetric"] {
     background-color: white;
@@ -235,6 +239,9 @@ def fetch_all_places():
                 numeric_cols = ["Visits", "Saves", "Rating", "Reviews"]
                 for nc in numeric_cols:
                     df[nc] = pd.to_numeric(df[nc], errors='coerce').fillna(0)
+                
+                # Date conversion
+                df["Added"] = pd.to_datetime(df["Added"], errors='coerce')
                     
                 return df[cols]
     except Exception as e:
@@ -467,7 +474,7 @@ with st.sidebar:
         default_index=0,
         styles={
             "container":         {"background-color": "transparent", "padding": "0px !important"},
-            "nav-link":          {"font-size": "15px", "text-align": "left", "color": "rgba(255,255,255,0.8)", "padding": "12px 20px"},
+            "nav-link":          {"font-size": "15px", "text-align": "left", "color": "rgba(255,255,255,0.8)", "padding": "12px 20px", "background-color": "transparent"},
             "nav-link-selected": {"background-color": "rgba(255,255,255,0.15)", "color": "white", "font-weight": "600"},
         },
     )
@@ -671,7 +678,7 @@ elif selected == "Places Analytics":
         )
 
     st.subheader("🆕 Recently Added Places")
-    recent = df_places.nlargest(10, "Added").copy()
+    recent = df_places.sort_values("Added", ascending=False).head(10).copy()
     recent["Added"] = recent["Added"].astype(str).str[:10]
     st.dataframe(
         recent[["Name","Category","District","Status","Added","Rating"]].reset_index(drop=True),
