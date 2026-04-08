@@ -149,6 +149,50 @@ section[data-testid="stSidebar"] .stButton > button:hover {
 section[data-testid="stSidebar"] [data-baseweb="base-input"],
 section[data-testid="stSidebar"] [data-baseweb="input"],
 section[data-testid="stSidebar"] [data-baseweb="input"] > div {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    border: none !important;
+    outline: none !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+
+/* KPI Cards */
+.kpi-card {
+    background: #FFFFFF;
+    padding: 24px;
+    border-radius: 16px;
+    border-top: 4px solid #61A3BB;
+    box-shadow: 0 4px 20px rgba(29, 49, 67, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: default;
+    margin-bottom: 10px;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(29, 49, 67, 0.12);
+    border-top-color: #055e9b;
+}
+
+.kpi-title { 
+    font-size: 13px; 
+    color: #65797E; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+.kpi-value { 
+    font-size: 34px; 
+    font-weight: 800; 
+    color: #1D3143; 
+    margin: 8px 0;
+}
+.kpi-delta { 
+    font-size: 12px; 
+    color: #055e9b; 
+    font-weight: 600;
+}
+section[data-testid="stSidebar"] [data-baseweb="input"] > div {
     background-color: rgba(255,255,255,0.1) !important;
     border: 1px solid rgba(255,255,255,0.3) !important;
     border-radius: 10px !important;
@@ -1495,7 +1539,8 @@ elif selected == "Anomaly Detection":
 # 10. LOCATION LOGIC
 # ═══════════════════════════════════════════════════════════
 elif selected == "Location Logic":
-    st.title("📍 Location Intelligence: Beni Suef")
+    st.title("📍 Location Logic")
+    st.markdown("See where your visitors are coming from — all time and recently active.")
 
     BS_LAT, BS_LON = 29.0661, 31.0994
 
@@ -1539,20 +1584,76 @@ elif selected == "Location Logic":
     hotspots      = fetch_heatmap_data()
     opportunities = fetch_opportunities()
 
-    # ── Map Controls ──────────────────────────────────────────────
-    st.markdown("### 🗺️ Interactive Map Controls")
-    c1, c2, c3 = st.columns([1, 1, 2])
-    with c1:
-        show_pins = st.checkbox("📍 Show Interaction Pins", value=True)
-    with c2:
-        show_heatmap = st.checkbox("🔥 Show AIC Heatmap", value=True)
-    with c3:
-        window = st.slider("🕒 Active Window (Last X mins)", 5, 1440, 60)
+    # ── Controls row ─────────────────────────────────────────────────
+    ctrl1, ctrl2, ctrl3, ctrl4 = st.columns([2, 1, 1, 1])
+
+    with ctrl1:
+        window_label = st.selectbox(
+            "Active session window",
+            options=["Last 15 minutes", "Last 1 hour", "Last 3 hours",
+                     "Last 6 hours", "Last 24 hours"],
+            index=1,
+        )
+        window_map = {
+            "Last 15 minutes": 15,
+            "Last 1 hour":     60,
+            "Last 3 hours":    180,
+            "Last 6 hours":    360,
+            "Last 24 hours":   1440,
+        }
+        active_minutes = window_map[window_label]
+
+    with ctrl2:
+        show_heatmap = st.toggle("🔥 All visitors heatmap", value=True)
+
+    with ctrl3:
+        show_pins = st.toggle("📌 Active visitor pins", value=True)
+
+    with ctrl4:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+    st.divider()
 
     # Prepare Data
     df_i = fetch_recent_interactions(limit=1000)
-    df_active = filter_active(df_i, window)
+    df_active = filter_active(df_i, active_minutes)
     
+    # Calculate Metrics
+    total_visitors = len(df_i["user_id"].unique()) if not df_i.empty else 0
+    active_now = len(df_active)
+    
+    # Peak Hour Logic (Historical)
+    peak_hour_str = "N/A"
+    if not df_i.empty:
+        df_i['hour'] = pd.to_datetime(df_i['visited_at']).dt.hour
+        if not df_i['hour'].isna().all():
+            peak_hour = df_i['hour'].mode().iloc[0]
+            peak_hour_str = f"{peak_hour}:00"
+
+    # ── KPI cards ─────────────────────────────────────────────────────
+    k1, k2, k3 = st.columns(3)
+    k1.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">👥 Total Visitors (all time)</div>
+        <div class="kpi-value">{total_visitors}</div>
+        <div class="kpi-delta">Recorded map interactions</div>
+    </div>""", unsafe_allow_html=True)
+
+    k2.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">🟢 Active Visitors</div>
+        <div class="kpi-value">{active_now}</div>
+        <div class="kpi-delta">AI Live Detection</div>
+    </div>""", unsafe_allow_html=True)
+
+    k3.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">⏳ Peak Traffic Hour</div>
+        <div class="kpi-value">{peak_hour_str}</div>
+        <div class="kpi-delta">AI Predicted Focus Time</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # Render Map
     with st.container():
         m = build_location_map(
@@ -1564,8 +1665,16 @@ elif selected == "Location Logic":
             center_lon=BS_LON,
             active_df=df_active if show_pins else None
         )
-        st_folium(m, use_container_width=True, height=550)
-        st.caption(f"🟢 Showing {len(df_active)} active interactions in the last {window} minutes.")
+        st_folium(m, use_container_width=True, height=520)
+        
+    # Legend
+    st.markdown("""
+    <div style='font-size:13px; color:#65797E; margin-top:8px; display:flex; gap:20px;'>
+        <span>🔴 <b>All Registered Places</b></span>
+        <span>🔵 <b>Active visitors (pins)</b></span>
+        <span>🌡️ <b>All visitors density (heatmap)</b></span>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
 
