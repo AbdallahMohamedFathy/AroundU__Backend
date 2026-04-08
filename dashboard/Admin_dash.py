@@ -474,7 +474,11 @@ with st.sidebar:
         default_index=0,
         styles={
             "container":         {"background-color": "transparent", "padding": "0px !important"},
-            "nav-link":          {"font-size": "15px", "text-align": "left", "color": "rgba(255,255,255,0.8)", "padding": "12px 20px", "background-color": "transparent"},
+            "nav-link":          {
+                "font-size": "15px", "text-align": "left", "color": "rgba(255,255,255,0.8)", 
+                "padding": "12px 20px", "background-color": "transparent",
+                "--hover-color": "rgba(255,255,255,0.1)"
+            },
             "nav-link-selected": {"background-color": "rgba(255,255,255,0.15)", "color": "white", "font-weight": "600"},
         },
     )
@@ -1232,7 +1236,8 @@ elif selected == "Anomaly Detection":
             return [], 0
             
         try:
-            visits = df_int.to_dict(orient="records")
+            # Sanitize data: replace NaN with None for JSON compliance
+            visits = df_int.replace({np.nan: None}).to_dict(orient="records")
             resp = requests.post(
                 f"{ANOMALY_API}/detect",
                 json={"visits": visits},
@@ -1359,8 +1364,8 @@ elif selected == "Location Logic":
             return None
             
         try:
-            # Prepare data: Ensure expected fields for the clustering API
-            visits = df_int.rename(columns={"user_lat": "lat", "user_lon": "lon"}).to_dict(orient="records")
+            # Prepare data: Ensure expected fields and sanitize NaNs
+            visits = df_int.rename(columns={"user_lat": "lat", "user_lon": "lon"}).replace({np.nan: None}).to_dict(orient="records")
             resp = requests.post(
                 f"{CLUSTERING_API}/heatmap",
                 json={"visits": visits},
