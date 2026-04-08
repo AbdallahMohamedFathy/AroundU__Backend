@@ -68,7 +68,11 @@ section[data-testid="stSidebar"] * {
     background-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-.nav-link {
+.nav-link, .nav-link-selected, .nav-link:hover {
+    background-color: transparent !important;
+}
+
+div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:has(div.nav-link) {
     background-color: transparent !important;
 }
 
@@ -1236,8 +1240,8 @@ elif selected == "Anomaly Detection":
             return [], 0
             
         try:
-            # Sanitize data: replace NaN with None for JSON compliance
-            visits = df_int.replace({np.nan: None}).to_dict(orient="records")
+            # Prepare data: align schema (lat/lon) and sanitize NaNs
+            visits = df_int.rename(columns={"user_lat": "lat", "user_lon": "lon"}).replace({np.nan: None}).to_dict(orient="records")
             resp = requests.post(
                 f"{ANOMALY_API}/detect",
                 json={"visits": visits},
