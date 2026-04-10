@@ -1411,6 +1411,10 @@ elif selected == "Housing Management":
                 elat = st.number_input("Latitude", value=float(ep.get('latitude', 0.0)), format="%.6f")
                 elon = st.number_input("Longitude", value=float(ep.get('longitude', 0.0)), format="%.6f")
                 
+                st.markdown("---")
+                st.caption("📸 Add New Media")
+                e_imgs = st.file_uploader("Upload New Photos (Optional)", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True, key=f"edit_img_{ep['id']}")
+                
                 c1, c2 = st.columns(2)
                 if c1.form_submit_button("✅ Save Updates", use_container_width=True):
                     f_lat, f_lon = elat, elon
@@ -1421,7 +1425,7 @@ elif selected == "Housing Management":
                     success, res = update_property_api(ep['id'], {
                         "title": etitle, "price": eprice, "description": edesc,
                         "lat": f_lat, "lng": f_lon
-                    })
+                    }, e_imgs)
                     if success:
                         st.session_state.editing_prop = None
                         st.rerun()
