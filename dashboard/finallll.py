@@ -813,12 +813,39 @@ if st.session_state.token is None:
 user_profile = fetch_user_profile()
 owner_type = st.session_state.owner_type # Use the portal mode as the primary filter
 
-# Sidebar Brand
-portal_brand = "🏠 Housing Manager" if owner_type == "RESIDENTIAL" else "🏢 Store Manager"
+# Fetch Place details if COMMERCIAL
+my_place = None
+if owner_type == "COMMERCIAL":
+    with st.spinner("Fetching place info..."):
+        my_place = fetch_my_place()
 
+# Sidebar Brand & Identity
 with st.sidebar:
-    st.title(portal_brand)
-    st.caption("AroundU Pro Dashboard")
+    if owner_type == "COMMERCIAL" and my_place:
+        # Premium Profile Header for Store Manager
+        place_logo = "https://via.placeholder.com/150?text=AroundU"
+        if my_place.get("images"):
+            place_logo = my_place["images"][0].get("image_url")
+            if place_logo.startswith("/uploads/"):
+                base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                place_logo = f"{base}{place_logo}"
+            elif place_logo.startswith("/") and not place_logo.startswith("/uploads/"):
+                base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                place_logo = f"{base}/uploads{place_logo}"
+
+        st.markdown(f"""
+        <div style="text-align: center; padding: 20px 10px; background: rgba(255,255,255,0.05); border-radius: 20px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1);">
+            <img src="{place_logo}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px;">{my_place['name']}</div>
+            <div style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.4; padding: 0 10px;">{my_place.get('description', '')[:100] + '...' if my_place.get('description') and len(my_place.get('description')) > 100 else my_place.get('description', 'No description available')}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Fallback for Housing Manager or missing place
+        portal_icon = "🏠" if owner_type == "RESIDENTIAL" else "🏢"
+        portal_brand = "🏠 Housing Manager" if owner_type == "RESIDENTIAL" else "🏢 Store Manager"
+        st.title(portal_brand)
+        st.caption("AroundU Pro Dashboard")
 
     menu_options = []
     menu_icons = []
