@@ -566,6 +566,36 @@ def delete_review(review_id_str):
         st.error(f"Error deleting review: {e}")
     return False
 
+def create_property_with_owner_api(prop_data):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/properties", json=prop_data, headers=get_headers())
+        if res.status_code == 200:
+            return res.json(), None
+        else:
+            try:
+                err = res.json().get("detail", "Unknown error")
+            except:
+                err = res.text
+            return None, err
+    except Exception as e:
+        return None, str(e)
+
+def approve_owner(owner_id_str, verified):
+    try:
+        oid = int(owner_id_str.replace("OWN-", ""))
+        res = requests.post(
+            f"{BACKEND_BASE_URL}/dashboard/admin/owners/{oid}/verify", 
+            params={"verified": verified}, 
+            headers=get_headers()
+        )
+        if res.status_code == 200:
+            status_txt = "approved" if verified else "rejected"
+            st.toast(f"✅ Owner {owner_id_str} {status_txt}!", icon="👤")
+            return True
+    except Exception as e:
+        st.error(f"Error verifying owner: {e}")
+    return False
+
 # --- Location Logic Helpers ---
 
 def filter_active(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
