@@ -29,5 +29,5 @@ class Property(Base):
 
     # Relationships
     owner = relationship("User", backref="properties")
-    images = relationship("PropertyImage", back_populates="property", cascade="all, delete-orphan")
-    reviews = relationship("PropertyReview", back_populates="property", cascade="all, delete-orphan")
+    images = relationship("PropertyImage", back_populates="prop", cascade="all, delete-orphan")
+    reviews = relationship("PropertyReview", back_populates="prop", cascade="all, delete-orphan")

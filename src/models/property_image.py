@@ -12,4 +12,4 @@ class PropertyImage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    property = relationship("Property", back_populates="images")
+    prop = relationship("Property", back_populates="images")
