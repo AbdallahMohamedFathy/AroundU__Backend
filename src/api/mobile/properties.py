@@ -83,16 +83,17 @@ def update_property(
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)
 ):
-    property_data = PropertyUpdate(
-        title=title,
-        description=description,
-        price=price,
-        latitude=lat,
-        longitude=lng,
-        is_available=is_available,
-        main_image_url=main_image_url,
-        image_ids_to_delete=image_ids_to_delete or []
-    )
+    update_data = {}
+    if title is not None: update_data["title"] = title
+    if description is not None: update_data["description"] = description
+    if price is not None: update_data["price"] = price
+    if lat is not None: update_data["latitude"] = lat
+    if lng is not None: update_data["longitude"] = lng
+    if is_available is not None: update_data["is_available"] = is_available
+    if main_image_url is not None: update_data["main_image_url"] = main_image_url
+    update_data["image_ids_to_delete"] = image_ids_to_delete or []
+
+    property_data = PropertyUpdate(**update_data)
     repo = PropertyRepository(uow.session)
     return property_service.update_property(repo, id, property_data, images, current_user)
 
