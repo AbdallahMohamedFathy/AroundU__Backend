@@ -1430,6 +1430,8 @@ elif selected == "Housing Management":
     if 'p_lon' not in st.session_state: st.session_state.p_lon = 0.0
     if 'editing_prop' not in st.session_state: st.session_state.editing_prop = None
     if 'viewing_prop' not in st.session_state: st.session_state.viewing_prop = None
+    if 'p_phone_list' not in st.session_state: st.session_state.p_phone_list = [""]
+    if 'edit_p_phone_list' not in st.session_state: st.session_state.edit_p_phone_list = []
 
     # --- VIEW PROPERTY DETAILS ---
     if st.session_state.viewing_prop:
@@ -1445,9 +1447,15 @@ elif selected == "Housing Management":
             st.write(f"**Price:** {vp['price']} EGP/month")
             st.write(f"**Description:** {vp.get('description') or 'No description'}")
             
-            c1, c2 = st.columns(2)
-            c1.write(f"📞 **Phone:** {vp.get('contact_number') or 'Not provided'}")
-            c2.write(f"💬 **WhatsApp:** {vp.get('whatsapp_number') or 'Not provided'}")
+            st.markdown("### 📞 Contact Information")
+            c_p_list = vp.get('contact_number') or []
+            if isinstance(c_p_list, list):
+                for i, ph in enumerate(c_p_list):
+                    st.write(f"**Phone {i+1}:** {ph}")
+            else:
+                st.write(f"**Phone:** {c_p_list}")
+            
+            st.write(f"💬 **WhatsApp:** {vp.get('whatsapp_number') or 'Not provided'}")
             
             st.markdown("---")
             st.subheader("💬 Reviews")
@@ -1476,65 +1484,90 @@ elif selected == "Housing Management":
         ep = st.session_state.editing_prop
         with st.container(border=True):
             st.subheader(f"✏️ Edit Property: {ep['title']}")
-            with st.form("edit_property_form_v2"):
-                etitle = st.text_input("Title", value=ep['title'])
-                eprice = st.number_input("Price (EGP)", value=float(ep['price']))
-                edesc  = st.text_area("Description", value=ep.get('description', ''))
-                
-                ec1, ec2 = st.columns(2)
-                ephone = ec1.text_input("Contact Phone Number", value=ep.get('contact_number', ''))
-                ewa    = ec2.text_input("WhatsApp Number", value=ep.get('whatsapp_number', ''))
-                
-                st.markdown("---")
-                st.caption("📍 Update Location")
-                elink = st.text_input("New Google Maps Link", placeholder="Paste to refresh coordinates")
-                elat = st.number_input("Latitude", value=float(ep.get('latitude', 0.0)), format="%.6f")
-                elon = st.number_input("Longitude", value=float(ep.get('longitude', 0.0)), format="%.6f")
-                
-                st.markdown("---")
-                st.caption("🖼️ Existing Media")
-                existing_images = ep.get("images", [])
-                if existing_images:
-                    cols = st.columns(4)
-                    for idx, img in enumerate(existing_images):
-                        with cols[idx % 4]:
-                            img_url = img.get("image_url", "")
-                            if img_url.startswith("/uploads/"):
-                                base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
-                                img_url = f"{base}{img_url}"
-                            elif img_url.startswith("/") and not img_url.startswith("/uploads/"):
-                                base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
-                                img_url = f"{base}/uploads{img_url}"
-                            
-                            if img_url:
-                                st.image(img_url, use_container_width=True)
-                else:
-                    st.info("No existing photos.")
-                
-                st.markdown("---")
-                st.caption("📸 Add New Media")
-                e_imgs = st.file_uploader("Upload New Photos (Optional)", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True, key=f"edit_img_{ep['id']}")
-                
-                c1, c2 = st.columns(2)
-                if c1.form_submit_button("✅ Save Updates", use_container_width=True):
-                    f_lat, f_lon = elat, elon
-                    if elink:
-                        plat, plon = extract_coordinates(elink)
-                        if plat and plon: f_lat, f_lon = plat, plon
-                    
-                    success, res = update_property_api(ep['id'], {
-                        "title": etitle, "price": eprice, "description": edesc,
-                        "lat": f_lat, "lng": f_lon,
-                        "contact_number": ephone, "whatsapp_number": ewa
-                    }, e_imgs)
-                    if success:
-                        st.session_state.editing_prop = None
+            etitle = st.text_input("Title", value=ep['title'])
+            eprice = st.number_input("Price (EGP)", value=float(ep['price']))
+            edesc  = st.text_area("Description", value=ep.get('description', ''))
+            
+            # --- DYNAMIC PHONE SECTION (EDIT) ---
+            st.markdown("### 📞 Contact Numbers")
+            st.caption("Add one or more phone numbers for this property.")
+            
+            # Sync session state if needed
+            if not st.session_state.edit_p_phone_list or st.session_state.get('edit_p_id') != ep['id']:
+                st.session_state.edit_p_id = ep['id']
+                raw_phones = ep.get('contact_number') or []
+                st.session_state.edit_p_phone_list = raw_phones if isinstance(raw_phones, list) else [raw_phones]
+                if not st.session_state.edit_p_phone_list: st.session_state.edit_p_phone_list = [""]
+
+            new_edit_phones = []
+            for i, ph in enumerate(st.session_state.edit_p_phone_list):
+                col1, col2 = st.columns([0.85, 0.15])
+                with col1:
+                    updated_ph = st.text_input(f"Phone {i+1}", value=ph, key=f"edit_p_phone_{i}", label_visibility="collapsed")
+                    new_edit_phones.append(updated_ph)
+                with col2:
+                    if st.button("🗑️", key=f"edit_p_del_{i}", help="Remove number"):
+                        st.session_state.edit_p_phone_list.pop(i)
                         st.rerun()
-                    else:
-                        st.error(f"❌ Failed to save: {res}")
-                if c2.form_submit_button("❌ Cancel", use_container_width=True):
+            st.session_state.edit_p_phone_list = new_edit_phones
+            
+            if st.button("➕ Add Number", key="edit_p_add_btn"):
+                st.session_state.edit_p_phone_list.append("")
+                st.rerun()
+
+            ewa = st.text_input("WhatsApp Number", value=ep.get('whatsapp_number', ''))
+            
+            st.markdown("---")
+            st.caption("📍 Update Location")
+            elink = st.text_input("New Google Maps Link", placeholder="Paste to refresh coordinates")
+            elat = st.number_input("Latitude", value=float(ep.get('latitude', 0.0)), format="%.6f")
+            elon = st.number_input("Longitude", value=float(ep.get('longitude', 0.0)), format="%.6f")
+            
+            st.markdown("---")
+            st.caption("🖼️ Existing Media")
+            existing_images = ep.get("images", [])
+            if existing_images:
+                cols = st.columns(4)
+                for idx, img in enumerate(existing_images):
+                    with cols[idx % 4]:
+                        img_url = img.get("image_url", "")
+                        if img_url.startswith("/uploads/"):
+                            base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                            img_url = f"{base}{img_url}"
+                        elif img_url.startswith("/") and not img_url.startswith("/uploads/"):
+                            base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                            img_url = f"{base}/uploads{img_url}"
+                        
+                        if img_url:
+                            st.image(img_url, use_container_width=True)
+            else:
+                st.info("No existing photos.")
+            
+            st.markdown("---")
+            st.caption("📸 Add New Media")
+            e_imgs = st.file_uploader("Upload New Photos (Optional)", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True, key=f"edit_img_{ep['id']}")
+            
+            if st.button("✅ Save Updates", type="primary", use_container_width=True):
+                f_lat, f_lon = elat, elon
+                if elink:
+                    plat, plon = extract_coordinates(elink)
+                    if plat and plon: f_lat, f_lon = plat, plon
+                
+                success, res = update_property_api(ep['id'], {
+                    "title": etitle, "price": eprice, "description": edesc,
+                    "lat": f_lat, "lng": f_lon,
+                    "contact_number": st.session_state.edit_p_phone_list, 
+                    "whatsapp_number": ewa
+                }, e_imgs)
+                if success:
                     st.session_state.editing_prop = None
+                    st.session_state.edit_p_phone_list = []
                     st.rerun()
+                else:
+                    st.error(f"❌ Failed to save: {res}")
+            if st.button("❌ Cancel", use_container_width=True):
+                st.session_state.editing_prop = None
+                st.rerun()
 
     # ── KPI Row ──────────────────────────────────────────
     pk1, pk2 = st.columns(2)
@@ -1551,15 +1584,31 @@ elif selected == "Housing Management":
 
     # ── Add New Property ───────────────────────────────
     with st.expander("➕ List New Property", expanded=len(props) == 0):
-        with st.form("add_prop_form"):
+        # with st.form("add_prop_form"):
             p_title = st.text_input("Property Title *", placeholder="e.g. Luxury Apartment in Beni Suef")
-            p_col1, p_col2 = st.columns(2)
-            p_price = p_col1.number_input("Monthly Rent (EGP) *", min_value=0, value=0)
+            p_price = st.number_input("Monthly Rent (EGP) *", min_value=0, value=0)
             p_desc = st.text_area("Description")
             
-            p_c1, p_c2 = st.columns(2)
-            p_phone = p_c1.text_input("Contact Phone Number", placeholder="01xxxxxxxxx")
-            p_wa = p_c2.text_input("WhatsApp Number", placeholder="01xxxxxxxxx")
+            # --- DYNAMIC PHONE SECTION (ADD) ---
+            st.markdown("### 📞 Contact Numbers")
+            st.caption("Add one or more phone numbers for this property.")
+            new_add_phones = []
+            for i, ph in enumerate(st.session_state.p_phone_list):
+                col1, col2 = st.columns([0.85, 0.15])
+                with col1:
+                    updated_ph = st.text_input(f"Phone {i+1}", value=ph, key=f"add_p_phone_{i}", label_visibility="collapsed")
+                    new_add_phones.append(updated_ph)
+                with col2:
+                    if st.button("🗑️", key=f"add_p_del_{i}", help="Remove number"):
+                        st.session_state.p_phone_list.pop(i)
+                        st.rerun()
+            st.session_state.p_phone_list = new_add_phones
+            
+            if st.button("➕ Add Number", key="add_p_add_btn"):
+                st.session_state.p_phone_list.append("")
+                st.rerun()
+
+            p_wa = st.text_input("WhatsApp Number", placeholder="01xxxxxxxxx")
             
             st.markdown("---")
             st.subheader("📍 Location")
@@ -1583,21 +1632,21 @@ elif selected == "Housing Management":
             p_imgs = st.file_uploader("Upload Photos", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-            p_submit = st.form_submit_button("🚀 Create Property Listing", use_container_width=True)
-
-            if p_submit:
+            if st.button("🚀 Create Property Listing", type="primary", use_container_width=True):
                 if not p_title or p_price <= 0:
                     st.error("Please provide a title and valid price.")
                 else:
                     success, res = add_property_api({
                         "title": p_title, "description": p_desc, "price": p_price,
                         "lat": p_lat_v, "lng": p_lon_v,
-                        "contact_number": p_phone, "whatsapp_number": p_wa
+                        "contact_number": st.session_state.p_phone_list, 
+                        "whatsapp_number": p_wa
                     }, p_imgs or [])
                     if success:
                         st.session_state.p_lat = 0.0
                         st.session_state.p_lon = 0.0
                         st.session_state.last_prop_loc_link = ""
+                        st.session_state.p_phone_list = [""]
                         st.rerun()
                     else: st.error(f"❌ Failed to add: {res}")
 

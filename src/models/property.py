@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Boolean, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from src.core.database import Base
 
@@ -13,7 +14,7 @@ class Property(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     main_image_url = Column(String, nullable=True)
-    contact_number = Column(String, nullable=True)
+    contact_number = Column(ARRAY(String), nullable=True)
     whatsapp_number = Column(String, nullable=True)
     is_available = Column(Boolean, default=True, nullable=False)
     owner_id = Column(
