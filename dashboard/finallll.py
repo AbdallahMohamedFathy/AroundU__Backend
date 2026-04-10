@@ -211,6 +211,50 @@ section[data-testid="stSidebar"] span {
     line-height: 1.6;
 }
 
+/* Mode Selection Cards */
+.mode-container {
+    display: flex;
+    gap: 25px;
+    justify-content: center;
+    padding: 40px 0;
+}
+
+.mode-card {
+    background: white;
+    padding: 40px;
+    border-radius: 24px;
+    text-align: center;
+    width: 320px;
+    border: 2px solid transparent;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+}
+
+.mode-card:hover {
+    transform: translateY(-12px);
+    border-color: #61A3BB;
+    box-shadow: 0 20px 40px rgba(97, 163, 187, 0.15);
+}
+
+.mode-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+}
+
+.mode-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1D3143;
+    margin-bottom: 12px;
+}
+
+.mode-desc {
+    font-size: 14px;
+    color: #65797E;
+    line-height: 1.5;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -639,6 +683,38 @@ def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, 
 
     return m
 
+def show_type_selector():
+    st.markdown('<div style="text-align: center; padding-top: 50px;">', unsafe_allow_html=True)
+    st.title("🛡️ Choose Your Portal Type")
+    st.write("Please select the management interface that fits your business profile.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    col1, col2, col3, col4, col5 = st.columns([1, 2, 0.5, 2, 1])
+    
+    with col2:
+        st.markdown("""
+        <div class="mode-card">
+            <div class="mode-icon">🏢</div>
+            <div class="mode-title">Place Owner</div>
+            <div class="mode-desc">For commercial businesses, shops, cafes, and branch managers.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Enter Store Portal", key="btn_store", use_container_width=True):
+            st.session_state.owner_type = "COMMERCIAL"
+            st.rerun()
+            
+    with col4:
+        st.markdown("""
+        <div class="mode-card">
+            <div class="mode-icon">🏠</div>
+            <div class="mode-title">Housing Manager</div>
+            <div class="mode-desc">For residential properties, apartment listings, and rentals.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Enter Property Portal", key="btn_property", use_container_width=True):
+            st.session_state.owner_type = "RESIDENTIAL"
+            st.rerun()
+
 # --- MAIN APP LOGIC ---
 if 'token' not in st.session_state:
     st.session_state.token = None
@@ -664,6 +740,15 @@ if st.session_state.token is None:
                     st.rerun()
                 else:
                     st.error(error_msg or "Invalid email or password.")
+    st.stop()
+
+# --- OWNER TYPE SELECTION CHECK ---
+user_profile = fetch_user_profile()
+if 'owner_type' not in st.session_state:
+    st.session_state.owner_type = user_profile.get("owner_type")
+
+if not st.session_state.owner_type:
+    show_type_selector()
     st.stop()
 
 # =========================
