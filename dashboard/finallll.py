@@ -840,10 +840,23 @@ with st.sidebar:
             <div style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.4; padding: 0 10px;">{my_place.get('description', '')[:100] + '...' if my_place.get('description') and len(my_place.get('description')) > 100 else my_place.get('description', 'No description available')}</div>
         </div>
         """, unsafe_allow_html=True)
+    elif owner_type == "RESIDENTIAL":
+        # Premium Profile Header for Housing Manager
+        user_name = user_profile.get('full_name', 'Property Manager')
+        # Use a premium house illustration or user avatar
+        housing_logo = "https://img.icons8.com/bubbles/200/home.png" 
+        
+        st.markdown(f"""
+        <div style="text-align: center; padding: 20px 10px; background: rgba(255,255,255,0.05); border-radius: 20px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1);">
+            <img src="{housing_logo}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.2); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; margin-bottom: 5px;">{user_name}</div>
+            <div style="font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.4; padding: 0 10px;">Housing Manager Portal<br>AroundU Pro Dashboard</div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        # Fallback for Housing Manager or missing place
-        portal_icon = "🏠" if owner_type == "RESIDENTIAL" else "🏢"
-        portal_brand = "🏠 Housing Manager" if owner_type == "RESIDENTIAL" else "🏢 Store Manager"
+        # Fallback for missing place
+        portal_icon = "🏢"
+        portal_brand = "🏢 Store Manager"
         st.title(portal_brand)
         st.caption("AroundU Pro Dashboard")
 
