@@ -21,7 +21,7 @@ class PropertyReview(Base):
 
     # Relationships
     user = relationship("User", back_populates="property_reviews")
-    property = relationship("Property", back_populates="reviews")
+    prop = relationship("Property", back_populates="reviews")
 
     @property
     def user_name(self) -> str:
