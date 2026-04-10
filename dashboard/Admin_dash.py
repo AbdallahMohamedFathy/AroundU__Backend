@@ -447,26 +447,34 @@ def fetch_all_properties():
     try:
         res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/properties", headers=get_headers(), timeout=15)
         if res.status_code == 200: 
-            df = pd.DataFrame(res.json())
-            if not df.empty:
-                mapping = {
-                    "property_id": "Property_ID", "title": "Title", "price": "Price",
-                    "district": "District", "status": "Status", "owner": "Owner",
-                    "owner_email": "Owner_Email", "added": "Added"
-                }
-                df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
-                for c in cols:
-                    if c not in df.columns: df[c] = None
+            data = res.json()
+            if not data:
+                return pd.DataFrame(columns=cols)
                 
-                # Numeric conversions
+            df = pd.DataFrame(data)
+            mapping = {
+                "property_id": "Property_ID", "title": "Title", "price": "Price",
+                "district": "District", "status": "Status", "owner": "Owner",
+                "owner_email": "Owner_Email", "added": "Added"
+            }
+            # Rename lower_case keys if they exist
+            df.rename(columns={k: v for k, v in mapping.items() if k in df.columns}, inplace=True)
+            
+            # Ensure all columns exist
+            for c in cols:
+                if c not in df.columns: df[c] = None
+            
+            # Numeric conversions
+            if "Price" in df.columns:
                 df["Price"] = pd.to_numeric(df["Price"], errors='coerce').fillna(0)
-                return df[cols]
+            
+            return df[cols]
+        else:
+            st.error(f"❌ Properties API Error: [HTTP {res.status_code}] {res.text[:100]}")
     except Exception as e:
-        st.sidebar.error(f"Properties API Error: {e}")
+        st.error(f"❌ Properties Connection Error: {e}")
     
-    df_empty = pd.DataFrame(columns=cols)
-    df_empty["Price"] = pd.to_numeric(df_empty["Price"])
-    return df_empty
+    return pd.DataFrame(columns=cols)
 
 def fetch_chatbot_analytics():
     # Placeholder/Mock data to fix crash
