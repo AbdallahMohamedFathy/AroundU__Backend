@@ -518,6 +518,40 @@ def fetch_location_summary():
     except: pass
     return {}
 
+# ── PROPERTY MANAGEMENT ──────────────────────────────────────────
+@st.cache_data(ttl=30)
+def fetch_my_properties_api():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/mobile/properties/my", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
+
+def add_property_api(data, images):
+    try:
+        # data: {"title": str, "description": str, "price": float, "lat": float, "lng": float}
+        files = [("images", (img.name, img.getvalue(), img.type)) for img in images]
+        res = requests.post(f"{BACKEND_BASE_URL}/mobile/properties/", data=data, files=files, headers=get_headers())
+        if res.status_code == 201:
+            st.success("✅ Property added successfully!")
+            st.cache_data.clear()
+            return True, res.json()
+        return False, res.text
+    except Exception as e:
+        return False, str(e)
+
+def delete_property_api(prop_id):
+    try:
+        res = requests.delete(f"{BACKEND_BASE_URL}/mobile/properties/{prop_id}", headers=get_headers())
+        if res.status_code == 204:
+            st.success(f"🗑️ Property {prop_id} deleted!")
+            st.cache_data.clear()
+            return True
+        return False, res.text
+    except Exception as e:
+        return False, str(e)
+
 def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, places_list, center_lat, center_lon, active_df=None):
     m = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles="CartoDB positron")
     
@@ -618,16 +652,35 @@ if st.session_state.token is None:
 # SIDEBAR
 # =========================
 my_place = fetch_my_place()
+my_properties = fetch_my_properties_api()
 place_name = my_place.get("name", "AroundU") if my_place else "AroundU"
+
+# Logic to choose default tab and visibility
+show_place_tabs = my_place is not None
+show_housing_tab = len(my_properties) > 0 or not show_place_tabs
 
 with st.sidebar:
     st.title(f"🏙️ {place_name}")
-    st.caption("Beni Suef Business Intelligence")
+    st.caption("AroundU Owner Dashboard")
+
+    menu_options = []
+    menu_icons = []
+    
+    if show_place_tabs:
+        menu_options += ["Dashboard", "Customer Insights", "Operations", "Location Logic"]
+        menu_icons += ['house-door-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill']
+    
+    menu_options.append("Housing Management")
+    menu_icons.append("building-fill")
+    
+    if show_place_tabs:
+        menu_options.append("Manage Place")
+        menu_icons.append("gear-fill")
 
     selected = option_menu(
         None,
-        options=["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"],
-        icons=['house-door-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill', 'gear-fill'],
+        options=menu_options,
+        icons=menu_icons,
         menu_icon="cast",
         default_index=0,
         styles={
@@ -1180,7 +1233,102 @@ Urgent: <strong style="color:#e74c3c">{urgent}</strong>
             """, unsafe_allow_html=True)
 
 # =========================
-# 5️⃣ MANAGE PLACE
+# 5️⃣ HOUSING MANAGEMENT
+# =========================
+elif selected == "Housing Management":
+    st.title("🏙️ Housing Management")
+    st.caption("Manage your property listings and units.")
+
+    # ── Fetch Existing Properties ──────────────────────────
+    with st.spinner("Fetching your properties..."):
+        props = fetch_my_properties_api()
+
+    # ── KPI Row ──────────────────────────────────────────
+    pk1, pk2 = st.columns(2)
+    pk1.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">🏢 Total Units</div>
+        <div class="kpi-value">{len(props)}</div>
+    </div>""", unsafe_allow_html=True)
+    pk2.markdown(f"""<div class="kpi-card">
+        <div class="kpi-title">💰 Avg Price</div>
+        <div class="kpi-value">{int(sum(p['price'] for p in props)/len(props)) if props else 0} EGP</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ── Add New Property ───────────────────────────────
+    with st.expander("➕ Add New Property", expanded=len(props) == 0):
+        with st.form("add_property_form", clear_on_submit=False):
+            st.subheader("Property Basics")
+            p_title = st.text_input("Property Title *", placeholder="e.g. Modern Studio near University")
+            p_desc  = st.text_area("Description", placeholder="Describe features, amenities, floor, etc.")
+            p_price = st.number_input("Monthly Rent (EGP) *", min_value=0, value=2500, step=100)
+            
+            st.markdown("---")
+            st.subheader("📍 Location")
+            p_link = st.text_input("Google Maps Link", key="prop_loc_link", placeholder="https://www.google.com/maps/...")
+            
+            # Map coordinates display/manual override
+            p_col1, p_col2 = st.columns(2)
+            p_lat = p_col1.number_input("Latitude", format="%.6f", value=0.0)
+            p_lon = p_col2.number_input("Longitude", format="%.6f", value=0.0)
+            
+            st.markdown("---")
+            st.subheader("📸 Media")
+            p_imgs = st.file_uploader("Upload Photos", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            p_submit = st.form_submit_button("🚀 Create Property Listing", use_container_width=True)
+
+            if p_submit:
+                if not p_title or p_price <= 0:
+                    st.error("Please provide a title and valid price.")
+                else:
+                    # Final resolve if inputs are 0
+                    final_lat, final_lon = p_lat, p_lon
+                    if (final_lat == 0 or final_lon == 0) and p_link:
+                        plat, plon = extract_coordinates(p_link)
+                        if plat and plon:
+                            final_lat, final_lon = plat, plon
+
+                    success, res = add_property_api({
+                        "title": p_title,
+                        "description": p_desc,
+                        "price": p_price,
+                        "lat": final_lat,
+                        "lng": final_lon
+                    }, p_imgs or [])
+                    
+                    if success:
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Failed to add: {res}")
+
+    # ── List Properties ────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("📋 Your Listings")
+    if not props:
+        st.info("You haven't added any properties yet.")
+    else:
+        for p in props:
+            with st.container(border=True):
+                lc1, lc2, lc3 = st.columns([1, 3, 1])
+                with lc1:
+                    img_url = p.get("main_image_url") or "https://via.placeholder.com/150?text=No+Image"
+                    st.image(img_url, use_container_width=True)
+                with lc2:
+                    st.markdown(f"### {p['title']}")
+                    st.markdown(f"💰 **{p['price']} EGP** / month")
+                    st.caption(p.get("description") or "No description.")
+                with lc3:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("🗑️ Delete", key=f"del_prop_{p['id']}", use_container_width=True):
+                        if delete_property_api(p['id']):
+                            st.rerun()
+            st.markdown("<br>", unsafe_allow_html=True)
+
+# =========================
+# 6️⃣ MANAGE PLACE
 # =========================
 elif selected == "Manage Place":
     st.title("⚙️ Manage Your Place & Branches")

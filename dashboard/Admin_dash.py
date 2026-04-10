@@ -605,6 +605,21 @@ def approve_owner(owner_id_str, verified):
         st.error(f"Error verifying owner: {e}")
     return False
 
+def create_owner_api(owner_data):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/owners", json=owner_data, headers=get_headers())
+        if res.status_code == 200:
+            return res.json(), None
+        else:
+            try:
+                body = res.json()
+                err = body.get("detail") or str(body)
+            except:
+                err = res.text or "No response body"
+            return None, f"[HTTP {res.status_code}] {err}"
+    except Exception as e:
+        return None, str(e)
+
 # --- Location Logic Helpers ---
 
 def filter_active(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
@@ -1584,6 +1599,37 @@ elif selected == "Moderation":
     # ── Admin action history ─────────────────────────────────
     st.subheader("📋 Admin Action History")
     st.table(admin_log)
+
+    # ── Create Bare Owner Account ──────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("➕ Create New Owner Account")
+    st.caption("Onboard a new Store or Property owner by giving them credentials")
+    
+    with st.form("create_owner_form"):
+        co_col1, co_col2 = st.columns(2)
+        with co_col1:
+            co_name = st.text_input("Full Name *")
+            co_email = st.text_input("Email *")
+        with co_col2:
+            co_pwd = st.text_input("Password *", type="password")
+            st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
+            co_submit = st.form_submit_button("🚀 Create Owner Account", use_container_width=True)
+            
+        if co_submit:
+            if not co_name or not co_email or not co_pwd:
+                st.error("Please fill all required fields (*)")
+            else:
+                with st.spinner("Creating account..."):
+                    res, err = create_owner_api({
+                        "full_name": co_name,
+                        "email": co_email,
+                        "password": co_pwd
+                    })
+                    if res:
+                        st.success(f"✅ Owner account created for {co_email} (ID: {res['id']})")
+                        st.balloons()
+                    else:
+                        st.error(f"❌ Failed to create owner: {err}")
 
 
 

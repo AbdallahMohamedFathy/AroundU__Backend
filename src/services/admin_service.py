@@ -117,6 +117,29 @@ def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
         
         return UserResponse.model_validate(user)
 
+def create_owner_account(uow: UnitOfWork, user_in, current_admin):
+    """
+    Create a bare owner account without an associated place or property yet.
+    """
+    with uow:
+        require_admin(current_admin)
+        
+        existing_user = uow.user_repository.get_by_email(user_in.email)
+        if existing_user:
+            raise APIException("A user with this email already exists", code=status.HTTP_400_BAD_REQUEST)
+            
+        new_owner = User(
+            full_name=user_in.full_name,
+            email=user_in.email,
+            password_hash=get_password_hash(user_in.password),
+            role="OWNER",
+            is_active=True,
+            is_verified=True # Admin created, so verified by default
+        )
+        uow.user_repository.create(new_owner)
+        uow.commit()
+        return UserResponse.model_validate(new_owner)
+
 def create_place_with_owner(uow: UnitOfWork, place_in, current_admin):
     """
     Business flow: Create an owner user, then create a place linked to that user.
@@ -553,11 +576,27 @@ def get_moderation_tasks(uow: UnitOfWork) -> Dict:
         pending = uow.session.query(User).filter(User.role == "OWNER", User.is_verified == False).limit(10).all()
         owners_data = []
         for u in pending:
+            # Try to find associated business or property
+            business_name = "—"
+            category = "—"
+            
+            # Check Place
+            place = uow.session.query(Place).filter(Place.owner_id == u.id).first()
+            if place:
+                business_name = place.name
+                category = place.category.name if place.category else "Commercial"
+            else:
+                # Check Property
+                prop = uow.session.query(Property).filter(Property.owner_id == u.id).first()
+                if prop:
+                    business_name = f"Property: {prop.title}"
+                    category = "Housing"
+            
             owners_data.append({
                 "Owner_ID": f"OWN-{u.id}",
                 "Name": u.full_name,
-                "Business": "—", # Needs place linkage if exists
-                "Category": "—",
+                "Business": business_name,
+                "Category": category,
                 "Submitted": u.created_at.strftime("%Y-%m-%d") if u.created_at else "—"
             })
             

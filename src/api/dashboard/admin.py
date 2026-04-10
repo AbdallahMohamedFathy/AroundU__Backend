@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from src.core.dependencies import get_uow
-from src.schemas.user import UserResponse
+from src.schemas.user import UserResponse, UserCreate
 from src.schemas.admin import (
     UserPromotion, PlaceCreateWithOwner, PlaceCreationResponse, 
     PropertyCreateWithOwner, PropertyCreationResponse, PlatformStats, TrendingDay
@@ -24,6 +24,17 @@ def promote_user(
     Change a user's role. Requires ADMIN privilege.
     """
     return admin_service.promote_user(uow, user_id, promotion.role, current_user)
+
+@router.post("/owners", response_model=UserResponse)
+def create_owner(
+    user_in: UserCreate,
+    uow=Depends(get_uow),
+    current_user=Depends(admin_guard)
+):
+    """
+    Create a bare owner account. Requires ADMIN privilege.
+    """
+    return admin_service.create_owner_account(uow, user_in, current_user)
 
 @router.post("/places", response_model=PlaceCreationResponse)
 def create_place(
