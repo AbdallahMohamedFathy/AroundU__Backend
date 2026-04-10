@@ -572,6 +572,14 @@ def fetch_my_properties_api():
     except: pass
     return []
 
+def fetch_property_detail_api(prop_id: int):
+    """Fetch full property details incl. reviews with reviewer names."""
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/mobile/properties/{prop_id}", headers=get_headers())
+        if res.status_code == 200: return res.json()
+    except: pass
+    return None
+
 def login_user(email, password):
     try:
         data = {"username": email, "password": password}
@@ -1571,7 +1579,9 @@ elif selected == "Housing Management":
                 with lc3:
                     st.markdown("<br>", unsafe_allow_html=True)
                     if st.button("👁️ View", key=f"view_prop_{p['id']}", use_container_width=True, type="primary"):
-                        st.session_state.viewing_prop = p
+                        with st.spinner("Loading details..."):
+                            full_prop = fetch_property_detail_api(p['id'])
+                        st.session_state.viewing_prop = full_prop or p
                         st.rerun()
                     if st.button("✏️ Edit", key=f"edit_prop_{p['id']}", use_container_width=True):
                         st.session_state.editing_prop = p
