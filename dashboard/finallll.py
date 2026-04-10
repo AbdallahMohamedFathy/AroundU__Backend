@@ -715,7 +715,19 @@ def show_type_selector():
             st.session_state.owner_type = "RESIDENTIAL"
             st.rerun()
 
-# --- MAIN APP LOGIC ---
+    st.stop()
+
+# --- APP FLOW LOGIC (Step-by-Step) ---
+
+# 1. Choice of Portal Type (First Step)
+if 'owner_type' not in st.session_state:
+    st.session_state.owner_type = None
+
+if not st.session_state.owner_type:
+    show_type_selector()
+    st.stop()
+
+# 2. Login Logic (Second Step)
 if 'token' not in st.session_state:
     st.session_state.token = None
 
@@ -740,20 +752,14 @@ if st.session_state.token is None:
                     st.rerun()
                 else:
                     st.error(error_msg or "Invalid email or password.")
+        
+        # Back button to change mode
+        if st.button("⬅️ Change Portal Type", key="back_to_selector"):
+            st.session_state.owner_type = None
+            st.rerun()
     st.stop()
 
-# --- OWNER TYPE SELECTION CHECK ---
-user_profile = fetch_user_profile()
-if 'owner_type' not in st.session_state:
-    st.session_state.owner_type = user_profile.get("owner_type")
-
-if not st.session_state.owner_type:
-    show_type_selector()
-    st.stop()
-
-# =========================
-# SIDEBAR
-# =========================
+# 4. Profile & Place Loading
 user_profile = fetch_user_profile()
 my_place = fetch_my_place()
 my_properties = fetch_my_properties_api()
