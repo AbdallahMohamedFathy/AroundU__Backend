@@ -65,6 +65,8 @@ def create_property(
     price: float = Form(...),
     lat: float = Form(...),
     lng: float = Form(...),
+    contact_number: Optional[str] = Form(None),
+    whatsapp_number: Optional[str] = Form(None),
     images: List[UploadFile] = File([]),
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)
@@ -74,7 +76,9 @@ def create_property(
         description=description,
         price=price,
         latitude=lat,
-        longitude=lng
+        longitude=lng,
+        contact_number=contact_number,
+        whatsapp_number=whatsapp_number
     )
     repo = PropertyRepository(uow.session)
     return property_service.create_property(repo, property_data, images, current_user)
@@ -91,6 +95,8 @@ def update_property(
     is_available: Optional[bool] = Form(None),
     main_image_url: Optional[str] = Form(None),
     image_ids_to_delete: Optional[List[int]] = Form(None),
+    contact_number: Optional[str] = Form(None),
+    whatsapp_number: Optional[str] = Form(None),
     images: List[UploadFile] = File([]),
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)
@@ -103,6 +109,8 @@ def update_property(
     if lng is not None: update_data["longitude"] = lng
     if is_available is not None: update_data["is_available"] = is_available
     if main_image_url is not None: update_data["main_image_url"] = main_image_url
+    if contact_number is not None: update_data["contact_number"] = contact_number
+    if whatsapp_number is not None: update_data["whatsapp_number"] = whatsapp_number
     update_data["image_ids_to_delete"] = image_ids_to_delete or []
 
     property_data = PropertyUpdate(**update_data)

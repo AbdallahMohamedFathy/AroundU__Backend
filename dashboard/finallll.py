@@ -1445,6 +1445,10 @@ elif selected == "Housing Management":
             st.write(f"**Price:** {vp['price']} EGP/month")
             st.write(f"**Description:** {vp.get('description') or 'No description'}")
             
+            c1, c2 = st.columns(2)
+            c1.write(f"📞 **Phone:** {vp.get('contact_number') or 'Not provided'}")
+            c2.write(f"💬 **WhatsApp:** {vp.get('whatsapp_number') or 'Not provided'}")
+            
             st.markdown("---")
             st.subheader("💬 Reviews")
             reviews = vp.get("reviews", [])
@@ -1476,6 +1480,10 @@ elif selected == "Housing Management":
                 etitle = st.text_input("Title", value=ep['title'])
                 eprice = st.number_input("Price (EGP)", value=float(ep['price']))
                 edesc  = st.text_area("Description", value=ep.get('description', ''))
+                
+                ec1, ec2 = st.columns(2)
+                ephone = ec1.text_input("Contact Phone Number", value=ep.get('contact_number', ''))
+                ewa    = ec2.text_input("WhatsApp Number", value=ep.get('whatsapp_number', ''))
                 
                 st.markdown("---")
                 st.caption("📍 Update Location")
@@ -1516,7 +1524,8 @@ elif selected == "Housing Management":
                     
                     success, res = update_property_api(ep['id'], {
                         "title": etitle, "price": eprice, "description": edesc,
-                        "lat": f_lat, "lng": f_lon
+                        "lat": f_lat, "lng": f_lon,
+                        "contact_number": ephone, "whatsapp_number": ewa
                     }, e_imgs)
                     if success:
                         st.session_state.editing_prop = None
@@ -1548,6 +1557,10 @@ elif selected == "Housing Management":
             p_price = p_col1.number_input("Monthly Rent (EGP) *", min_value=0, value=0)
             p_desc = st.text_area("Description")
             
+            p_c1, p_c2 = st.columns(2)
+            p_phone = p_c1.text_input("Contact Phone Number", placeholder="01xxxxxxxxx")
+            p_wa = p_c2.text_input("WhatsApp Number", placeholder="01xxxxxxxxx")
+            
             st.markdown("---")
             st.subheader("📍 Location")
             p_link = st.text_input("Google Maps Link", key="prop_loc_link", placeholder="https://www.google.com/maps/...")
@@ -1578,7 +1591,8 @@ elif selected == "Housing Management":
                 else:
                     success, res = add_property_api({
                         "title": p_title, "description": p_desc, "price": p_price,
-                        "lat": p_lat_v, "lng": p_lon_v
+                        "lat": p_lat_v, "lng": p_lon_v,
+                        "contact_number": p_phone, "whatsapp_number": p_wa
                     }, p_imgs or [])
                     if success:
                         st.session_state.p_lat = 0.0

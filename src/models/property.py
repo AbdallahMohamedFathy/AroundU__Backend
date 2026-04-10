@@ -13,6 +13,8 @@ class Property(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     main_image_url = Column(String, nullable=True)
+    contact_number = Column(String, nullable=True)
+    whatsapp_number = Column(String, nullable=True)
     is_available = Column(Boolean, default=True, nullable=False)
     owner_id = Column(
         Integer,

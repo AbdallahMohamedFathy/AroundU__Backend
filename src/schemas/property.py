@@ -9,6 +9,8 @@ class PropertyBase(BaseModel):
     price: float = Field(..., ge=0)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
+    contact_number: Optional[str] = Field(None, max_length=20)
+    whatsapp_number: Optional[str] = Field(None, max_length=20)
 
 
 class PropertyCreate(PropertyBase):
@@ -21,6 +23,8 @@ class PropertyUpdate(BaseModel):
     price: Optional[float] = Field(None, ge=0)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+    contact_number: Optional[str] = Field(None, max_length=20)
+    whatsapp_number: Optional[str] = Field(None, max_length=20)
     is_available: Optional[bool] = None
     main_image_url: Optional[str] = None
     image_ids_to_delete: Optional[List[int]] = Field(default_factory=list)
