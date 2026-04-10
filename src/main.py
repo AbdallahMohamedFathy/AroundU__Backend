@@ -58,6 +58,26 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
 
+@app.on_event("startup")
+def on_startup():
+    from sqlalchemy import text
+    from src.core.database import engine
+    logger.info("Running startup migrations...")
+    with engine.connect() as conn:
+        try:
+            # Check for owner_type in users
+            check = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='users' AND column_name='owner_type';"
+            )).fetchone()
+            if not check:
+                logger.warning("Column 'owner_type' missing in 'users' table. Adding it...")
+                conn.execute(text("ALTER TABLE users ADD COLUMN owner_type VARCHAR;"))
+                conn.commit()
+                logger.info("Column 'owner_type' added successfully.")
+        except Exception as e:
+            logger.error(f"Startup migration failed: {e}")
+
 # ─────────────────────────────────────────────
 # RATE LIMITER
 # ─────────────────────────────────────────────
