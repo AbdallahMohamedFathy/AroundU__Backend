@@ -573,10 +573,11 @@ def create_property_with_owner_api(prop_data):
             return res.json(), None
         else:
             try:
-                err = res.json().get("detail", "Unknown error")
+                body = res.json()
+                err = body.get("detail") or str(body)
             except:
-                err = res.text
-            return None, err
+                err = res.text or "No response body"
+            return None, f"[HTTP {res.status_code}] {err}"
     except Exception as e:
         return None, str(e)
 
