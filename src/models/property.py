@@ -23,6 +23,11 @@ class Property(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
+    @property
+    def review_count(self) -> int:
+        return len(getattr(self, "reviews", []))
+
     # Relationships
     owner = relationship("User", backref="properties")
     images = relationship("PropertyImage", back_populates="property", cascade="all, delete-orphan")
+    reviews = relationship("PropertyReview", back_populates="property", cascade="all, delete-orphan")

@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import desc, asc
 from src.models.property import Property
+from src.models.property_review import PropertyReview
 from src.repositories.base_repository import BaseRepository
 
 
@@ -11,12 +12,18 @@ class PropertyRepository(BaseRepository[Property]):
 
     def get_by_id_with_images(self, property_id: int) -> Optional[Property]:
         return self.session.query(Property)\
-            .options(selectinload(Property.images))\
+            .options(
+                selectinload(Property.images),
+                selectinload(Property.reviews).selectinload(PropertyReview.user)
+            )\
             .filter(Property.id == property_id).first()
 
     def get_my_properties(self, owner_id: int) -> List[Property]:
         return self.session.query(Property)\
-            .options(selectinload(Property.images))\
+            .options(
+                selectinload(Property.images),
+                selectinload(Property.reviews)
+            )\
             .filter(Property.owner_id == owner_id)\
             .order_by(desc(Property.created_at)).all()
 
@@ -28,7 +35,12 @@ class PropertyRepository(BaseRepository[Property]):
         max_price: Optional[float] = None,
         sort_by: str = "newest"
     ) -> Tuple[List[Property], int]:
-        query = self.session.query(Property).filter(Property.is_available == True)
+        query = self.session.query(Property)\
+            .options(
+                selectinload(Property.images),
+                selectinload(Property.reviews)
+            )\
+            .filter(Property.is_available == True)
 
         if min_price is not None:
             query = query.filter(Property.price >= min_price)

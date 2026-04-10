@@ -1394,9 +1394,46 @@ elif selected == "Housing Management":
     if 'p_lat' not in st.session_state: st.session_state.p_lat = 0.0
     if 'p_lon' not in st.session_state: st.session_state.p_lon = 0.0
     if 'editing_prop' not in st.session_state: st.session_state.editing_prop = None
+    if 'viewing_prop' not in st.session_state: st.session_state.viewing_prop = None
+
+    # --- VIEW PROPERTY DETAILS ---
+    if st.session_state.viewing_prop:
+        vp = st.session_state.viewing_prop
+        with st.container(border=True):
+            st.subheader(f"🏢 Property Details: {vp['title']}")
+            
+            # Show a close button
+            if st.button("❌ Close View", key="close_view_prop", use_container_width=True):
+                st.session_state.viewing_prop = None
+                st.rerun()
+
+            st.write(f"**Price:** {vp['price']} EGP/month")
+            st.write(f"**Description:** {vp.get('description') or 'No description'}")
+            
+            st.markdown("---")
+            st.subheader("💬 Reviews")
+            reviews = vp.get("reviews", [])
+            if not reviews:
+                st.info("No reviews yet for this property.")
+            else:
+                for rev in reviews:
+                    stars = "⭐" * int(rev.get("rating", 1))
+                    date_str = rev.get("created_at", "").split("T")[0]
+                    st.markdown(f"""
+                    <div style="background-color: white; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <strong>👤 {rev.get("user_name", "Anonymous")}</strong>
+                            <span style="color: #FFD700;">{stars}</span>
+                        </div>
+                        <div style="font-size: 13px; color: #65797E; margin-bottom: 8px;">📅 {date_str}</div>
+                        <div style="font-size: 15px; color: #1D3143;">{rev.get("comment") or "No comment."}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
 
     # --- EDIT PROPERTY FORM ---
-    if st.session_state.editing_prop:
+    elif st.session_state.editing_prop:
         ep = st.session_state.editing_prop
         with st.container(border=True):
             st.subheader(f"✏️ Edit Property: {ep['title']}")
@@ -1462,8 +1499,8 @@ elif selected == "Housing Management":
         <div class="kpi-value">{len(props)}</div>
     </div>""", unsafe_allow_html=True)
     pk2.markdown(f"""<div class="kpi-card">
-        <div class="kpi-title">💰 Avg Price</div>
-        <div class="kpi-value">{int(sum(p['price'] for p in props)/len(props)) if props else 0} EGP</div>
+        <div class="kpi-title">⭐ Total Reviews</div>
+        <div class="kpi-value">{sum(p.get('review_count', 0) for p in props)}</div>
     </div>""", unsafe_allow_html=True)
 
     st.markdown("---")
@@ -1533,6 +1570,9 @@ elif selected == "Housing Management":
                     st.caption(p.get("description") or "No description.")
                 with lc3:
                     st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("👁️ View", key=f"view_prop_{p['id']}", use_container_width=True, type="primary"):
+                        st.session_state.viewing_prop = p
+                        st.rerun()
                     if st.button("✏️ Edit", key=f"edit_prop_{p['id']}", use_container_width=True):
                         st.session_state.editing_prop = p
                         st.rerun()

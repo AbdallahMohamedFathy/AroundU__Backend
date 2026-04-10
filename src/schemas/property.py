@@ -34,6 +34,16 @@ class PropertyImageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PropertyReviewResponse(BaseModel):
+    id: int
+    user_name: str
+    rating: float
+    comment: Optional[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PropertyResponse(PropertyBase):
     id: int
     main_image_url: Optional[str] = None
@@ -42,6 +52,8 @@ class PropertyResponse(PropertyBase):
     created_at: datetime
     updated_at: datetime
     images: List[PropertyImageResponse] = []
+    reviews: List[PropertyReviewResponse] = []
+    review_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +63,7 @@ class PropertyShortResponse(BaseModel):
     title: str
     price: float
     main_image_url: Optional[str] = None
+    review_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
