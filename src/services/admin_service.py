@@ -133,6 +133,7 @@ def create_owner_account(uow: UnitOfWork, user_in, current_admin):
             email=user_in.email,
             password_hash=get_password_hash(user_in.password),
             role="OWNER",
+            owner_type=user_in.owner_type,
             is_active=True,
             is_verified=True # Admin created, so verified by default
         )
@@ -585,8 +586,14 @@ def get_moderation_tasks(uow: UnitOfWork) -> Dict:
             if place:
                 business_name = place.name
                 category = place.category.name if place.category else "Commercial"
+            elif u.owner_type == "RESIDENTIAL":
+                business_name = "New Housing Owner"
+                category = "Housing"
+            elif u.owner_type == "COMMERCIAL":
+                business_name = "New Store Owner"
+                category = "Commercial"
             else:
-                # Check Property
+                # Fallback: Check Property
                 prop = uow.session.query(Property).filter(Property.owner_id == u.id).first()
                 if prop:
                     business_name = f"Property: {prop.title}"

@@ -12,6 +12,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, server_default="USER")
+    owner_type = Column(String, nullable=True) # "COMMERCIAL" or "RESIDENTIAL"
     is_active = Column(Boolean, default=True, nullable=False)
 
     @property

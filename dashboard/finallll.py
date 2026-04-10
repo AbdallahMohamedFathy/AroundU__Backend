@@ -528,6 +528,24 @@ def fetch_my_properties_api():
     except: pass
     return []
 
+def login_user(email, password):
+    try:
+        data = {"username": email, "password": password}
+        res = requests.post(f"{BACKEND_BASE_URL}/mobile/auth/login", data=data)
+        if res.status_code == 200:
+            body = res.json()
+            return body["access_token"], None
+        return None, res.json().get("detail", "Login failed")
+    except Exception as e:
+        return None, str(e)
+
+def fetch_user_profile():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/mobile/auth/profile", headers=get_headers())
+        if res.status_code == 200: return res.json()
+    except: pass
+    return {}
+
 def add_property_api(data, images):
     try:
         # data: {"title": str, "description": str, "price": float, "lat": float, "lng": float}
@@ -651,13 +669,18 @@ if st.session_state.token is None:
 # =========================
 # SIDEBAR
 # =========================
+user_profile = fetch_user_profile()
 my_place = fetch_my_place()
 my_properties = fetch_my_properties_api()
 place_name = my_place.get("name", "AroundU") if my_place else "AroundU"
 
 # Logic to choose default tab and visibility
-show_place_tabs = my_place is not None
-show_housing_tab = len(my_properties) > 0 or not show_place_tabs
+owner_type = user_profile.get("owner_type") or "COMMERCIAL" # Fallback to commercial
+
+# If it's a dedicated housing owner, we show housing tab primarily
+show_housing_tab = (owner_type == "RESIDENTIAL") or (len(my_properties) > 0)
+# If it's a commercial owner OR they have a place, we show place tabs
+show_place_tabs = (owner_type == "COMMERCIAL") or (my_place is not None)
 
 with st.sidebar:
     st.title(f"🏙️ {place_name}")

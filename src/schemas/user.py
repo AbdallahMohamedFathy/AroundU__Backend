@@ -10,6 +10,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     full_name: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=8, max_length=100)
+    owner_type: Optional[str] = None # "COMMERCIAL" or "RESIDENTIAL"
 
 
 class UserLogin(UserBase):
@@ -39,6 +40,7 @@ class UserResponse(UserBase):
     id: int
     full_name: str
     role: str
+    owner_type: Optional[str] = None
     is_active: bool
     is_verified: bool
     created_at: datetime

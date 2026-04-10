@@ -1610,6 +1610,7 @@ elif selected == "Moderation":
         with co_col1:
             co_name = st.text_input("Full Name *")
             co_email = st.text_input("Email *")
+            co_type = st.radio("Account Type", options=["🏢 Commercial (Place)", "🏠 Residential (Housing)"], horizontal=True)
         with co_col2:
             co_pwd = st.text_input("Password *", type="password")
             st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
@@ -1622,10 +1623,14 @@ elif selected == "Moderation":
                 st.warning("⚠️ Password must be at least 8 characters long.")
             else:
                 with st.spinner("Creating account..."):
+                    # Map UI selection to backend values
+                    owner_type = "COMMERCIAL" if "Commercial" in co_type else "RESIDENTIAL"
+                    
                     res, err = create_owner_api({
                         "full_name": co_name,
                         "email": co_email,
-                        "password": co_pwd
+                        "password": co_pwd,
+                        "owner_type": owner_type
                     })
                     if res:
                         st.success(f"✅ Owner account created for {co_email} (ID: {res['id']})")
