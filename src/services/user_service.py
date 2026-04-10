@@ -36,6 +36,9 @@ def update_user_profile(uow: UnitOfWork, user_id: int, data: UserUpdate):
         if data.full_name is not None:
             user.full_name = data.full_name
 
+        if data.owner_type is not None:
+            user.owner_type = data.owner_type
+
         uow.commit()
         return uow.user_repository.get_by_id(user_id)
 

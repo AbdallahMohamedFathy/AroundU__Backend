@@ -590,6 +590,14 @@ def fetch_user_profile():
     except: pass
     return {}
 
+def update_owner_type_api(owner_type):
+    try:
+        data = {"owner_type": owner_type}
+        res = requests.put(f"{BACKEND_BASE_URL}/mobile/auth/profile", json=data, headers=get_headers())
+        return res.status_code == 200
+    except:
+        return False
+
 def add_property_api(data, images):
     try:
         # data: {"title": str, "description": str, "price": float, "lat": float, "lng": float}
@@ -732,22 +740,40 @@ if 'token' not in st.session_state:
     st.session_state.token = None
 
 if st.session_state.token is None:
-    # --- LOGIN SCREEN ---
+    # --- DYNAMIC LOGIN BRANDING ---
+    is_res = st.session_state.owner_type == "RESIDENTIAL"
+    portal_title = "🏠 Housing Manager Portal" if is_res else "🏙️ Commercial Owner Portal"
+    portal_icon = "🏠" if is_res else "🏢"
+    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image(os.path.join(os.path.dirname(__file__), "logo.jpeg"), width=100) # Placeholder for logo
-        st.title("🏙️ Welcome to AroundU")
-        st.subheader("Owner Dashboard Login")
+        st.markdown(f'<div style="text-align: center; font-size: 60px;">{portal_icon}</div>', unsafe_allow_html=True)
+        st.title(portal_title)
+        st.subheader("Please sign in to continue")
         
         with st.form("login_form"):
             email = st.text_input("Email")
             password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Login", use_container_width=True)
+            submitted = st.form_submit_button("Login to Dashboard", use_container_width=True)
             
             if submitted:
                 token, error_msg = login_user(email, password)
                 if token:
                     st.session_state.token = token
+                    # After login, check/sync role
+                    profile = fetch_user_profile()
+                    db_type = profile.get("owner_type")
+                    
+                    if not db_type:
+                        # New user or missing type -> sync with choice
+                        update_owner_type_api(st.session_state.owner_type)
+                    elif db_type != st.session_state.owner_type:
+                        # MISMATCH GUARD
+                        st.error(f"⚠️ Access Denied: This account is registered as a {db_type.lower()} owner.")
+                        st.info(f"Please use the correct portal or contact support.")
+                        st.session_state.token = None # Reject token
+                        st.stop()
+                    
                     st.success("Login successful!")
                     st.rerun()
                 else:
@@ -761,35 +787,26 @@ if st.session_state.token is None:
 
 # 4. Profile & Place Loading
 user_profile = fetch_user_profile()
-my_place = fetch_my_place()
-my_properties = fetch_my_properties_api()
-place_name = my_place.get("name", "AroundU") if my_place else "AroundU"
+owner_type = st.session_state.owner_type # Use the portal mode as the primary filter
 
-# Logic to choose default tab and visibility
-owner_type = user_profile.get("owner_type") or "COMMERCIAL" # Fallback to commercial
-
-# If it's a dedicated housing owner, we show housing tab primarily
-show_housing_tab = (owner_type == "RESIDENTIAL") or (len(my_properties) > 0)
-# If it's a commercial owner OR they have a place, we show place tabs
-show_place_tabs = (owner_type == "COMMERCIAL") or (my_place is not None)
+# Sidebar Brand
+portal_brand = "🏠 Housing Manager" if owner_type == "RESIDENTIAL" else "🏢 Store Manager"
 
 with st.sidebar:
-    st.title(f"🏙️ {place_name}")
-    st.caption("AroundU Owner Dashboard")
+    st.title(portal_brand)
+    st.caption("AroundU Pro Dashboard")
 
     menu_options = []
     menu_icons = []
     
-    if show_place_tabs:
-        menu_options += ["Dashboard", "Customer Insights", "Operations", "Location Logic"]
-        menu_icons += ['house-door-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill']
-    
-    menu_options.append("Housing Management")
-    menu_icons.append("building-fill")
-    
-    if show_place_tabs:
-        menu_options.append("Manage Place")
-        menu_icons.append("gear-fill")
+    if owner_type == "COMMERCIAL":
+        # Only show Commercial tools for Store Owners
+        menu_options += ["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"]
+        menu_icons += ['house-door-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill', 'gear-fill']
+    else:
+        # Only show Housing tools for Property Managers
+        menu_options += ["Housing Management"]
+        menu_icons += ["building-fill"]
 
     selected = option_menu(
         None,

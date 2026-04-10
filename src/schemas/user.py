@@ -20,6 +20,7 @@ class UserLogin(UserBase):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
     email: Optional[EmailStr] = None
+    owner_type: Optional[str] = None
 
 
 class PasswordChange(BaseModel):
