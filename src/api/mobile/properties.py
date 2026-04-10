@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, status, UploadFile, File, Form
 from src.core.dependencies import get_current_user, get_uow
-from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, PropertyListResponse
+from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, PropertyMyResponse, PropertyListResponse
 from src.services import property_service
 from src.repositories.property_repository import PropertyRepository
 
@@ -28,7 +28,7 @@ def list_properties(
     )
 
 # ─── GET my properties ───────────────────────────────────────────────────────
-@router.get("/my", response_model=List[PropertyResponse])
+@router.get("/my", response_model=List[PropertyMyResponse])
 def get_my_properties(
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)

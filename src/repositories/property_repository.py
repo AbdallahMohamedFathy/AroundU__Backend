@@ -22,7 +22,7 @@ class PropertyRepository(BaseRepository[Property]):
         return self.session.query(Property)\
             .options(
                 selectinload(Property.images),
-                selectinload(Property.reviews)
+                selectinload(Property.reviews)  # No sub-load of user, review_count only
             )\
             .filter(Property.owner_id == owner_id)\
             .order_by(desc(Property.created_at)).all()

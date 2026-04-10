@@ -58,6 +58,35 @@ class PropertyResponse(PropertyBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PropertyMyResponse(PropertyBase):
+    """Lightweight response for GET /my - no user lookup per review."""
+    id: int
+    main_image_url: Optional[str] = None
+    is_available: bool
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+    images: List[PropertyImageResponse] = []
+    review_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PropertyResponse(PropertyBase):
+    """Full response including reviews with user names - for single property detail."""
+    id: int
+    main_image_url: Optional[str] = None
+    is_available: bool
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+    images: List[PropertyImageResponse] = []
+    reviews: List[PropertyReviewResponse] = []
+    review_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PropertyShortResponse(BaseModel):
     id: int
     title: str
