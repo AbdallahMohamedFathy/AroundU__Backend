@@ -1618,6 +1618,8 @@ elif selected == "Moderation":
         if co_submit:
             if not co_name or not co_email or not co_pwd:
                 st.error("Please fill all required fields (*)")
+            elif len(co_pwd) < 8:
+                st.warning("⚠️ Password must be at least 8 characters long.")
             else:
                 with st.spinner("Creating account..."):
                     res, err = create_owner_api({
