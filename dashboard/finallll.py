@@ -622,6 +622,22 @@ def delete_property_api(prop_id):
     except Exception as e:
         return False, str(e)
 
+def update_property_api(prop_id, data, images=None):
+    try:
+        files = []
+        if images:
+            files = [("images", (img.name, img.getvalue(), img.type)) for img in images]
+        
+        # FastAPI Form data requires fields to be sent as data
+        res = requests.put(f"{BACKEND_BASE_URL}/mobile/properties/{prop_id}", data=data, files=files, headers=get_headers())
+        if res.status_code == 200:
+            st.success("✅ Property updated successfully!")
+            st.cache_data.clear()
+            return True, res.json()
+        return False, res.text
+    except Exception as e:
+        return False, str(e)
+
 def build_location_map(all_locations, active_visitors, show_pins, show_heatmap, places_list, center_lat, center_lon, active_df=None):
     m = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles="CartoDB positron")
     
@@ -1374,6 +1390,45 @@ elif selected == "Housing Management":
     with st.spinner("Fetching your properties..."):
         props = fetch_my_properties_api()
 
+    # --- SESSION INITIALIZATION ---
+    if 'p_lat' not in st.session_state: st.session_state.p_lat = 0.0
+    if 'p_lon' not in st.session_state: st.session_state.p_lon = 0.0
+    if 'editing_prop' not in st.session_state: st.session_state.editing_prop = None
+
+    # --- EDIT PROPERTY FORM ---
+    if st.session_state.editing_prop:
+        ep = st.session_state.editing_prop
+        with st.container(border=True):
+            st.subheader(f"✏️ Edit Property: {ep['title']}")
+            with st.form("edit_property_form_v2"):
+                etitle = st.text_input("Title", value=ep['title'])
+                eprice = st.number_input("Price (EGP)", value=float(ep['price']))
+                edesc  = st.text_area("Description", value=ep.get('description', ''))
+                
+                st.markdown("---")
+                st.caption("📍 Update Location")
+                elink = st.text_input("New Google Maps Link", placeholder="Paste to refresh coordinates")
+                elat = st.number_input("Latitude", value=float(ep.get('latitude', 0.0)), format="%.6f")
+                elon = st.number_input("Longitude", value=float(ep.get('longitude', 0.0)), format="%.6f")
+                
+                c1, c2 = st.columns(2)
+                if c1.form_submit_button("✅ Save Updates", use_container_width=True):
+                    f_lat, f_lon = elat, elon
+                    if elink:
+                        plat, plon = extract_coordinates(elink)
+                        if plat and plon: f_lat, f_lon = plat, plon
+                    
+                    success, res = update_property_api(ep['id'], {
+                        "title": etitle, "price": eprice, "description": edesc,
+                        "lat": f_lat, "lng": f_lon
+                    })
+                    if success:
+                        st.session_state.editing_prop = None
+                        st.rerun()
+                if c2.form_submit_button("❌ Cancel", use_container_width=True):
+                    st.session_state.editing_prop = None
+                    st.rerun()
+
     # ── KPI Row ──────────────────────────────────────────
     pk1, pk2 = st.columns(2)
     pk1.markdown(f"""<div class="kpi-card">
@@ -1388,21 +1443,29 @@ elif selected == "Housing Management":
     st.markdown("---")
 
     # ── Add New Property ───────────────────────────────
-    with st.expander("➕ Add New Property", expanded=len(props) == 0):
-        with st.form("add_property_form", clear_on_submit=False):
-            st.subheader("Property Basics")
-            p_title = st.text_input("Property Title *", placeholder="e.g. Modern Studio near University")
-            p_desc  = st.text_area("Description", placeholder="Describe features, amenities, floor, etc.")
-            p_price = st.number_input("Monthly Rent (EGP) *", min_value=0, value=2500, step=100)
+    with st.expander("➕ List New Property", expanded=len(props) == 0):
+        with st.form("add_prop_form"):
+            p_title = st.text_input("Property Title *", placeholder="e.g. Luxury Apartment in Beni Suef")
+            p_col1, p_col2 = st.columns(2)
+            p_price = p_col1.number_input("Monthly Rent (EGP) *", min_value=0, value=0)
+            p_desc = st.text_area("Description")
             
             st.markdown("---")
             st.subheader("📍 Location")
             p_link = st.text_input("Google Maps Link", key="prop_loc_link", placeholder="https://www.google.com/maps/...")
             
-            # Map coordinates display/manual override
-            p_col1, p_col2 = st.columns(2)
-            p_lat = p_col1.number_input("Latitude", format="%.6f", value=0.0)
-            p_lon = p_col2.number_input("Longitude", format="%.6f", value=0.0)
+            # --- AUTO-RESOLVE LOGIC ---
+            if p_link and p_link != st.session_state.get('last_prop_loc_link'):
+                plat, plon = extract_coordinates(p_link)
+                if plat and plon:
+                    st.session_state.p_lat = plat
+                    st.session_state.p_lon = plon
+                st.session_state.last_prop_loc_link = p_link
+                st.rerun()
+
+            p_col_c1, p_col_c2 = st.columns(2)
+            p_lat_v = p_col_c1.number_input("Latitude", format="%.6f", value=st.session_state.p_lat)
+            p_lon_v = p_col_c2.number_input("Longitude", format="%.6f", value=st.session_state.p_lon)
             
             st.markdown("---")
             st.subheader("📸 Media")
@@ -1415,25 +1478,16 @@ elif selected == "Housing Management":
                 if not p_title or p_price <= 0:
                     st.error("Please provide a title and valid price.")
                 else:
-                    # Final resolve if inputs are 0
-                    final_lat, final_lon = p_lat, p_lon
-                    if (final_lat == 0 or final_lon == 0) and p_link:
-                        plat, plon = extract_coordinates(p_link)
-                        if plat and plon:
-                            final_lat, final_lon = plat, plon
-
                     success, res = add_property_api({
-                        "title": p_title,
-                        "description": p_desc,
-                        "price": p_price,
-                        "lat": final_lat,
-                        "lng": final_lon
+                        "title": p_title, "description": p_desc, "price": p_price,
+                        "lat": p_lat_v, "lng": p_lon_v
                     }, p_imgs or [])
-                    
                     if success:
+                        st.session_state.p_lat = 0.0
+                        st.session_state.p_lon = 0.0
+                        st.session_state.last_prop_loc_link = ""
                         st.rerun()
-                    else:
-                        st.error(f"❌ Failed to add: {res}")
+                    else: st.error(f"❌ Failed to add: {res}")
 
     # ── List Properties ────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1453,7 +1507,10 @@ elif selected == "Housing Management":
                     st.caption(p.get("description") or "No description.")
                 with lc3:
                     st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("🗑️ Delete", key=f"del_prop_{p['id']}", use_container_width=True):
+                    if st.button("✏️ Edit", key=f"edit_prop_{p['id']}", use_container_width=True):
+                        st.session_state.editing_prop = p
+                        st.rerun()
+                    if st.button("🗑️ Delete", key=f"del_prop_{p['id']}", use_container_width=True, type="secondary"):
                         if delete_property_api(p['id']):
                             st.rerun()
             st.markdown("<br>", unsafe_allow_html=True)
@@ -1795,6 +1852,8 @@ elif selected == "Location Logic":
     st.markdown("See where your visitors are coming from — all time and recently active.")
 
     # ── Get owner's place coords ──────────────────────────────────────
+    places_list = fetch_my_places()
+    my_place    = places_list[0] if places_list else {}
     place       = my_place or {}
     place_id    = place.get("id", None)
     place_lat   = float(place.get("latitude",  29.0661))
@@ -1846,7 +1905,6 @@ elif selected == "Location Logic":
         active_visitors = fetch_active_visitors()
         peak_hour_data = fetch_peak_hour()
         owner_summary = fetch_location_summary()
-        places_list = fetch_my_places()
         active_df = filter_active(all_df.copy(), active_minutes) if not all_df.empty else pd.DataFrame()
 
     # ── KPI cards ─────────────────────────────────────────────────────
