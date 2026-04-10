@@ -7,6 +7,45 @@ from src.repositories.property_repository import PropertyRepository
 
 router = APIRouter()
 
+# ─── GET all (must come before /{id}) ───────────────────────────────────────
+@router.get("/", response_model=PropertyListResponse)
+def list_properties(
+    page: int = 1,
+    limit: int = 20,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    sort: str = "newest",
+    uow=Depends(get_uow)
+):
+    repo = PropertyRepository(uow.session)
+    return property_service.get_properties(
+        repo, 
+        page=page, 
+        limit=limit, 
+        min_price=min_price, 
+        max_price=max_price, 
+        sort_by=sort
+    )
+
+# ─── GET my properties ───────────────────────────────────────────────────────
+@router.get("/my", response_model=List[PropertyResponse])
+def get_my_properties(
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    repo = PropertyRepository(uow.session)
+    return property_service.get_my_properties(repo, current_user)
+
+# ─── GET single ─────────────────────────────────────────────────────────────
+@router.get("/{id}", response_model=PropertyResponse)
+def get_property(
+    id: int,
+    uow=Depends(get_uow)
+):
+    repo = PropertyRepository(uow.session)
+    return property_service.get_property_by_id(repo, id)
+
+# ─── POST create ─────────────────────────────────────────────────────────────
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=PropertyResponse)
 def create_property(
     title: str = Form(...),
@@ -28,22 +67,7 @@ def create_property(
     repo = PropertyRepository(uow.session)
     return property_service.create_property(repo, property_data, images, current_user)
 
-@router.get("/my", response_model=List[PropertyResponse])
-def get_my_properties(
-    current_user=Depends(get_current_user),
-    uow=Depends(get_uow)
-):
-    repo = PropertyRepository(uow.session)
-    return property_service.get_my_properties(repo, current_user)
-
-@router.get("/{id}", response_model=PropertyResponse)
-def get_property(
-    id: int,
-    uow=Depends(get_uow)
-):
-    repo = PropertyRepository(uow.session)
-    return property_service.get_property_by_id(repo, id)
-
+# ─── PUT update ──────────────────────────────────────────────────────────────
 @router.put("/{id}", response_model=PropertyResponse)
 def update_property(
     id: int,
@@ -59,9 +83,6 @@ def update_property(
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)
 ):
-    # image_ids_to_delete might be passed as a list of strings in Form, 
-    # FastAPI handles it if sent correctly, but let's be careful.
-    
     property_data = PropertyUpdate(
         title=title,
         description=description,
@@ -75,6 +96,7 @@ def update_property(
     repo = PropertyRepository(uow.session)
     return property_service.update_property(repo, id, property_data, images, current_user)
 
+# ─── DELETE ──────────────────────────────────────────────────────────────────
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_property(
     id: int,
@@ -84,22 +106,3 @@ def delete_property(
     repo = PropertyRepository(uow.session)
     property_service.delete_property(repo, id, current_user)
     return None
-
-@router.get("/", response_model=PropertyListResponse)
-def list_properties(
-    page: int = 1,
-    limit: int = 20,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
-    sort: str = "newest",
-    uow=Depends(get_uow)
-):
-    repo = PropertyRepository(uow.session)
-    return property_service.get_properties(
-        repo, 
-        page=page, 
-        limit=limit, 
-        min_price=min_price, 
-        max_price=max_price, 
-        sort_by=sort
-    )
