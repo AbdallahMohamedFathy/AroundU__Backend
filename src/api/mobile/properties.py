@@ -1,11 +1,23 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, status, UploadFile, File, Form
 from src.core.dependencies import get_current_user, get_uow
-from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, PropertyMyResponse, PropertyListResponse
+from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, PropertyMyResponse, PropertyListResponse, PropertyReviewCreate, PropertyReviewResponse
 from src.services import property_service
 from src.repositories.property_repository import PropertyRepository
 
 router = APIRouter()
+
+# ─── ADD REVIEW  POST /properties/{id}/reviews ──────────────────────────────
+@router.post("/{id}/reviews", response_model=PropertyReviewResponse, status_code=status.HTTP_201_CREATED)
+def add_property_review(
+    id: int,
+    data: PropertyReviewCreate,
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    """Add a review to a property listing."""
+    repo = PropertyRepository(uow.session)
+    return property_service.create_property_review(repo, id, data, current_user)
 
 # ─── GET all (must come before /{id}) ───────────────────────────────────────
 @router.get("/", response_model=PropertyListResponse)

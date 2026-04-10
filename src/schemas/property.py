@@ -34,6 +34,11 @@ class PropertyImageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PropertyReviewCreate(BaseModel):
+    rating: float = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=1000)
+
+
 class PropertyReviewResponse(BaseModel):
     id: int
     user_name: str

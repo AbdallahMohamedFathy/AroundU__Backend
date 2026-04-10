@@ -2,11 +2,38 @@ from typing import List, Optional, Any
 from fastapi import UploadFile, HTTPException, status
 from src.models.property import Property
 from src.models.property_image import PropertyImage
-from src.schemas.property import PropertyCreate, PropertyUpdate
+from src.models.property_review import PropertyReview
+from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyReviewCreate
 from src.services.cloudinary_service import upload_image, delete_image
 from src.core.exceptions import APIException
 from src.core.logger import logger
 import math
+
+def create_property_review(repo: Any, property_id: int, review_data: PropertyReviewCreate, current_user: Any):
+    db_prop = repo.get_by_id(property_id)
+    if not db_prop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+    
+    # Optional: Check if user already reviewed (one review per property)
+    existing = repo.session.query(PropertyReview).filter(
+        PropertyReview.property_id == property_id,
+        PropertyReview.user_id == current_user.id
+    ).first()
+    if existing:
+        raise APIException("You have already reviewed this property", code=status.HTTP_400_BAD_REQUEST)
+
+    db_review = PropertyReview(
+        property_id=property_id,
+        user_id=current_user.id,
+        rating=review_data.rating,
+        comment=review_data.comment
+    )
+    repo.session.add(db_review)
+    repo.session.commit()
+    repo.session.refresh(db_review)
+    return db_review
+
+
 
 MAX_IMAGES = 5
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
