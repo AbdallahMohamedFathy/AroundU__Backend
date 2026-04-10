@@ -662,20 +662,35 @@ def build_location_map(all_locations, show_pins, show_heatmap, places_list, cent
                     ).add_to(m)
     return m
 
-def promote_user(uow: UnitOfWork, user_id: int, new_role: str, current_admin):
+def promote_user(user_id_str, new_role):
+    """
+    Calls the backend API to promote a user to a new role (ADMIN, OWNER, etc.)
+    """
     try:
-        oid = int(owner_id_str.replace("OWN-", ""))
+        # Extract numeric ID from "U-123" format
+        uid = int(user_id_str.replace("U-", ""))
+        
+        # Prepare the request payload
+        payload = {"role": new_role}
+        
+        # Call the promotion endpoint
         res = requests.post(
-            f"{BACKEND_BASE_URL}/dashboard/admin/owners/{oid}/verify",
-            params={"verified": str(verified).lower()},
+            f"{BACKEND_BASE_URL}/dashboard/admin/promote/{uid}",
+            json=payload,
             headers=get_headers()
         )
+        
         if res.status_code == 200:
-            status_txt = "approved" if verified else "rejected"
-            st.toast(f"✅ Owner {owner_id_str} {status_txt}!", icon="👤")
+            st.toast(f"✅ User {user_id_str} promoted to {new_role} successfully!", icon="🎖️")
             return True
+        else:
+            try:
+                err = res.json().get("detail", res.text)
+            except:
+                err = res.text
+            st.error(f"❌ Failed to promote user: {err}")
     except Exception as e:
-        st.error(f"Error updating owner: {e}")
+        st.error(f"Error promoting user: {e}")
     return False
 
 # Admin action log placeholder
