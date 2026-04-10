@@ -1412,6 +1412,26 @@ elif selected == "Housing Management":
                 elon = st.number_input("Longitude", value=float(ep.get('longitude', 0.0)), format="%.6f")
                 
                 st.markdown("---")
+                st.caption("🖼️ Existing Media")
+                existing_images = ep.get("images", [])
+                if existing_images:
+                    cols = st.columns(4)
+                    for idx, img in enumerate(existing_images):
+                        with cols[idx % 4]:
+                            img_url = img.get("image_url", "")
+                            if img_url.startswith("/uploads/"):
+                                base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                                img_url = f"{base}{img_url}"
+                            elif img_url.startswith("/") and not img_url.startswith("/uploads/"):
+                                base = BACKEND_BASE_URL.replace('/api', '').rstrip('/')
+                                img_url = f"{base}/uploads{img_url}"
+                            
+                            if img_url:
+                                st.image(img_url, use_container_width=True)
+                else:
+                    st.info("No existing photos.")
+                
+                st.markdown("---")
                 st.caption("📸 Add New Media")
                 e_imgs = st.file_uploader("Upload New Photos (Optional)", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True, key=f"edit_img_{ep['id']}")
                 
@@ -1429,6 +1449,8 @@ elif selected == "Housing Management":
                     if success:
                         st.session_state.editing_prop = None
                         st.rerun()
+                    else:
+                        st.error(f"❌ Failed to save: {res}")
                 if c2.form_submit_button("❌ Cancel", use_container_width=True):
                     st.session_state.editing_prop = None
                     st.rerun()
