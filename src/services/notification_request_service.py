@@ -2,7 +2,7 @@ from typing import List, Tuple, Optional, Any
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 from src.core.unit_of_work import UnitOfWork
-from src.models.user import User, OwnerType
+from src.models.user import User
 from src.models.notification import NotificationType, NotificationPriority
 from src.models.notification_request import NotificationRequest, TargetType, RequestStatus
 from src.models.notification_audit import NotificationAudit, AuditAction
@@ -118,11 +118,11 @@ def resolve_targets(uow: UnitOfWork, target_type: TargetType, specific_id: Optio
         rows = uow.session.execute(select(User.id).filter(User.is_active == True)).all()
         return [r[0] for r in rows]
     elif target_type == TargetType.ALL_OWNERS:
-        rows = uow.session.execute(select(User.id).filter(User.owner_type.in_([OwnerType.PLACE, OwnerType.PROPERTY]), User.is_active == True)).all()
+        rows = uow.session.execute(select(User.id).filter(User.role == "OWNER", User.is_active == True)).all()
         return [r[0] for r in rows]
     elif target_type == TargetType.SPECIFIC_OWNER:
         if not specific_id: return []
-        row = uow.session.execute(select(User.id).filter(User.id == specific_id, User.owner_type.in_([OwnerType.PLACE, OwnerType.PROPERTY]))).first()
+        row = uow.session.execute(select(User.id).filter(User.id == specific_id, User.role == "OWNER")).first()
         return [row[0]] if row else []
     elif target_type == TargetType.SPECIFIC_USER:
         if not specific_id: return []
