@@ -76,6 +76,18 @@ def on_startup():
                 conn.execute(text("ALTER TABLE users ADD COLUMN owner_type VARCHAR;"))
                 conn.commit()
                 logger.info("Column 'owner_type' added successfully.")
+            
+            # Check for request_id in notifications
+            check_notif = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='notifications' AND column_name='request_id';"
+            )).fetchone()
+            if not check_notif:
+                logger.warning("Column 'request_id' missing in 'notifications' table. Adding it...")
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN request_id INTEGER REFERENCES notification_requests(id) ON DELETE SET NULL;"))
+                conn.commit()
+                logger.info("Column 'request_id' added successfully.")
+
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
 
