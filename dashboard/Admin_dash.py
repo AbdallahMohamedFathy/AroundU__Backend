@@ -236,6 +236,13 @@ def logout():
     st.session_state.token = None
     st.rerun()
 
+def handle_auth_error():
+    """Handle 401 errors by clearing token and informing user."""
+    st.session_state.token = None
+    st.error("🔒 Session expired. Please log in again.")
+    st.button("Back to Login", on_click=st.rerun)
+    st.stop()
+
 def get_headers():
     return {"Authorization": f"Bearer {st.session_state.get('token')}"}
 
@@ -275,6 +282,7 @@ def fetch_admin_stats(start_date, end_date):
         params = {"start_date": str(start_date), "end_date": str(end_date)}
         res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/stats/overview", params=params, headers=get_headers())
         if res.status_code == 200: return res.json()
+        if res.status_code == 401: handle_auth_error()
     except: pass
     return {} # Always return empty dict to prevent AttributeError .get()
 
@@ -601,6 +609,7 @@ def approve_owner(owner_id_str, verified):
             status_txt = "approved" if verified else "rejected"
             st.toast(f"✅ Owner {owner_id_str} {status_txt}!", icon="👤")
             return True
+        if res.status_code == 401: handle_auth_error()
     except Exception as e:
         st.error(f"Error verifying owner: {e}")
     return False
@@ -628,6 +637,7 @@ def fetch_notif_requests(status=None):
         if status: params["status"] = status
         res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/requests", params=params, headers=get_headers(), timeout=15)
         if res.status_code == 200: return res.json()
+        if res.status_code == 401: handle_auth_error()
     except Exception as e:
         st.sidebar.error(f"Notif API Error: {e}")
     return {"items": [], "total": 0}
@@ -660,6 +670,7 @@ def send_admin_blast(payload):
         if res.status_code == 200:
             st.success("🚀 Admin notification blast sent successfully!")
             return True
+        if res.status_code == 401: handle_auth_error()
         st.error(f"Blast failed: {res.text}")
     except Exception as e:
         st.error(f"Blast error: {e}")
