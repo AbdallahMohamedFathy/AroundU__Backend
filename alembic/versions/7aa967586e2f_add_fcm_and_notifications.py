@@ -20,20 +20,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    from sqlalchemy.dialects import postgresql
-
     # Add fcm_token to users
     op.add_column('users', sa.Column('fcm_token', sa.String(), nullable=True))
     op.create_index(op.f('ix_users_fcm_token'), 'users', ['fcm_token'], unique=False)
 
-    # Create Enums
-    notification_type = postgresql.ENUM('NEW_REVIEW', 'NEW_PROPERTY_REVIEW', 'PROPERTY_APPROVED', 'PROPERTY_REJECTED', 'SYSTEM_ALERT', name='notificationtype')
-    notification_type.create(op.get_bind(), checkfirst=True)
-    
-    notification_priority = postgresql.ENUM('NORMAL', 'HIGH', name='notificationpriority')
-    notification_priority.create(op.get_bind(), checkfirst=True)
-
     # Create notifications table
+    # Enum types are automatically created by sa.Enum
     op.create_table('notifications',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
