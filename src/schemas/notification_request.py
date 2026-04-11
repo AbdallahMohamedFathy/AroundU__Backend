@@ -22,6 +22,7 @@ class NotificationRequestResponse(NotificationRequestBase):
     """Data returned to clients."""
     id: int
     sender_id: int
+    sender_name: Optional[str] = None
     status: RequestStatus
     is_archived: bool
     created_at: datetime

@@ -620,6 +620,51 @@ def create_owner_api(owner_data):
     except Exception as e:
         return None, str(e)
 
+# --- Notification Management Helpers ---
+
+def fetch_notif_requests(status=None):
+    try:
+        params = {}
+        if status: params["status"] = status
+        res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/requests", params=params, headers=get_headers(), timeout=15)
+        if res.status_code == 200: return res.json()
+    except Exception as e:
+        st.sidebar.error(f"Notif API Error: {e}")
+    return {"items": [], "total": 0}
+
+def approve_notif_request(request_id):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/requests/{request_id}/approve", headers=get_headers())
+        if res.status_code == 200:
+            st.toast(f"✅ Notification request {request_id} approved!", icon="🔔")
+            return True
+        st.error(f"Failed to approve: {res.text}")
+    except Exception as e:
+        st.error(f"Approval error: {e}")
+    return False
+
+def reject_notif_request(request_id):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/requests/{request_id}/reject", headers=get_headers())
+        if res.status_code == 200:
+            st.toast(f"❌ Notification request {request_id} rejected.", icon="🔕")
+            return True
+        st.error(f"Failed to reject: {res.text}")
+    except Exception as e:
+        st.error(f"Rejection error: {e}")
+    return False
+
+def send_admin_blast(payload):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/send", json=payload, headers=get_headers())
+        if res.status_code == 200:
+            st.success("🚀 Admin notification blast sent successfully!")
+            return True
+        st.error(f"Blast failed: {res.text}")
+    except Exception as e:
+        st.error(f"Blast error: {e}")
+    return False
+
 # --- Location Logic Helpers ---
 
 def filter_active(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
@@ -737,13 +782,13 @@ with st.sidebar:
     selected = option_menu(
         menu_title=None,
         options=[
-            "Overview", "Places Analytics", "User Analytics",
+            "Overview", "Notifications", "Places Analytics", "User Analytics",
             "Property Management", "Reviews", "Chatbot",
             "Category Analytics", "Moderation", "Anomaly Detection",
             "Location Logic", "Database Manager"
         ],
         icons=[
-            "grid-1x2", "shop", "people",
+            "grid-1x2", "bell", "shop", "people",
             "house", "star", "robot",
             "tags", "shield-lock", "exclamation-triangle",
             "geo-alt", "database"
@@ -887,6 +932,111 @@ if selected == "Overview":
             st.plotly_chart(fig_trend, use_container_width=True)
         else:
             empty_state("No trending data available for this period.")
+
+
+# ═══════════════════════════════════════════════════════════
+# 2. NOTIFICATIONS
+# ═══════════════════════════════════════════════════════════
+elif selected == "Notifications":
+    st.title("🔔 Notification Management")
+    st.markdown("Review owner requests for platform-wide alerts and send direct admin blasts.")
+
+    n_tab1, n_tab2, n_tab3 = st.tabs(["⏳ Pending Requests", "🚀 Admin Blast", "📋 Request History"])
+
+    # --- TAB 1: PENDING REQUESTS ---
+    with n_tab1:
+        st.subheader("Pending Approval")
+        requests_data = fetch_notif_requests(status="PENDING")
+        pending_items = requests_data.get("items", [])
+        
+        if not pending_items:
+            st.info("No pending notification requests.")
+        else:
+            for req in pending_items:
+                with st.container():
+                    st.markdown(f"""
+                    <div style="background:white; padding:20px; border-radius:15px; border-left:5px solid #F59E0B; margin-bottom:15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="font-weight:800; color:#1D3143; font-size:18px;">{req['title']}</span>
+                            <span style="color:#65797E; font-size:12px;">ID: {req['id']}</span>
+                        </div>
+                        <p style="color:#4A5568; margin:10px 0;">{req['message']}</p>
+                        <hr style="margin:10px 0; border:0; border-top:1px solid #EEE;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:13px; color:#65797E;">👤 Sender: <b>{req.get('sender_name', req['sender_id'])}</b> &nbsp;·&nbsp; 🎯 Target: <b>{req['target_type']}</b></span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    c1, c2, c3 = st.columns([1, 1, 4])
+                    if c1.button("✅ Approve", key=f"app_req_{req['id']}", use_container_width=True):
+                        if approve_notif_request(req['id']):
+                            st.rerun()
+                    if c2.button("❌ Reject", key=f"rej_req_{req['id']}", use_container_width=True):
+                        if reject_notif_request(req['id']):
+                            st.rerun()
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- TAB 2: ADMIN BLAST ---
+    with n_tab2:
+        st.subheader("Send Direct Notification")
+        st.caption("This notification will be sent immediately to the selected target group without approval flow.")
+        
+        with st.form("admin_blast_form"):
+            blast_title = st.text_input("Notification Title", placeholder="e.g. Platform Update")
+            blast_msg = st.text_area("Message Content", placeholder="Write your message here...")
+            
+            b_col1, b_col2 = st.columns(2)
+            with b_col1:
+                target_grp = st.selectbox("Target Audience", ["ALL_USERS", "ALL_OWNERS", "SPECIFIC_USER"])
+            with b_col2:
+                target_uid = st.number_input("Target User ID (if specific)", min_value=0, step=1, value=0)
+            
+            # Additional data JSON
+            with st.expander("Extra Data (JSON)"):
+                extra_data = st.text_area("Optional JSON payload", value='{"type": "admin_blast"}')
+            
+            submit_blast = st.form_submit_button("🚀 Dispatch Notification Blast", use_container_width=True)
+            
+            if submit_blast:
+                if not blast_title or not blast_msg:
+                    st.error("Title and Message are required.")
+                else:
+                    import json
+                    try:
+                        data_dict = json.loads(extra_data) if extra_data else {}
+                        payload = {
+                            "title": blast_title,
+                            "message": blast_msg,
+                            "target_type": target_grp,
+                            "target_user_id": target_uid if target_grp == "SPECIFIC_USER" else None,
+                            "data": data_dict
+                        }
+                        if send_admin_blast(payload):
+                            st.balloons()
+                    except json.JSONDecodeError:
+                        st.error("Invalid JSON in extra data.")
+
+    # --- TAB 3: HISTORY ---
+    with n_tab3:
+        st.subheader("Recent Requests")
+        history_data = fetch_notif_requests()
+        all_reqs = history_data.get("items", [])
+        
+        if not all_reqs:
+            st.info("No notification history found.")
+        else:
+            df_hist = pd.DataFrame(all_reqs)
+            # Reorder and format for display
+            display_cols = ["id", "sender_name", "title", "status", "target_type", "created_at"]
+            # Ensure sender_name exists in columns
+            if "sender_name" not in df_hist.columns:
+                df_hist["sender_name"] = df_hist["sender_id"]
+            
+            df_display = df_hist[display_cols].copy()
+            df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime("%Y-%m-%d %H:%M")
+            
+            st.dataframe(df_display, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════

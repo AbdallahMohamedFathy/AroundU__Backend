@@ -1456,82 +1456,118 @@ Urgent: <strong style="color:#e74c3c">{urgent}</strong>
             """, unsafe_allow_html=True)
 
 # =========================
-# 6️⃣ NOTIFICATIONS
+# 4️⃣ NOTIFICATIONS
 # =========================
 elif selected == "Notifications":
     st.title("📢 Promotions & Announcements")
-    st.caption("Request push notification blasts to reach your customers.")
+    st.markdown("Request push notification blasts to reach AroundU users. Engage your customers with special offers.")
 
-    tabs = st.tabs(["🚀 Send Request", "📜 Request History"])
-
-    with tabs[0]:
-        st.markdown("""
-        <div style="background: #eef2ff; padding: 20px; border-radius: 12px; border-left: 5px solid #055e9b; margin-bottom: 25px;">
-            <h4 style="margin: 0; color: #1D3143;">Admin Approval Required</h4>
-            <p style="margin: 10px 0 0 0; color: #4A5568; font-size: 14px;">
-                Every notification request is reviewed by the AroundU administration to ensure quality. 
-                Approved requests are blasted to users immediately. <b>Daily Limit: 5 requests.</b>
-            </p>
+    # Calculate daily usage
+    notif_history = fetch_notification_requests()
+    today_date = datetime.now().date()
+    today_count = 0
+    if notif_history:
+        for r in notif_history:
+            try:
+                created_at = r.get("created_at", "")
+                r_date = datetime.fromisoformat(created_at.replace("Z", "+00:00")).date()
+                if r_date == today_date:
+                    today_count += 1
+            except:
+                pass
+    
+    remaining = max(0, 5 - today_count)
+    
+    # Header Info Cards
+    h_col1, h_col2, h_col3 = st.columns(3)
+    with h_col1:
+        st.markdown(f"""
+        <div style="background: white; padding: 20px; border-radius: 12px; border-top: 5px solid #055e9b; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="font-size: 14px; color: #65797E;">Requests Sent Today</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1D3143;">{today_count} / 5</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with h_col2:
+        st.markdown(f"""
+        <div style="background: white; padding: 20px; border-radius: 12px; border-top: 5px solid #10B981; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="font-size: 14px; color: #65797E;">Daily Remaining</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1D3143;">{remaining}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with h_col3:
+        status_color = "#F59E0B" if any(r.get("status") == "PENDING" for r in (notif_history or [])) else "#65797E"
+        st.markdown(f"""
+        <div style="background: white; padding: 20px; border-radius: 12px; border-top: 5px solid {status_color}; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <div style="font-size: 14px; color: #65797E;">Pending Approvals</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1D3143;">{sum(1 for r in (notif_history or []) if r.get("status") == "PENDING")}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        with st.form("notif_request_form", clear_on_submit=True):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                n_title = st.text_input("Notification Title", placeholder="e.g. Special Offer: 20% Off!")
-                n_msg = st.text_area("Message Content", placeholder="Enter the message users will see on their lock screens...")
-            with col2:
-                n_target = st.selectbox("Target Audience", 
-                    options=["ALL_USERS", "ALL_OWNERS"], 
-                    format_func=lambda x: "🌍 Everyone" if x=="ALL_USERS" else "🏢 Business Owners")
-                
-                st.info("💡 Tip: Keep it short and catchy for better engagement.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    tabs = st.tabs(["🚀 Send Request", "📜 Request History"])
 
-            submit_req = st.form_submit_button("Submit for Approval", use_container_width=True, type="primary")
+    with tabs[0]:
+        if remaining <= 0:
+            st.warning("⚠️ You have reached your daily limit of 5 notification requests. Please try again tomorrow.")
+        else:
+            with st.container(border=True):
+                st.subheader("Create New Promotion")
+                with st.form("notif_request_form", clear_on_submit=True):
+                    n_title = st.text_input("Notification Title", placeholder="e.g. Weekend Sale: Buy 1 Get 1 Free!")
+                    n_msg = st.text_area("Message Content", placeholder="Write a short message that will appear on user phones...")
+                    
+                    target_col, tip_col = st.columns([1, 1])
+                    with target_col:
+                        n_target = st.selectbox("Target Audience", 
+                            options=["ALL_USERS", "ALL_OWNERS"], 
+                            format_func=lambda x: "🌍 All App Users" if x=="ALL_USERS" else "🏢 Local Business Owners")
+                    with tip_col:
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.caption("💡 Approved notifications are sent instantly.")
 
-            if submit_req:
-                if not n_title or not n_msg:
-                    st.error("Please provide both a title and a message.")
-                else:
-                    success, res_data = create_notification_request_api({
-                        "title": n_title,
-                        "message": n_msg,
-                        "target_type": n_target
-                    })
-                    if success:
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to submit: {res_data}")
+                    submit_req = st.form_submit_button("Submit for Admin Review", use_container_width=True, type="primary")
+
+                    if submit_req:
+                        if not n_title or not n_msg:
+                            st.error("Please provide both a title and a message.")
+                        else:
+                            success, res_data = create_notification_request_api({
+                                "title": n_title,
+                                "message": n_msg,
+                                "target_type": n_target
+                            })
+                            if success:
+                                st.toast("✅ Request submitted successfully!", icon="🚀")
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.error(f"Failed to submit: {res_data}")
 
     with tabs[1]:
-        notif_history = fetch_notification_requests()
         if not notif_history:
             st.info("No notification requests found.")
         else:
-            # Table-style list for history
             st.markdown("""
             <style>
             .status-badge {
                 padding: 4px 10px;
                 border-radius: 12px;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 700;
                 text-transform: uppercase;
             }
             .status-pending { background: #fff3e0; color: #d35400; border: 1px solid #ffcc80; }
-            .status-approved { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-            .status-rejected { background: #ffe5e5; color: #c62828; border: 1px solid #ef9a9a; }
+            .status-approved { background: #e8f5e9; color: #2e7d31; border: 1px solid #a5d6a7; }
+            .status-rejected { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
             
             .notif-card {
                 background: white;
-                padding: 20px;
-                border-radius: 15px;
+                padding: 18px;
+                border-radius: 12px;
                 border: 1px solid #E9ECEF;
-                margin-bottom: 15px;
-                transition: transform 0.2s;
+                margin-bottom: 12px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }
-            .notif-card:hover { transform: scale(1.01); border-color: #055e9b; }
             </style>
             """, unsafe_allow_html=True)
 
@@ -1539,28 +1575,24 @@ elif selected == "Notifications":
                 status = req.get("status", "PENDING")
                 status_cls = f"status-{status.lower()}"
                 
-                created_dt = req.get("created_at", "")
                 try:
-                    dt_obj = datetime.fromisoformat(created_dt.replace("Z", "+00:00"))
+                    dt_obj = datetime.fromisoformat(req['created_at'].replace("Z", "+00:00"))
                     date_display = dt_obj.strftime("%b %d, %Y · %I:%M %p")
                 except:
-                    date_display = created_dt
+                    date_display = req.get('created_at', '')
 
-                with st.container():
-                    st.markdown(f"""
-                    <div class="notif-card">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                            <div>
-                                <h4 style="margin: 0; color: #1D3143;">{req['title']}</h4>
-                                <small style="color: #65797E;">{date_display}</small>
-                            </div>
+                st.markdown(f"""
+                <div class="notif-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
                             <span class="status-badge {status_cls}">{status}</span>
+                            <h4 style="margin: 8px 0 2px 0; color: #1D3143;">{req['title']}</h4>
+                            <div style="font-size: 12px; color: #65797E;">{date_display} · Target: {req['target_type'].replace('_', ' ')}</div>
                         </div>
-                        <p style="color: #4A5568; margin: 0; font-size: 15px;">{req['message']}</p>
-                        <hr style="margin: 15px 0; border: none; border-top: 1px dashed #DDD;">
-                        <small style="color: #adb5bd;">Target: <b>{req['target_type'].replace('_', ' ')}</b></small>
                     </div>
-                    """, unsafe_allow_html=True)
+                    <p style="margin: 12px 0 0 0; color: #4A5568; font-size: 14px; line-height: 1.5;">{req['message']}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
 # =========================
 # 5️⃣ HOUSING MANAGEMENT
