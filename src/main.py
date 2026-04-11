@@ -15,7 +15,6 @@ from slowapi.errors import RateLimitExceeded
 from src.api.mobile import auth as mobile_auth
 from src.api.mobile import places as mobile_places
 from src.api.mobile import reviews as mobile_reviews
-from src.api.mobile import chat as mobile_chat
 from src.api.mobile import categories as mobile_categories
 from src.api.mobile import search as mobile_search
 from src.api.mobile import favorites as mobile_favorites
@@ -201,7 +200,6 @@ app.include_router(mobile_auth.router, prefix="/api/mobile/auth", tags=["Mobile 
 app.include_router(mobile_places.router, prefix="/api/mobile/places", tags=["Mobile - Places"])
 app.include_router(mobile_categories.router, prefix="/api/mobile/categories", tags=["Mobile - Categories"])
 app.include_router(mobile_search.router, prefix="/api/mobile/search", tags=["Mobile - Search"])
-app.include_router(mobile_chat.router, prefix="/api/mobile/chat", tags=["Mobile - Chat"])
 app.include_router(mobile_favorites.router, prefix="/api/mobile/favorites", tags=["Mobile - Favorites"])
 app.include_router(mobile_reviews.router, prefix="/api/mobile/reviews", tags=["Mobile - Reviews"])
 app.include_router(mobile_items.router, prefix="/api/mobile/items", tags=["Mobile - Items"])
