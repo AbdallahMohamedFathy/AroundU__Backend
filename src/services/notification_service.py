@@ -74,6 +74,7 @@ async def create_bulk_notifications(
     notif_type: NotificationType,
     data: Optional[dict] = None,
     priority: NotificationPriority = NotificationPriority.NORMAL,
+    request_id: Optional[int] = None,
     background_tasks: Optional[BackgroundTasks] = None
 ):
     """
@@ -90,6 +91,7 @@ async def create_bulk_notifications(
             notifications_data = [
                 {
                     "user_id": uid,
+                    "request_id": request_id, # Link to the blast request
                     "title": title,
                     "message": message,
                     "type": notif_type,

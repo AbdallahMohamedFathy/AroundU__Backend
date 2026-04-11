@@ -28,4 +28,14 @@ def get_owner_requests(
 ):
     """List pending and resolved notification requests belonging to the current owner."""
     items = uow.notification_request_repository.get_by_sender_id(current_owner.id, skip, limit)
-    return [NotificationRequestResponse.model_validate(i) for i in items]
+    
+    responses = []
+    for i in items:
+        resp = NotificationRequestResponse.model_validate(i)
+        if i.status == "APPROVED":
+            stats = uow.notification_repository.get_request_stats(i.id)
+            resp.total_sent = stats["total_sent"]
+            resp.read_count = stats["read_count"]
+        responses.append(resp)
+        
+    return responses

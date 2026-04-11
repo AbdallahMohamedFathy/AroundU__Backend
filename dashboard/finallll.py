@@ -1513,14 +1513,18 @@ elif selected == "Notifications":
             with st.container(border=True):
                 st.subheader("Create New Promotion")
                 with st.form("notif_request_form", clear_on_submit=True):
-                    n_title = st.text_input("Notification Title", placeholder="e.g. Weekend Sale: Buy 1 Get 1 Free!")
-                    n_msg = st.text_area("Message Content", placeholder="Write a short message that will appear on user phones...")
+                    # Default values from session state if "Resend" was clicked
+                    r_title = st.session_state.get('resend_title', '')
+                    r_msg = st.session_state.get('resend_msg', '')
+                    
+                    n_title = st.text_input("Notification Title", value=r_title, placeholder="e.g. Weekend Sale: Buy 1 Get 1 Free!")
+                    n_msg = st.text_area("Message Content", value=r_msg, placeholder="Write a short message that will appear on user phones...")
                     
                     target_col, tip_col = st.columns([1, 1])
                     with target_col:
-                        n_target = st.selectbox("Target Audience", 
-                            options=["ALL_USERS", "ALL_OWNERS"], 
-                            format_func=lambda x: "🌍 All App Users" if x=="ALL_USERS" else "🏢 Local Business Owners")
+                        # Restricted to ALL_USERS for owners
+                        st.selectbox("Target Audience", options=["🌍 All App Users"], disabled=True)
+                        n_target = "ALL_USERS"
                     with tip_col:
                         st.markdown("<br>", unsafe_allow_html=True)
                         st.caption("💡 Approved notifications are sent instantly.")
@@ -1538,6 +1542,8 @@ elif selected == "Notifications":
                             })
                             if success:
                                 st.toast("✅ Request submitted successfully!", icon="🚀")
+                                if 'resend_title' in st.session_state: del st.session_state['resend_title']
+                                if 'resend_msg' in st.session_state: del st.session_state['resend_msg']
                                 st.balloons()
                                 st.rerun()
                             else:
@@ -1581,6 +1587,7 @@ elif selected == "Notifications":
                 except:
                     date_display = req.get('created_at', '')
 
+                # Render Card
                 st.markdown(f"""
                 <div class="notif-card">
                     <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -1590,9 +1597,41 @@ elif selected == "Notifications":
                             <div style="font-size: 12px; color: #65797E;">{date_display} · Target: {req['target_type'].replace('_', ' ')}</div>
                         </div>
                     </div>
-                    <p style="margin: 12px 0 0 0; color: #4A5568; font-size: 14px; line-height: 1.5;">{req['message']}</p>
-                </div>
+                    <p style="margin: 12px 0 15px 0; color: #4A5568; font-size: 14px; line-height: 1.5;">{req['message']}</p>
                 """, unsafe_allow_html=True)
+
+                # Stats Section (only for approved)
+                if status == "APPROVED":
+                    total = req.get('total_sent', 0)
+                    reads = req.get('read_count', 0)
+                    percentage = (reads / total * 100) if total > 0 else 0
+                    
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 20px; margin: 10px 0; padding: 10px; background: #F8F9FA; border-radius: 8px; border: 1px solid #E9ECEF;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 10px; color: #65797E; text-transform: uppercase;">Sent</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #1D3143;">{total}</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 10px; color: #65797E; text-transform: uppercase;">Reads</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #10B981;">{reads}</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 10px; color: #65797E; text-transform: uppercase;">CTR</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #055e9b;">{percentage:.1f}%</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Action Row
+                c1, c2 = st.columns([1, 4])
+                if c1.button("🔄 Resend", key=f"resend_{req['id']}"):
+                    st.session_state.resend_title = req['title']
+                    st.session_state.resend_msg = req['message']
+                    st.toast("📋 Details copied to form!")
+                    st.rerun()
+                
+                st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================
 # 5️⃣ HOUSING MANAGEMENT

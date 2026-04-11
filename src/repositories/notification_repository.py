@@ -84,3 +84,14 @@ class NotificationRepository(BaseRepository[Notification]):
                      .all()
                      
         return items, total
+
+    def get_request_stats(self, request_id: int) -> dict:
+        """
+        Get total sent and read counts for a specific blast request.
+        """
+        total_sent = self.session.query(Notification).filter(Notification.request_id == request_id).count()
+        total_read = self.session.query(Notification).filter(Notification.request_id == request_id, Notification.is_read == True).count()
+        return {
+            "total_sent": total_sent,
+            "read_count": total_read
+        }

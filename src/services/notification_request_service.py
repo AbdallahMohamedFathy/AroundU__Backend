@@ -18,7 +18,15 @@ def create_notification_request(
 ) -> NotificationRequest:
     """Create a new request ensuring the owner has not exceeded the daily rate limit."""
     with uow:
-        # Rate Limiting
+        # Security: Owners can only target ALL_USERS or SPECIFIC_USER
+        user = uow.user_repository.get_by_id(sender_id)
+        if user and user.role == "OWNER":
+            if request_data.target_type not in [TargetType.ALL_USERS, TargetType.SPECIFIC_USER]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Owners are restricted to targeting consumers only."
+                )
+
         daily_count = uow.notification_request_repository.count_daily_by_sender(sender_id)
         if daily_count >= MAX_DAILY_OWNER_REQUESTS:
             raise HTTPException(
@@ -74,7 +82,8 @@ def approve_request(
             user_ids=target_ids,
             title=req.title,
             message=req.message,
-            data=req.data
+            data=req.data,
+            request_id=req.id
         )
 
     return req
@@ -130,7 +139,7 @@ def resolve_targets(uow: UnitOfWork, target_type: TargetType, specific_id: Optio
         return [row[0]] if row else []
     return []
 
-async def _trigger_bulk_system_alert(user_ids: List[int], title: str, message: str, data: Optional[dict]):
+async def _trigger_bulk_system_alert(user_ids: List[int], title: str, message: str, data: Optional[dict], request_id: Optional[int] = None):
     """Helper used to jumpstart background async from sync approve context."""
     from src.core.database import SessionLocal
     uow = UnitOfWork(SessionLocal)
@@ -142,6 +151,7 @@ async def _trigger_bulk_system_alert(user_ids: List[int], title: str, message: s
         notif_type=NotificationType.SYSTEM_ALERT,
         data=data,
         priority=NotificationPriority.HIGH, # Owner blasts/Admin blasts are high priority
+        request_id=request_id,
         background_tasks=BackgroundTasks() # Passing dummy to execute the subtask
     )
 

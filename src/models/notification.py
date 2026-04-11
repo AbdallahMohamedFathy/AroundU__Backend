@@ -20,6 +20,7 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    request_id = Column(Integer, ForeignKey("notification_requests.id", ondelete="SET NULL"), nullable=True) # Link to blast request
     title = Column(String, nullable=False)
     message = Column(String, nullable=False)
     type = Column(SQLEnum(NotificationType), nullable=False)
@@ -30,6 +31,7 @@ class Notification(Base):
 
     # Relationships
     user = relationship("User", backref="notifications")
+    request = relationship("NotificationRequest", backref="sent_notifications")
 
     # Optimization Indexes
     __table_args__ = (
