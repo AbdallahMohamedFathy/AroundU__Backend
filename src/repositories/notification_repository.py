@@ -58,3 +58,29 @@ class NotificationRepository(BaseRepository[Notification]):
         return self.session.query(Notification) \
             .filter(Notification.user_id == user_id, Notification.is_read == False) \
             .count()
+
+    def get_all_paginated(
+        self, 
+        skip: int = 0, 
+        limit: int = 20,
+        notif_type: Optional[NotificationType] = None,
+        user_id: Optional[int] = None
+    ) -> Tuple[List[Notification], int]:
+        """
+        Global paginated retrieval for admin auditing.
+        """
+        query = self.session.query(Notification)
+        
+        if notif_type:
+            query = query.filter(Notification.type == notif_type)
+        if user_id:
+            query = query.filter(Notification.user_id == user_id)
+            
+        total = query.count()
+        
+        items = query.order_by(desc(Notification.created_at)) \
+                     .offset(skip) \
+                     .limit(limit) \
+                     .all()
+                     
+        return items, total

@@ -949,10 +949,20 @@ if selected == "Overview":
 # 2. NOTIFICATIONS
 # ═══════════════════════════════════════════════════════════
 elif selected == "Notifications":
+    def fetch_global_notif_logs(skip=0, limit=20):
+        try:
+            params = {"skip": skip, "limit": limit}
+            res = requests.get(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/all", params=params, headers=get_headers(), timeout=15)
+            if res.status_code == 200: return res.json()
+            if res.status_code == 401: handle_auth_error()
+        except Exception as e:
+            st.sidebar.error(f"Logs API Error: {e}")
+        return {"items": [], "total": 0}
+
     st.title("🔔 Notification Management")
     st.markdown("Review owner requests for platform-wide alerts and send direct admin blasts.")
 
-    n_tab1, n_tab2, n_tab3 = st.tabs(["⏳ Pending Requests", "🚀 Admin Blast", "📋 Request History"])
+    n_tab1, n_tab2, n_tab3, n_tab4 = st.tabs(["⏳ Pending Requests", "🚀 Admin Blast", "📋 Request History", "📜 Global Sent Logs"])
 
     # --- TAB 1: PENDING REQUESTS ---
     with n_tab1:
@@ -1048,6 +1058,43 @@ elif selected == "Notifications":
             df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime("%Y-%m-%d %H:%M")
             
             st.dataframe(df_display, use_container_width=True)
+
+    # --- TAB 4: SENT LOGS ---
+    with n_tab4:
+        st.subheader("Global Notification Logs")
+        st.caption("Complete audit trail of all notifications sent to users (Automated & Manual).")
+        
+        # Pagination
+        items_per_page = 20
+        if "log_page" not in st.session_state: st.session_state.log_page = 0
+        
+        logs_data = fetch_global_notif_logs(skip=st.session_state.log_page * items_per_page, limit=items_per_page)
+        logs = logs_data.get("items", [])
+        total_logs = logs_data.get("total", 0)
+        
+        if not logs:
+            st.info("No notification logs found.")
+        else:
+            df_logs = pd.DataFrame(logs)
+            # Cleanup for display
+            df_display = df_logs[["id", "user_id", "user_name", "title", "type", "is_read", "created_at"]].copy()
+            df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime("%b %d, %H:%M")
+            df_display["is_read"] = df_display["is_read"].apply(lambda x: "✅ Read" if x else "📩 Unread")
+            
+            st.dataframe(df_display, use_container_width=True)
+            
+            # Pagination Buttons
+            p_col1, p_col2, p_col3 = st.columns([1, 4, 1])
+            if p_col1.button("⬅️ Previous", disabled=st.session_state.log_page == 0):
+                st.session_state.log_page -= 1
+                st.rerun()
+            
+            with p_col2:
+                st.markdown(f"<p style='text-align:center;'>Page {st.session_state.log_page + 1} of {max(1, (total_logs // items_per_page) + 1)} ({total_logs} total)</p>", unsafe_allow_html=True)
+            
+            if p_col3.button("Next ➡️", disabled=(st.session_state.log_page + 1) * items_per_page >= total_logs):
+                st.session_state.log_page += 1
+                st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════

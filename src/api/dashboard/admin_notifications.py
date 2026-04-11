@@ -72,3 +72,37 @@ def send_admin_notification(
 ):
     """Directly blast notifications without approval flow."""
     return notification_request_service.send_admin_notification(uow, payload, background_tasks)
+
+@router.get("/all", response_model=dict)
+def get_global_notification_logs(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    user_id: Optional[int] = Query(None),
+    uow = Depends(get_uow),
+    current_admin = Depends(admin_guard)
+):
+    """Global audit log of all notifications sent across the platform."""
+    items, total = uow.notification_repository.get_all_paginated(skip, limit, user_id=user_id)
+    
+    enhanced_items = []
+    for i in items:
+        # We can use NotificationResponse but we want to add user_name
+        data = {
+            "id": i.id,
+            "user_id": i.user_id,
+            "user_name": i.user.full_name if i.user else "Unknown",
+            "title": i.title,
+            "message": i.message,
+            "type": i.type,
+            "priority": i.priority,
+            "is_read": i.is_read,
+            "created_at": i.created_at
+        }
+        enhanced_items.append(data)
+
+    return {
+        "items": enhanced_items,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
