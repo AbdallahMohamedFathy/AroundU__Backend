@@ -562,6 +562,34 @@ def fetch_location_summary():
     except: pass
     return {}
 
+# ── NOTIFICATIONS ──────────────────────────────────────────────
+@st.cache_data(ttl=10)
+def fetch_notification_requests():
+    try:
+        res = requests.get(f"{BACKEND_BASE_URL}/owner/notifications/requests", headers=get_headers())
+        if res.status_code == 200: return res.json()
+        handle_api_error(res)
+    except: pass
+    return []
+
+def create_notification_request_api(data):
+    try:
+        res = requests.post(f"{BACKEND_BASE_URL}/owner/notifications/request", json=data, headers=get_headers())
+        if res.status_code == 200:
+            st.success("✅ Notification request submitted for approval!")
+            st.cache_data.clear()
+            return True, res.json()
+        
+        # Handle backend validation/rate limit errors
+        error_msg = "Unknown error"
+        try:
+            error_msg = res.json().get("detail", res.text)
+        except:
+            error_msg = res.text
+        return False, error_msg
+    except Exception as e:
+        return False, str(e)
+
 # ── PROPERTY MANAGEMENT ──────────────────────────────────────────
 @st.cache_data(ttl=30)
 def fetch_my_properties_api():
@@ -865,12 +893,12 @@ with st.sidebar:
     
     if owner_type == "COMMERCIAL":
         # Only show Commercial tools for Store Owners
-        menu_options += ["Dashboard", "Customer Insights", "Operations", "Location Logic", "Manage Place"]
-        menu_icons += ['house-door-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill', 'gear-fill']
+        menu_options += ["Dashboard", "Notifications", "Customer Insights", "Operations", "Location Logic", "Manage Place"]
+        menu_icons += ['house-door-fill', 'bell-fill', 'chat-square-text-fill', 'lightning-fill', 'geo-fill', 'gear-fill']
     else:
         # Only show Housing tools for Property Managers
-        menu_options += ["Housing Management"]
-        menu_icons += ["building-fill"]
+        menu_options += ["Housing Management", "Notifications"]
+        menu_icons += ["building-fill", "bell-fill"]
 
     selected = option_menu(
         None,
@@ -1426,6 +1454,113 @@ Urgent: <strong style="color:#e74c3c">{urgent}</strong>
                 <div class="review-comment">{rev["comment"]}</div>
             </div>
             """, unsafe_allow_html=True)
+
+# =========================
+# 6️⃣ NOTIFICATIONS
+# =========================
+elif selected == "Notifications":
+    st.title("📢 Promotions & Announcements")
+    st.caption("Request push notification blasts to reach your customers.")
+
+    tabs = st.tabs(["🚀 Send Request", "📜 Request History"])
+
+    with tabs[0]:
+        st.markdown("""
+        <div style="background: #eef2ff; padding: 20px; border-radius: 12px; border-left: 5px solid #055e9b; margin-bottom: 25px;">
+            <h4 style="margin: 0; color: #1D3143;">Admin Approval Required</h4>
+            <p style="margin: 10px 0 0 0; color: #4A5568; font-size: 14px;">
+                Every notification request is reviewed by the AroundU administration to ensure quality. 
+                Approved requests are blasted to users immediately. <b>Daily Limit: 5 requests.</b>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("notif_request_form", clear_on_submit=True):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                n_title = st.text_input("Notification Title", placeholder="e.g. Special Offer: 20% Off!")
+                n_msg = st.text_area("Message Content", placeholder="Enter the message users will see on their lock screens...")
+            with col2:
+                n_target = st.selectbox("Target Audience", 
+                    options=["ALL_USERS", "ALL_OWNERS"], 
+                    format_func=lambda x: "🌍 Everyone" if x=="ALL_USERS" else "🏢 Business Owners")
+                
+                st.info("💡 Tip: Keep it short and catchy for better engagement.")
+
+            submit_req = st.form_submit_button("Submit for Approval", use_container_width=True, type="primary")
+
+            if submit_req:
+                if not n_title or not n_msg:
+                    st.error("Please provide both a title and a message.")
+                else:
+                    success, res_data = create_notification_request_api({
+                        "title": n_title,
+                        "message": n_msg,
+                        "target_type": n_target
+                    })
+                    if success:
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to submit: {res_data}")
+
+    with tabs[1]:
+        notif_history = fetch_notification_requests()
+        if not notif_history:
+            st.info("No notification requests found.")
+        else:
+            # Table-style list for history
+            st.markdown("""
+            <style>
+            .status-badge {
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+            .status-pending { background: #fff3e0; color: #d35400; border: 1px solid #ffcc80; }
+            .status-approved { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+            .status-rejected { background: #ffe5e5; color: #c62828; border: 1px solid #ef9a9a; }
+            
+            .notif-card {
+                background: white;
+                padding: 20px;
+                border-radius: 15px;
+                border: 1px solid #E9ECEF;
+                margin-bottom: 15px;
+                transition: transform 0.2s;
+            }
+            .notif-card:hover { transform: scale(1.01); border-color: #055e9b; }
+            </style>
+            """, unsafe_allow_html=True)
+
+            for req in notif_history:
+                status = req.get("status", "PENDING")
+                status_cls = f"status-{status.lower()}"
+                
+                created_dt = req.get("created_at", "")
+                try:
+                    dt_obj = datetime.fromisoformat(created_dt.replace("Z", "+00:00"))
+                    date_display = dt_obj.strftime("%b %d, %Y · %I:%M %p")
+                except:
+                    date_display = created_dt
+
+                with st.container():
+                    st.markdown(f"""
+                    <div class="notif-card">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <div>
+                                <h4 style="margin: 0; color: #1D3143;">{req['title']}</h4>
+                                <small style="color: #65797E;">{date_display}</small>
+                            </div>
+                            <span class="status-badge {status_cls}">{status}</span>
+                        </div>
+                        <p style="color: #4A5568; margin: 0; font-size: 15px;">{req['message']}</p>
+                        <hr style="margin: 15px 0; border: none; border-top: 1px dashed #DDD;">
+                        <small style="color: #adb5bd;">Target: <b>{req['target_type'].replace('_', ' ')}</b></small>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 # =========================
 # 5️⃣ HOUSING MANAGEMENT
