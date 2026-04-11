@@ -408,8 +408,16 @@ class PlaceRepository(BaseRepository[Place]):
                 p.name, 
                 p.description,
                 p.address,
+                p.phone,
+                p.website,
                 p.latitude,
                 p.longitude,
+                p.category_id,
+                p.parent_id,
+                p.instagram_url,
+                p.facebook_url,
+                p.whatsapp_number,
+                p.tiktok_url,
                 p.rating,
                 p.review_count,
                 p.favorite_count,
@@ -459,6 +467,8 @@ class PlaceRepository(BaseRepository[Place]):
 
         results = self.session.execute(text(query_str), params).fetchall()
         
+        # Use an internal helper to convert row to dict if possible, 
+        # but here we'll manually map to ensure field compatibility.
         import json
         formatted_results = []
         for r in results:
@@ -476,8 +486,16 @@ class PlaceRepository(BaseRepository[Place]):
                 "name": r.name,
                 "description": r.description,
                 "address": r.address,
-                "latitude": r.latitude,
-                "longitude": r.longitude,
+                "phone": r.phone or [],
+                "website": r.website,
+                "latitude": float(r.latitude),
+                "longitude": float(r.longitude),
+                "category_id": r.category_id,
+                "parent_id": r.parent_id,
+                "instagram_url": r.instagram_url,
+                "facebook_url": r.facebook_url,
+                "whatsapp_number": r.whatsapp_number,
+                "tiktok_url": r.tiktok_url,
                 "rating": float(r.rating or 0),
                 "review_count": int(r.review_count or 0),
                 "favorite_count": int(r.favorite_count or 0),
@@ -486,7 +504,8 @@ class PlaceRepository(BaseRepository[Place]):
                 "category": r.category_name,
                 "distance_km": float(r.distance_km) if r.distance_km else 0.0,
                 "images": images_data,
-                "trending_score": float(r.trending_score) if r.trending_score else 0.0
+                "trending_score": float(r.trending_score) if r.trending_score else 0.0,
+                "branches": [] # Eager loading branches for trending is often overkill, keep empty for now
             })
             
         return formatted_results
