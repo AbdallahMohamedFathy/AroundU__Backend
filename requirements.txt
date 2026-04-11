@@ -53,3 +53,6 @@ numpy
 streamlit-option-menu
 folium
 streamlit-folium
+
+# Firebase
+firebase-admin>=6.3.0
