@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from src.core.repository import BaseRepository
+from src.repositories.base_repository import BaseRepository
 from src.models.notification_audit import NotificationAudit
 
 class NotificationAuditRepository(BaseRepository[NotificationAudit]):

@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from src.core.repository import BaseRepository
+from src.repositories.base_repository import BaseRepository
 from src.models.notification_request import NotificationRequest, RequestStatus
 from datetime import datetime, timezone
 
