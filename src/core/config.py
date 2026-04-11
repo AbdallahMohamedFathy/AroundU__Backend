@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "*" # Default for dev
     CORS_ALLOW_CREDENTIALS: bool = True
 
+    # Firebase
+    FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_PATH")
+    FIREBASE_SERVICE_ACCOUNT_JSON: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_JSON")
+
     def get_cors_origins(self) -> list:
         if self.CORS_ORIGINS == "*":
             return ["*"]

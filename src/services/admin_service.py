@@ -19,6 +19,8 @@ from src.utils.location_parser import extract_coordinates
 from sqlalchemy import text, func, case, inspect
 from datetime import datetime, date, timedelta
 import logging
+from src.services.notification_service import create_notification
+from src.models.notification import NotificationType
 
 logger = logging.getLogger(__name__)
 
@@ -645,7 +647,7 @@ def delete_review(uow: UnitOfWork, review_id: int):
         uow.commit()
         return {"status": "success", "message": f"Review {review_id} deleted."}
 
-def verify_owner(uow: UnitOfWork, owner_id: int, verified: bool):
+async def verify_owner(uow: UnitOfWork, owner_id: int, verified: bool, background_tasks=None):
     """Approve or Reject a pending owner account."""
     with uow:
         user = uow.session.query(User).get(owner_id)
@@ -654,11 +656,32 @@ def verify_owner(uow: UnitOfWork, owner_id: int, verified: bool):
         
         user.is_verified = verified
         # If rejecting, we might want to also set is_active=False or role=USER.
-        # But for now, we just update is_verified.
         if not verified:
             user.is_active = False 
             
         uow.commit()
+
+        # -----------------------------
+        # Notify Owner
+        # -----------------------------
+        from src.services.notification_service import create_notification
+        from src.models.notification import NotificationType, NotificationPriority
+        
+        title = "Account Verified!" if verified else "Account Verification Update"
+        message = "Your owner account has been approved. You can now manage your places." if verified else "Your owner account verification was not successful. Please contact support."
+        notif_type = NotificationType.PROPERTY_APPROVED if verified else NotificationType.PROPERTY_REJECTED
+        priority = NotificationPriority.HIGH if verified else NotificationPriority.NORMAL
+
+        await create_notification(
+            uow=uow,
+            user_id=owner_id,
+            title=title,
+            message=message,
+            notif_type=notif_type,
+            priority=priority,
+            background_tasks=background_tasks
+        )
+
         status_text = "approved" if verified else "rejected/suspended"
         return {"status": "success", "message": f"Owner {owner_id} {status_text}."}
 

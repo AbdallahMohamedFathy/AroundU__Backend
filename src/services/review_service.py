@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from src.core.unit_of_work import UnitOfWork
 from src.repositories.review_repository import ReviewRepository
 from src.repositories.place_repository import PlaceRepository
@@ -7,9 +7,17 @@ from src.core.exceptions import APIException
 from src.core.permissions import require_place_owner_or_admin
 from fastapi import status
 from src.services.sentiment_service import analyze_sentiment
+from src.services.notification_service import create_notification
+from src.models.notification import NotificationType
+from fastapi import BackgroundTasks
 
 
-async def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate):
+async def create_review(
+    uow: UnitOfWork, 
+    user_id: int, 
+    review_data: ReviewCreate, 
+    background_tasks: Optional[BackgroundTasks] = None
+):
 
     with uow:
 
@@ -72,6 +80,20 @@ async def create_review(uow: UnitOfWork, user_id: int, review_data: ReviewCreate
         _update_place_rating_internal(uow, review_data.place_id)
 
         uow.commit()
+
+        # -----------------------------
+        # Notify Place Owner
+        # -----------------------------
+        if place.owner_id:
+             await create_notification(
+                uow=uow,
+                user_id=place.owner_id,
+                title="New Review!",
+                message=f"Someone just left a {new_review.rating}-star review on {place.name}.",
+                notif_type=NotificationType.NEW_REVIEW,
+                data={"place_id": place.id, "review_id": new_review.id},
+                background_tasks=background_tasks
+            )
 
         # Fetch fully hydrated object with user relationship loaded
         return uow.review_repository.get_by_id(new_review.id)

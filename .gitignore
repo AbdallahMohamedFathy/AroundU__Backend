@@ -33,3 +33,6 @@ uploads/
 
 # Zip files
 Around.zip
+
+# Firebase Credentials
+firebase-credentials.json

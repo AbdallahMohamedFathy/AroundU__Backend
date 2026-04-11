@@ -14,3 +14,4 @@ from .search_trend import SearchTrend
 from .property import Property
 from .property_image import PropertyImage
 from .property_review import PropertyReview
+from .notification import Notification, NotificationType, NotificationPriority

@@ -13,6 +13,7 @@ from src.repositories.place_image_repository import PlaceImageRepository
 from src.repositories.item_repository import ItemRepository
 from src.repositories.interaction_repository import InteractionRepository
 from src.repositories.property_repository import PropertyRepository
+from src.repositories.notification_repository import NotificationRepository
 
 class UnitOfWork:
     """
@@ -40,6 +41,7 @@ class UnitOfWork:
         self.item_repository = ItemRepository(self.session)
         self.interaction_repository = InteractionRepository(self.session)
         self.property_repository = PropertyRepository(self.session)
+        self.notification_repository = NotificationRepository(self.session)
         
         return self
 

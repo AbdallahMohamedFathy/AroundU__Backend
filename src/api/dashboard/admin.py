@@ -7,7 +7,7 @@ from src.schemas.admin import (
 )
 from src.services import admin_service
 from src.api.dashboard.dependencies import admin_guard
-from fastapi import File, UploadFile, Query
+from fastapi import File, UploadFile, Query, BackgroundTasks
 from typing import List, Dict, Any
 from datetime import date
 
@@ -153,14 +153,15 @@ def delete_review(
     return admin_service.delete_review(uow, review_id)
 
 @router.post("/owners/{owner_id}/verify")
-def verify_owner(
+async def verify_owner(
     owner_id: int,
     verified: bool = Query(..., description="True to approve, False to reject"),
+    background_tasks: BackgroundTasks = None,
     uow=Depends(get_uow),
     current_user=Depends(admin_guard)
 ):
     """Approve or Reject a pending owner account. Requires ADMIN privilege."""
-    return admin_service.verify_owner(uow, owner_id, verified)
+    return admin_service.verify_owner(uow, owner_id, verified, background_tasks)
 
 # --- Database Management (Generic CRUD) ---
 

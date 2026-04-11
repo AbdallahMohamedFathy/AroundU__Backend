@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException, BackgroundTasks
 from src.core.dependencies import get_review_repository, get_uow, get_current_user
 from src.models.user import User
 from src.schemas.review import ReviewCreate, ReviewUpdate, ReviewResponse, ReviewListResponse
@@ -57,11 +57,12 @@ def get_review(review_id: int, repo=Depends(get_review_repository)):
 @router.post("/", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
 async def create_place_review(
     data: ReviewCreate,
+    background_tasks: BackgroundTasks,
     uow=Depends(get_uow),
     current_user: User = Depends(get_current_user),
 ):
     """Create a review for a place. Each user can review a place only once."""
-    return await review_service.create_review(uow, current_user.id, data)
+    return await review_service.create_review(uow, current_user.id, data, background_tasks)
 
 
 # ─── UPDATE  PUT /reviews/{id} ──────────────────────────────────────────────
