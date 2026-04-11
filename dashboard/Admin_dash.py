@@ -668,7 +668,9 @@ def send_admin_blast(payload):
     try:
         res = requests.post(f"{BACKEND_BASE_URL}/dashboard/admin/notifications/send", json=payload, headers=get_headers())
         if res.status_code == 200:
-            st.success("🚀 Admin notification blast sent successfully!")
+            data = res.json()
+            users_count = data.get("targeted_users", 0)
+            st.success(f"🚀 Admin notification blast sent successfully to {users_count} users!")
             return True
         if res.status_code == 401: handle_auth_error()
         st.error(f"Blast failed: {res.text}")
