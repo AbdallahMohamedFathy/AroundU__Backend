@@ -116,11 +116,6 @@ class PlaceRepository(BaseRepository[Place]):
         
         return items, total
 
-        if category:
-            stmt = stmt.filter(Category.name.ilike(f"%{category}%"))
-            
-        return stmt.order_by(Place.rating.desc()).all()
-
     def search_v2(
         self, 
         q: str, 
@@ -388,6 +383,113 @@ class PlaceRepository(BaseRepository[Place]):
             })
             
         return results_list
+
+    def get_trending(
+        self,
+        latitude: float,
+        longitude: float,
+        category_id: Optional[int] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[dict]:
+        """
+        Retrieves places ranked by a trending score based on:
+        1. Rating (40%)
+        2. Favorite Count (30%)
+        3. Distance (30%)
+        """
+        
+        # We need the max favorite count for normalization
+        max_fav_sql = "(SELECT GREATEST(MAX(favorite_count), 1) FROM places WHERE is_active = true)"
+        
+        query_str = f"""
+            SELECT 
+                p.id, 
+                p.name, 
+                p.description,
+                p.address,
+                p.latitude,
+                p.longitude,
+                p.rating,
+                p.review_count,
+                p.favorite_count,
+                p.is_active,
+                p.created_at,
+                c.name as category_name,
+                ST_Distance(p.location, ref_point.pt) / 1000.0 AS distance_km,
+                (
+                    SELECT COALESCE(json_agg(
+                        json_build_object(
+                            'id', pi.id,
+                            'place_id', pi.place_id,
+                            'image_url', pi.image_url,
+                            'image_type', pi.image_type,
+                            'caption', pi.caption,
+                            'created_at', pi.created_at
+                        )
+                    ), '[]'::json)
+                    FROM place_images pi
+                    WHERE pi.place_id = p.id
+                ) as images,
+                (
+                    (0.4 * (COALESCE(p.rating, 0.0) / 5.0)) + 
+                    (0.3 * (log(p.favorite_count + 1) / log({max_fav_sql} + 1))) + 
+                    (0.3 * (1.0 / (1.0 + (ST_Distance(p.location, ref_point.pt) / 1000.0))))
+                ) as trending_score
+            FROM places p
+            JOIN categories c ON p.category_id = c.id
+            CROSS JOIN (
+                SELECT ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography as pt
+            ) AS ref_point
+            WHERE p.is_active = true
+        """
+
+        params = {
+            "lat": latitude,
+            "lng": longitude,
+            "limit": limit,
+            "offset": offset
+        }
+
+        if category_id:
+            query_str += " AND p.category_id = :category_id"
+            params["category_id"] = category_id
+
+        query_str += " ORDER BY trending_score DESC LIMIT :limit OFFSET :offset"
+
+        results = self.session.execute(text(query_str), params).fetchall()
+        
+        import json
+        formatted_results = []
+        for r in results:
+            images_data = getattr(r, 'images', [])
+            if images_data is None:
+                images_data = []
+            elif isinstance(images_data, str):
+                try:
+                    images_data = json.loads(images_data)
+                except Exception:
+                    images_data = []
+
+            formatted_results.append({
+                "id": r.id,
+                "name": r.name,
+                "description": r.description,
+                "address": r.address,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "rating": float(r.rating or 0),
+                "review_count": int(r.review_count or 0),
+                "favorite_count": int(r.favorite_count or 0),
+                "is_active": r.is_active,
+                "created_at": r.created_at,
+                "category": r.category_name,
+                "distance_km": float(r.distance_km) if r.distance_km else 0.0,
+                "images": images_data,
+                "trending_score": float(r.trending_score) if r.trending_score else 0.0
+            })
+            
+        return formatted_results
 
     def get_global_rating_stats(self) -> dict:
         """

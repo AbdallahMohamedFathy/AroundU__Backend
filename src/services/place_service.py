@@ -74,6 +74,34 @@ def get_nearby_places(
     }
 
 
+def get_trending_places(
+    repo: Any,
+    latitude: float,
+    longitude: float,
+    category_id: Optional[int] = None,
+    page: int = 1,
+    page_size: int = 20,
+):
+    """Return places ranked by a trending score combining distance, rating, and favorites."""
+    items = repo.get_trending(
+        latitude=latitude,
+        longitude=longitude,
+        category_id=category_id,
+        limit=page_size,
+        offset=(page - 1) * page_size
+    )
+
+    # Since we can't easily count total trending candidates without repeating logic,
+    # and "Trending" is usually limited to a top set, we return what we found.
+    return {
+        "total": len(items), # or we could implement a count_trending if needed
+        "page": page,
+        "page_size": page_size,
+        "total_pages": ceil(len(items)/page_size) if items else 0,
+        "items": items,
+    }
+
+
 from src.core.permissions import require_place_owner_or_admin, require_admin
 
 # ─── WRITE OPERATIONS (Rule 4: MUST use UnitOfWork) ──────────────────────────
