@@ -117,7 +117,7 @@ def trending_places(
     longitude: float = Query(..., ge=-180, le=180),
     category_id: Optional[int] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(5, ge=1, le=100),
     repo = Depends(get_place_repository),
     uow = Depends(get_uow),
     current_user: Optional[User] = Depends(get_current_user_optional)
