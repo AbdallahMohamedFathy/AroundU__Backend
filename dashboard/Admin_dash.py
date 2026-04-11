@@ -1067,7 +1067,7 @@ elif selected == "Notifications":
         st.caption("Complete audit trail of all notifications sent to users (Automated & Manual).")
         
         # Pagination
-        items_per_page = 20
+        items_per_page = 60
         if "log_page" not in st.session_state: st.session_state.log_page = 0
         
         logs_data = fetch_global_notif_logs(skip=st.session_state.log_page * items_per_page, limit=items_per_page)
@@ -1083,7 +1083,7 @@ elif selected == "Notifications":
             df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime("%b %d, %H:%M")
             df_display["is_read"] = df_display["is_read"].apply(lambda x: "✅ Read" if x else "📩 Unread")
             
-            st.dataframe(df_display, use_container_width=True)
+            st.dataframe(df_display, use_container_width=True, height=800)
             
             # Pagination Buttons
             p_col1, p_col2, p_col3 = st.columns([1, 4, 1])
