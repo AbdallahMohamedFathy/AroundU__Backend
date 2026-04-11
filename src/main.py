@@ -24,6 +24,7 @@ from src.api.mobile import interactions as mobile_interactions
 from src.api.mobile import recommendations as mobile_recommendations
 from src.api.mobile import properties as mobile_properties
 from src.api.mobile import notifications as mobile_notifications
+from src.api.mobile import ai as mobile_ai
 
 from src.api.dashboard import places as dashboard_places
 from src.api.dashboard import items as dashboard_items
@@ -87,6 +88,36 @@ def on_startup():
                 conn.execute(text("ALTER TABLE notifications ADD COLUMN request_id INTEGER REFERENCES notification_requests(id) ON DELETE SET NULL;"))
                 conn.commit()
                 logger.info("Column 'request_id' added successfully.")
+
+            # ── ai_interactions table ──────────────────────────────────────
+            ai_table = conn.execute(text(
+                "SELECT to_regclass('public.ai_interactions');"
+            )).scalar()
+            if not ai_table:
+                logger.warning("Table 'ai_interactions' missing. Creating it...")
+                conn.execute(text("""
+                    CREATE TABLE ai_interactions (
+                        id          SERIAL PRIMARY KEY,
+                        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        session_id  VARCHAR(64) NOT NULL,
+                        message     TEXT NOT NULL,
+                        user_lat    FLOAT,
+                        user_lon    FLOAT,
+                        reply       TEXT,
+                        intent      VARCHAR(128),
+                        confidence  FLOAT,
+                        entities    JSONB,
+                        best_place  JSONB,
+                        latency_ms  INTEGER,
+                        is_fallback INTEGER DEFAULT 0,
+                        created_at  TIMESTAMPTZ DEFAULT NOW()
+                    );
+                    CREATE INDEX ix_ai_interactions_user_id   ON ai_interactions(user_id);
+                    CREATE INDEX ix_ai_interactions_session   ON ai_interactions(session_id);
+                    CREATE INDEX ix_ai_interactions_created   ON ai_interactions(created_at);
+                """))
+                conn.commit()
+                logger.info("Table 'ai_interactions' created successfully.")
 
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
@@ -178,6 +209,7 @@ app.include_router(mobile_interactions.router, prefix="/api/mobile/interactions"
 app.include_router(mobile_recommendations.router, prefix="/api/mobile/recommendations", tags=["Mobile - Recommendations"])
 app.include_router(mobile_properties.router, prefix="/api/mobile/properties", tags=["Mobile - Properties"])
 app.include_router(mobile_notifications.router, prefix="/api/mobile/notifications", tags=["Mobile - Notifications"])
+app.include_router(mobile_ai.router,            prefix="/api/mobile/ai",            tags=["Mobile - AI"])
 
 # ─── DASHBOARD API ──────────────────────────────────────────
 app.include_router(dashboard_places.router, prefix="/api/dashboard/places", tags=["Dashboard - Places"])

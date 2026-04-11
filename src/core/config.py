@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     AI_SENTIMENT_URL: str = "https://mazenmaher26-aroundu-sentiment.hf.space/predict"
     AI_SENTIMENT_TIMEOUT_SECONDS: float = 3.0
     AI_SENTIMENT_MAX_RETRIES: int = 3
+
+    # External Chatbot Service (Beni Suef AI)
+    CHATBOT_SERVICE_URL: str = "https://youmnaaaa-gp-chatbot.hf.space"
+    CHATBOT_TIMEOUT_SECONDS: float = 15.0
     
     # Logging
     LOG_LEVEL: str = "INFO"

@@ -112,29 +112,7 @@ services:
       retries: 3
       start_period: 30s
 
-  # ── AI Service (Microservice) ──────────────────────────────
-  ai_service:
-    build:
-      context: .
-      dockerfile: ai_service/Dockerfile
-    container_name: aroundu_ai_service
-    restart: unless-stopped
-    environment:
-      PROJECT_NAME: "AroundU AI Service"
-      ENVIRONMENT: production
-      BACKEND_URL: "http://api:8000/api"
-      PORT: 8001
-      LOG_LEVEL: info
-    ports:
-      - "8001:8001"
-    depends_on:
-      - api
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+
 
   # ── Adminer (Web-based DB Management) ──────────────────────
   adminer:

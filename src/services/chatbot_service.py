@@ -1,0 +1,327 @@
+"""
+chatbot_service.py
+==================
+Bridges the AroundU backend with the external Beni Suef chatbot AI service.
+
+Responsibilities
+----------------
+1. check_health()        – probe AI service liveness
+2. chat()                – enrich request with user context, relay to AI, log result,
+                           and optionally fire a recommendation notification
+3. _build_context()      – internal: gather recent interactions + favorites from DB
+4. _log_interaction()    – internal: persist to ai_interactions table
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from typing import Optional
+from uuid import uuid4
+
+import httpx
+from fastapi import BackgroundTasks
+from sqlalchemy.orm import Session
+
+from src.core.config import settings
+from src.core.logger import logger
+from src.models.ai_interaction import AIInteraction
+from src.models.notification import NotificationType, NotificationPriority
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Constants
+# ──────────────────────────────────────────────────────────────────────────────
+
+CHATBOT_BASE_URL = settings.CHATBOT_SERVICE_URL
+_TIMEOUT         = httpx.Timeout(settings.CHATBOT_TIMEOUT_SECONDS, connect=5.0)
+_FALLBACK_REPLY  = (
+    "Sorry, I'm having trouble connecting right now. "
+    "Please try again in a moment. 🙏"
+)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Public API
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def check_health() -> dict:
+    """
+    Probe the external chatbot service.
+    Returns the raw health JSON or a degraded status dict.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(f"{CHATBOT_BASE_URL}/health")
+            res.raise_for_status()
+            return res.json()
+    except Exception as exc:
+        logger.warning(f"[chatbot] Health check failed: {exc}")
+        return {"status": "unhealthy", "models_loaded": False}
+
+
+async def chat(
+    db: Session,
+    user_id: int,
+    user_role: str,
+    message: str,
+    session_id: Optional[str] = None,
+    user_lat: Optional[float] = None,
+    user_lon: Optional[float] = None,
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> dict:
+    """
+    Main entry point called by the API router.
+
+    1. Builds rich user context from DB
+    2. Sends enriched request to /chat
+    3. Persists the interaction
+    4. Optionally fires a recommendation push notification
+    5. Returns cleaned response dict
+    """
+    if not session_id:
+        session_id = str(uuid4())
+
+    # Build context (non-blocking DB reads)
+    context = _build_context(db, user_id, user_role, user_lat, user_lon)
+
+    payload = {
+        "message":    message,
+        "session_id": session_id,
+        "user_lat":   user_lat,
+        "user_lon":   user_lon,
+        # Attach context as extra field — chatbot ignores unknown keys
+        "context":    context,
+    }
+
+    t0 = time.monotonic()
+    ai_data, is_fallback = await _call_chatbot(payload)
+    latency_ms = int((time.monotonic() - t0) * 1000)
+
+    # Persist in background — wrap coroutine in a sync helper for BackgroundTasks
+    def _run_log():
+        asyncio.create_task(
+            _log_interaction(
+                db=db,
+                user_id=user_id,
+                session_id=session_id,
+                message=message,
+                user_lat=user_lat,
+                user_lon=user_lon,
+                ai_data=ai_data,
+                latency_ms=latency_ms,
+                is_fallback=is_fallback,
+            )
+        )
+
+    if background_tasks:
+        background_tasks.add_task(_run_log)
+    else:
+        asyncio.create_task(
+            _log_interaction(
+                db=db,
+                user_id=user_id,
+                session_id=session_id,
+                message=message,
+                user_lat=user_lat,
+                user_lon=user_lon,
+                ai_data=ai_data,
+                latency_ms=latency_ms,
+                is_fallback=is_fallback,
+            )
+        )
+
+    # Fire recommendation notification if AI returned a best_place
+    best_place = ai_data.get("best_place")
+    if best_place and not is_fallback and background_tasks:
+        place_id = best_place.get("id") or best_place.get("place_id")
+        if place_id:
+            background_tasks.add_task(
+                _send_recommendation_notification,
+                user_id=user_id,
+                place_id=place_id,
+                place_name=best_place.get("name", "a place"),
+            )
+
+    return {
+        "reply":      ai_data.get("reply", _FALLBACK_REPLY),
+        "intent":     ai_data.get("intent", "unknown"),
+        "confidence": ai_data.get("confidence", 0.0),
+        "entities":   ai_data.get("entities", {}),
+        "best_place": best_place,
+        "session_id": ai_data.get("session_id", session_id),
+        "is_fallback": is_fallback,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Internal Helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _call_chatbot(payload: dict) -> tuple[dict, bool]:
+    """
+    Makes the HTTP call to the external AI service.
+    Never raises — returns (fallback_dict, True) on any failure.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            res = await client.post(f"{CHATBOT_BASE_URL}/chat", json=payload)
+            res.raise_for_status()
+            return res.json(), False
+    except httpx.HTTPStatusError as exc:
+        logger.warning(
+            f"[chatbot] AI service returned {exc.response.status_code}: "
+            f"{exc.response.text[:200]}"
+        )
+    except httpx.RequestError as exc:
+        logger.error(f"[chatbot] Network error reaching AI service: {exc}")
+    except Exception as exc:
+        logger.error(f"[chatbot] Unexpected error: {exc}", exc_info=True)
+
+    return {"reply": _FALLBACK_REPLY}, True
+
+
+def _build_context(
+    db: Session,
+    user_id: int,
+    user_role: str,
+    user_lat: Optional[float],
+    user_lon: Optional[float],
+) -> dict:
+    """
+    Builds a rich context dict to enrich AI requests.
+    Uses raw SQL to keep it lightweight and avoid model coupling.
+    """
+    from sqlalchemy import text
+
+    context: dict = {
+        "user_id":   user_id,
+        "user_role": user_role,
+    }
+
+    # ── Recent interactions (last 5 places visited/saved) ────────────────────
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT i.place_id, p.name, i.type, i.created_at
+                FROM interactions i
+                JOIN places p ON p.id = i.place_id
+                WHERE i.user_id = :uid
+                ORDER BY i.created_at DESC
+                LIMIT 5
+                """
+            ),
+            {"uid": user_id},
+        ).fetchall()
+
+        context["recent_interactions"] = [
+            {
+                "place_id":   r[0],
+                "place_name": r[1],
+                "type":       r[2],
+                "at":         r[3].isoformat() if r[3] else None,
+            }
+            for r in rows
+        ]
+    except Exception as exc:
+        logger.warning(f"[chatbot] Could not fetch recent interactions: {exc}")
+        context["recent_interactions"] = []
+
+    # ── Preferred / favorited places ─────────────────────────────────────────
+    try:
+        fav_rows = db.execute(
+            text(
+                """
+                SELECT p.id, p.name, p.category_id
+                FROM favorites f
+                JOIN places p ON p.id = f.place_id
+                WHERE f.user_id = :uid
+                LIMIT 10
+                """
+            ),
+            {"uid": user_id},
+        ).fetchall()
+
+        context["preferred_places"] = [
+            {"place_id": r[0], "name": r[1], "category_id": r[2]}
+            for r in fav_rows
+        ]
+    except Exception as exc:
+        logger.warning(f"[chatbot] Could not fetch favorites: {exc}")
+        context["preferred_places"] = []
+
+    # ── Location hint ─────────────────────────────────────────────────────────
+    if user_lat is not None and user_lon is not None:
+        context["user_location"] = {"lat": user_lat, "lon": user_lon}
+
+    return context
+
+
+async def _log_interaction(
+    db: Session,
+    user_id: int,
+    session_id: str,
+    message: str,
+    user_lat: Optional[float],
+    user_lon: Optional[float],
+    ai_data: dict,
+    latency_ms: int,
+    is_fallback: bool,
+) -> None:
+    """Persist the exchange to ai_interactions. Fire-and-forget."""
+    from src.core.database import SessionLocal
+
+    async_db = SessionLocal()
+    try:
+        record = AIInteraction(
+            user_id    = user_id,
+            session_id = session_id,
+            message    = message,
+            user_lat   = user_lat,
+            user_lon   = user_lon,
+            reply      = ai_data.get("reply"),
+            intent     = ai_data.get("intent"),
+            confidence = ai_data.get("confidence"),
+            entities   = ai_data.get("entities"),
+            best_place = ai_data.get("best_place"),
+            latency_ms = latency_ms,
+            is_fallback = int(is_fallback),
+        )
+        async_db.add(record)
+        async_db.commit()
+    except Exception as exc:
+        logger.error(f"[chatbot] Failed to log AI interaction: {exc}")
+        async_db.rollback()
+    finally:
+        async_db.close()
+
+
+async def _send_recommendation_notification(
+    user_id: int,
+    place_id: int,
+    place_name: str,
+) -> None:
+    """
+    Fires a recommendation push notification after AI suggests a place.
+    Uses a fresh DB session to stay outside the request lifecycle.
+    """
+    from src.core.database import SessionLocal
+    from src.core.unit_of_work import UnitOfWork
+    from src.services.notification_service import create_notification
+
+    try:
+        uow = UnitOfWork(SessionLocal)
+        await create_notification(
+            uow=uow,
+            user_id=user_id,
+            title="Suggested for you 🔥",
+            message=f"We think you'll love {place_name}! Check it out.",
+            notif_type=NotificationType.SYSTEM_ALERT,
+            priority=NotificationPriority.NORMAL,
+            data={"place_id": str(place_id), "source": "chatbot"},
+        )
+        logger.info(
+            f"[chatbot] Recommendation notification sent → user={user_id}, place={place_id}"
+        )
+    except Exception as exc:
+        logger.error(f"[chatbot] Recommendation notification failed: {exc}")
