@@ -137,6 +137,8 @@ app.add_middleware(
 
 # ─────────────────────────────────────────────
 # STATIC FILES
+from src.api.dashboard import owner_notifications, admin_notifications
+
 # ─────────────────────────────────────────────
 
 os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
@@ -171,7 +173,9 @@ app.include_router(dashboard_items.router, prefix="/api/dashboard/items", tags=[
 app.include_router(dashboard_upload.router, prefix="/api/dashboard/upload", tags=["Dashboard - Upload"])
 app.include_router(dashboard_categories.router, prefix="/api/dashboard/categories", tags=["Dashboard - Categories"])
 app.include_router(dashboard_admin.router, prefix="/api/dashboard/admin", tags=["Dashboard - Admin"])
+app.include_router(admin_notifications.router, prefix="/api/dashboard/admin/notifications", tags=["Dashboard - Admin Notifications"])
 app.include_router(dashboard_owner.router, prefix="/api/owner", tags=["Dashboard - Owner"])
+app.include_router(owner_notifications.router, prefix="/api/owner/notifications", tags=["Dashboard - Owner Notifications"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

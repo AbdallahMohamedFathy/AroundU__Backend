@@ -77,85 +77,149 @@ async def create_bulk_notifications(
     background_tasks: Optional[BackgroundTasks] = None
 ):
     """
-    Optimized bulk notification creation for multiple users.
+    Optimized bulk notification creation for multiple users in chunks.
+    NEVER loads full User objects into memory.
+    Uses FCM multicast messaging array in batches of 500.
     """
+    BATCH_SIZE = 500
+    
     with uow:
-        # 1. Prepare bulk mappings for DB
-        notifications_data = [
-            {
-                "user_id": uid,
-                "title": title,
-                "message": message,
-                "type": notif_type,
-                "priority": priority,
-                "data": data or {}
-            }
-            for uid in user_ids
-        ]
-        
-        # 2. Bulk insert into DB
-        uow.notification_repository.bulk_create(notifications_data)
-        
-        # 3. Fetch user tokens for push
-        users = uow.session.query(User).filter(User.id.in_(user_ids)).all()
-        token_map = {user.id: user.fcm_token for user in users if user.fcm_token}
-        
+        # DB limits: bulk insert in chunks to avoid memory errors
+        for i in range(0, len(user_ids), BATCH_SIZE):
+            chunk_ids = user_ids[i:i + BATCH_SIZE]
+            notifications_data = [
+                {
+                    "user_id": uid,
+                    "title": title,
+                    "message": message,
+                    "type": notif_type,
+                    "priority": priority,
+                    "data": data or {}
+                }
+                for uid in chunk_ids
+            ]
+            uow.notification_repository.bulk_create(notifications_data)
         uow.commit()
 
-    # 4. Send pushes in background
-    if token_map and background_tasks:
-        for uid, token in token_map.items():
-            payload = {"type": notif_type.value, **(data or {})}
-            background_tasks.add_task(
-                send_push_notification, 
-                uid, 
-                token, 
-                title, 
-                message, 
-                payload, 
-                priority
-            )
-    
+    # Deferred push logic out of the DB transaction lock
+    if background_tasks:
+        background_tasks.add_task(
+            _process_multicast_batches,
+            user_ids, title, message, notif_type, data, priority
+        )
     return True
 
 
-async def send_push_notification(
-    user_id: int,
-    token: str,
-    title: str,
-    body: str,
-    data: Optional[dict] = None,
-    priority: NotificationPriority = NotificationPriority.NORMAL
+async def _process_multicast_batches(
+    user_ids: List[int], title: str, message: str, 
+    notif_type: NotificationType, data: Optional[dict], priority: NotificationPriority
 ):
     """
-    Core logic to send a single push notification via Firebase Admin SDK.
-    Includes error handling and token cleanup.
+    Fetches tokens efficiently and dispatches FCM Multicast messaging securely.
+    Identifies invalid tokens and removes them from the DB in bulk.
+    """
+    from src.core.database import SessionLocal
+    from sqlalchemy import select
+    BATCH_SIZE = 500
+
+    try:
+        app = get_firebase_app()
+    except Exception as e:
+        logger.error(f"FCM skipped: Firebase not initialized: {e}")
+        return
+
+    if not app:
+        return
+
+    # Efficient fetch without loading models
+    db = SessionLocal()
+    try:
+        # Process in chunks of 500
+        for i in range(0, len(user_ids), BATCH_SIZE):
+            chunk_ids = user_ids[i:i + BATCH_SIZE]
+            
+            # Fetch token map {fcm_token: user_id}
+            records = db.execute(
+                select(User.id, User.fcm_token)
+                .filter(User.id.in_(chunk_ids), User.fcm_token.isnot(None))
+            ).all()
+
+            if not records:
+                continue
+
+            target_tokens = []
+            token_to_uid_map = {}
+            for row in records:
+                uid, tk = row
+                target_tokens.append(tk)
+                token_to_uid_map[tk] = uid
+
+            # Payload
+            string_data = {k: str(v) for k, v in (data or {}).items()}
+            string_data["type"] = notif_type.value
+            android_priority = "high" if priority == NotificationPriority.HIGH else "normal"
+
+            msg = messaging.MulticastMessage(
+                notification=messaging.Notification(title=title, body=message),
+                data=string_data,
+                tokens=target_tokens,
+                android=messaging.AndroidConfig(priority=android_priority),
+                apns=messaging.APNSConfig(
+                    payload=messaging.APNSPayload(
+                        aps=messaging.Aps(content_available=True) if priority == NotificationPriority.HIGH else messaging.Aps()
+                    )
+                )
+            )
+
+            # Multicast Send
+            try:
+                response = messaging.send_each_for_multicast(msg)
+                
+                # Check for dead tokens
+                invalid_uids = []
+                for idx, resp in enumerate(response.responses):
+                    if not resp.success:
+                        err_code = resp.exception.code if resp.exception else None
+                        if err_code in ["invalid-registration-token", "registration-token-not-registered"]:
+                            dead_token = target_tokens[idx]
+                            invalid_uids.append(token_to_uid_map[dead_token])
+                
+                # Bulk remove dead tokens
+                if invalid_uids:
+                    logger.warning(f"Removing {len(invalid_uids)} dead FCM tokens.")
+                    db.query(User).filter(User.id.in_(invalid_uids)).update({"fcm_token": None}, synchronize_session=False)
+                    db.commit()
+
+            except Exception as e:
+                logger.error(f"FCM Multicast error: {e}")
+
+    finally:
+        db.close()
+
+
+async def send_push_notification(
+    user_id: int, token: str, title: str, body: str, 
+    data: Optional[dict] = None, priority: NotificationPriority = NotificationPriority.NORMAL
+):
+    """
+    Fallback method for sending a single push notification.
     """
     try:
         app = get_firebase_app()
     except Exception as e:
         logger.error(f"FCM skipped: Firebase not initialized: {e}")
         return False
-
-    if not app:
-        return False
-
-    # Convert native dict to strings for FCM data payload
+        
+    if not app: return False
+    
     string_data = {k: str(v) for k, v in (data or {}).items()}
-
-    # Configure Priority
     android_priority = "high" if priority == NotificationPriority.HIGH else "normal"
     
-    message = messaging.Message(
-        notification=messaging.Notification(
-            title=title,
-            body=body,
-        ),
+    msg = messaging.Message(
+        notification=messaging.Notification(title=title, body=body),
         data=string_data,
         token=token,
-        android=messaging.AndroidConfig(
-            priority=android_priority,
-        ),
+        android=messaging.AndroidConfig(priority=android_priority),
         apns=messaging.APNSConfig(
             payload=messaging.APNSPayload(
                 aps=messaging.Aps(content_available=True) if priority == NotificationPriority.HIGH else messaging.Aps()
@@ -164,35 +228,25 @@ async def send_push_notification(
     )
 
     try:
-        response = messaging.send(message)
-        logger.info(f"Successfully sent push notification to user {user_id}: {response}")
+        response = messaging.send(msg)
         return True
     except messaging.ApiCallError as e:
-        # Handle specific token errors (Invalid/Unregistered)
-        # Error codes docs: https://firebase.google.com/docs/cloud-messaging/send-message#admin_sdk_error_reference
         if e.code in ["invalid-registration-token", "registration-token-not-registered"]:
-            logger.warning(f"Detected inactive token for user {user_id}. Nullifying token. Error: {e.code}")
             _cleanup_user_token(user_id)
-        else:
-            logger.error(f"FCM API Error for user {user_id}: {str(e)}")
         return False
-    except Exception as e:
-        logger.error(f"Failed to send push notification to user {user_id}: {str(e)}")
+    except Exception:
         return False
 
 
 def _cleanup_user_token(user_id: int):
-    """
-    Helper to remove an invalid FCM token from a user.
-    Called on Firebase error. Uses a fresh connection/session.
-    """
+    """Fallback single cleanup"""
     from src.core.database import SessionLocal
     db = SessionLocal()
     try:
         db.query(User).filter(User.id == user_id).update({"fcm_token": None})
         db.commit()
     except Exception as e:
-        logger.error(f"Error cleaning up token for user {user_id}: {e}")
+        logger.error(f"Error cleaning up token: {e}")
     finally:
         db.close()
 

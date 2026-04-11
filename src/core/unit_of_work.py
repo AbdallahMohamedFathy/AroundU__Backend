@@ -14,6 +14,8 @@ from src.repositories.item_repository import ItemRepository
 from src.repositories.interaction_repository import InteractionRepository
 from src.repositories.property_repository import PropertyRepository
 from src.repositories.notification_repository import NotificationRepository
+from src.repositories.notification_request_repository import NotificationRequestRepository
+from src.repositories.notification_audit_repository import NotificationAuditRepository
 
 class UnitOfWork:
     """
@@ -42,7 +44,8 @@ class UnitOfWork:
         self.interaction_repository = InteractionRepository(self.session)
         self.property_repository = PropertyRepository(self.session)
         self.notification_repository = NotificationRepository(self.session)
-        
+        self.notification_request_repository = NotificationRequestRepository(self.session)
+        self.notification_audit_repository = NotificationAuditRepository(self.session)
         return self
 
     def commit(self):
