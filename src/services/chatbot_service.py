@@ -320,6 +320,33 @@ async def _log_interaction(
         async_db.close()
 
 
+def _translate_category(arabic_name: str) -> str:
+    """
+    Maps Arabic category names from AI to English names in our Database.
+    """
+    if not arabic_name:
+        return ""
+    
+    mapping = {
+        "مطعم": "Restaurant",
+        "كافيه": "Cafe",
+        "مقهى": "Cafe",
+        "صيدلية": "Pharmacy",
+        "سوبر ماركت": "Supermarket",
+        "فندق": "Hotel",
+        "مستشفى": "Hospital",
+        "بنك": "Bank",
+        "معلم": "Landmark",
+        "أثر": "Landmark",
+        "محطة": "Station",
+    }
+    # Direct match or partial match
+    for ar, en in mapping.items():
+        if ar in arabic_name:
+            return en
+    return arabic_name
+
+
 def _build_knowledge_block(
     db: Session,
     query: str,
@@ -333,7 +360,18 @@ def _build_knowledge_block(
     from src.repositories.place_repository import PlaceRepository
     repo = PlaceRepository(db)
 
+    # Try to detect category from query to help the search
+    detected_cat_en = _translate_category(query)
+    
     try:
+        # Get matching category ID if possible
+        cat_id = None
+        if detected_cat_en:
+            from src.models.category import Category
+            cat_row = db.query(Category).filter(Category.name.ilike(f"%{detected_cat_en}%")).first()
+            if cat_row:
+                cat_id = cat_row.id
+
         # Get 5 most relevant/nearby places
         results = repo.search_v2(
             q=query,
@@ -342,9 +380,9 @@ def _build_knowledge_block(
             limit=5
         )
         
-        if not results and user_lat and user_lon:
-            # Fallback to nearby if search returns nothing
-            results = repo.get_nearby(user_lat, user_lon, radius_km=5.0, limit=5)
+        # If search_v2 is weak on Arabic, fallback to get_nearby with cat_id
+        if (not results or len(results) < 2) and user_lat and user_lon:
+            results = repo.get_nearby(user_lat, user_lon, radius_km=10.0, category_id=cat_id, limit=5)
 
         if not results:
             return ""
@@ -382,33 +420,36 @@ def _find_local_place_match(
 
     intent   = ai_data.get("intent", "").lower()
     entities = ai_data.get("entities", {})
-    ai_cat_name = entities.get("category") or ""
+    ai_cat_arabic = entities.get("category") or ""
     
     # Simple keyword extraction for fallback cases
-    if intent == "fallback" or not ai_cat_name:
+    if intent == "fallback" or not ai_cat_arabic:
         for kw in ["مطعم", "أكل", "restaurant", "food"]:
             if kw in query_text:
-                ai_cat_name = "مطعم"
+                ai_cat_arabic = "مطعم"
                 break
         for kw in ["كافيه", "قهوة", "cafe", "coffee"]:
             if kw in query_text:
-                ai_cat_name = "كافيه"
+                ai_cat_arabic = "كافيه"
                 break
+    
+    # Translate to English for DB search
+    ai_cat_en = _translate_category(ai_cat_arabic)
 
     repo = PlaceRepository(db)
 
-    # 1. Map AI category name (e.g. 'مطعم') to local category_id
+    # 1. Map category name to local category_id
     cat_id = None
-    if ai_cat_name:
+    if ai_cat_en:
         try:
             # Simple direct match or partial match on name
             cat_row = db.query(Category).filter(
-                Category.name.ilike(f"%{ai_cat_name}%")
+                Category.name.ilike(f"%{ai_cat_en}%")
             ).first()
             if cat_row:
                 cat_id = cat_row.id
         except Exception as exc:
-            logger.warning(f"[chatbot] Category match failed for {ai_cat_name}: {exc}")
+            logger.warning(f"[chatbot] Category match failed for {ai_cat_en}: {exc}")
 
     # 2. Perform search based on intent
     try:
