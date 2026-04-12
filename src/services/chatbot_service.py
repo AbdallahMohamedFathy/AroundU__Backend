@@ -329,16 +329,28 @@ def _translate_category(arabic_name: str) -> str:
     
     mapping = {
         "مطعم": "Restaurant",
+        "restaurant": "Restaurant",
+        "أكل": "Restaurant",
         "كافيه": "Cafe",
+        "cafe": "Cafe",
         "مقهى": "Cafe",
+        "قهوة": "Cafe",
         "صيدلية": "Pharmacy",
+        "pharmacy": "Pharmacy",
         "سوبر ماركت": "Supermarket",
+        "supermarket": "Supermarket",
+        "بقالة": "Supermarket",
         "فندق": "Hotel",
+        "hotel": "Hotel",
         "مستشفى": "Hospital",
+        "hospital": "Hospital",
         "بنك": "Bank",
+        "bank": "Bank",
         "معلم": "Landmark",
+        "landmark": "Landmark",
         "أثر": "Landmark",
         "محطة": "Station",
+        "station": "Station",
     }
     # Direct match or partial match
     for ar, en in mapping.items():
@@ -423,15 +435,17 @@ def _find_local_place_match(
     entities = ai_data.get("entities", {})
     ai_cat_arabic = entities.get("category") or ""
     
-    # Simple keyword extraction for fallback cases
+    # Improved keyword detection including English terms
     if intent == "fallback" or not ai_cat_arabic:
-        for kw in ["مطعم", "أكل", "restaurant", "food"]:
-            if kw in query_text:
-                ai_cat_arabic = "مطعم"
-                break
-        for kw in ["كافيه", "قهوة", "cafe", "coffee"]:
-            if kw in query_text:
-                ai_cat_arabic = "كافيه"
+        keywords = {
+            "مطعم": ["مطعم", "أكل", "restaurant", "food", "hungry", "جائع"],
+            "كافيه": ["كافيه", "قهوة", "مقهى", "cafe", "coffee", "drink", "شاي"],
+            "سوبر ماركت": ["سوبر ماركت", "supermarket", " grocery", "بقالة", "تسوق"],
+            "صيدلية": ["صيدلية", "دواء", "pharmacy", "medicine", "علاج"],
+        }
+        for ar_cat, kw_list in keywords.items():
+            if any(kw in query_text.lower() for kw in kw_list):
+                ai_cat_arabic = ar_cat
                 break
     
     # Translate to English for DB search
@@ -459,18 +473,18 @@ def _find_local_place_match(
     # 2. Perform search based on intent
     try:
         results = []
-        # If intent implies proximity (e.g. 'nearest_restaurant')
-        if "nearest" in intent and user_lat and user_lon:
+        # If we have a category ID, try to find the nearest match in that category
+        if cat_id and user_lat and user_lon:
             results = repo.get_nearby(
                 latitude=user_lat,
                 longitude=user_lon,
-                radius_km=10.0,
+                radius_km=15.0,
                 category_id=cat_id,
                 limit=1
             )
-        else:
-            # Fallback to general search with query context
-            # We use a broad search here if intent is unknown
+        
+        # If no category match, try a name-based search with the query
+        if not results:
             query = ai_cat_arabic or query_text
             results = repo.search_v2(
                 q=query,
@@ -478,20 +492,11 @@ def _find_local_place_match(
                 lng=user_lon,
                 limit=1
             )
-            
-            # LAST RESORT: Just find ANY nearby active place if everything else failed
-            if not results and user_lat and user_lon:
-                results = repo.get_nearby(
-                    latitude=user_lat,
-                    longitude=user_lon,
-                    radius_km=20.0,
-                    limit=1
-                )
 
         if results:
             match = results[0]
-            # Convert repo dict to a format matching the AI's expected best_place schema
-            # We add 'id' as 'place_id' for frontend compatibility if needed
+            # Double check: If the user asked for a specific category but the match is far 
+            # or unrelated, we might still want to return it, but here we prioritize top match.
             match["place_id"] = str(match["id"])
             return match
 
