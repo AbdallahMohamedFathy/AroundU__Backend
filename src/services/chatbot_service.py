@@ -130,8 +130,19 @@ async def chat(
             )
         )
 
-    # Fire recommendation notification if AI returned a best_place
+    # ── Grounding: Override AI suggestion with real local data ────────────────
     best_place = ai_data.get("best_place")
+    if best_place and not is_fallback:
+        local_match = _find_local_place_match(
+            db=db,
+            ai_data=ai_data,
+            user_lat=user_lat,
+            user_lon=user_lon
+        )
+        if local_match:
+            best_place = local_match
+
+    # Fire recommendation notification if we have a valid place
     if best_place and not is_fallback and background_tasks:
         place_id = best_place.get("id") or best_place.get("place_id")
         if place_id:
@@ -294,6 +305,74 @@ async def _log_interaction(
         async_db.rollback()
     finally:
         async_db.close()
+
+
+def _find_local_place_match(
+    db: Session,
+    ai_data: dict,
+    user_lat: Optional[float],
+    user_lon: Optional[float]
+) -> Optional[dict]:
+    """
+    Tries to find the most relevant place in OUR database that matches
+    the AI's recommendation. Grounding the response in local reality.
+    """
+    from src.repositories.place_repository import PlaceRepository
+    from src.models.category import Category
+    from sqlalchemy import text
+
+    intent   = ai_data.get("intent", "").lower()
+    entities = ai_data.get("entities", {})
+    ai_cat_name = entities.get("category") or ""
+    
+    repo = PlaceRepository(db)
+
+    # 1. Map AI category name (e.g. 'مطعم') to local category_id
+    cat_id = None
+    if ai_cat_name:
+        try:
+            # Simple direct match or partial match on name
+            cat_row = db.query(Category).filter(
+                Category.name.ilike(f"%{ai_cat_name}%")
+            ).first()
+            if cat_row:
+                cat_id = cat_row.id
+        except Exception as exc:
+            logger.warning(f"[chatbot] Category match failed for {ai_cat_name}: {exc}")
+
+    # 2. Perform search based on intent
+    try:
+        results = []
+        # If intent implies proximity (e.g. 'nearest_restaurant')
+        if "nearest" in intent and user_lat and user_lon:
+            results = repo.get_nearby(
+                latitude=user_lat,
+                longitude=user_lon,
+                radius_km=10.0,
+                category_id=cat_id,
+                limit=1
+            )
+        else:
+            # Fallback to general search with query context
+            query = ai_cat_name or ai_data.get("reply", "")[:30]
+            results = repo.search_v2(
+                q=query,
+                lat=user_lat,
+                lng=user_lon,
+                limit=1
+            )
+
+        if results:
+            match = results[0]
+            # Convert repo dict to a format matching the AI's expected best_place schema
+            # We add 'id' as 'place_id' for frontend compatibility if needed
+            match["place_id"] = str(match["id"])
+            return match
+
+    except Exception as exc:
+        logger.error(f"[chatbot] Grounding search failed: {exc}")
+
+    return None
 
 
 async def _send_recommendation_notification(
