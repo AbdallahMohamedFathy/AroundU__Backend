@@ -89,12 +89,7 @@ async def chat(
     knowledge_block = _build_knowledge_block(db, message, user_lat, user_lon)
     
     if knowledge_block:
-        enriched_message = (
-            f"{message}\n\n"
-            f"معلومات إضافية من قاعدة البيانات للمساعدة في الرد:\n"
-            f"{knowledge_block}\n"
-            f"برجاء استخدام هذه الأماكن الحقيقية في ردك إذا كانت مناسبة لسؤال المستخدم."
-        )
+        enriched_message = f"{message}\n\n[LOCAL_INFO: {knowledge_block}]"
     else:
         enriched_message = message
 
@@ -144,15 +139,21 @@ async def chat(
 
     # ── Grounding: Override AI suggestion with real local data ────────────────
     best_place = ai_data.get("best_place")
-    if best_place and not is_fallback:
+    intent     = ai_data.get("intent", "fallback")
+
+    if not is_fallback:
         local_match = _find_local_place_match(
             db=db,
             ai_data=ai_data,
+            query_text=message, 
             user_lat=user_lat,
             user_lon=user_lon
         )
         if local_match:
             best_place = local_match
+            if intent == "fallback":
+                ai_data["intent"] = "nearest_place"
+                ai_data["reply"] = f"ليقيتلك '{local_match['name']}' في بني سويف، ينفعك؟"
 
     # Fire recommendation notification if we have a valid place
     if best_place and not is_fallback and background_tasks:
@@ -368,21 +369,32 @@ def _build_knowledge_block(
 def _find_local_place_match(
     db: Session,
     ai_data: dict,
+    query_text: str,
     user_lat: Optional[float],
     user_lon: Optional[float]
 ) -> Optional[dict]:
     """
-    Tries to find the most relevant place in OUR database that matches
-    the AI's recommendation. Grounding the response in local reality.
+    Tries to find the most relevant place in OUR database.
+    Now supports searching based on the original query text if AI falls back.
     """
     from src.repositories.place_repository import PlaceRepository
     from src.models.category import Category
-    from sqlalchemy import text
 
     intent   = ai_data.get("intent", "").lower()
     entities = ai_data.get("entities", {})
     ai_cat_name = entities.get("category") or ""
     
+    # Simple keyword extraction for fallback cases
+    if intent == "fallback" or not ai_cat_name:
+        for kw in ["مطعم", "أكل", "restaurant", "food"]:
+            if kw in query_text:
+                ai_cat_name = "مطعم"
+                break
+        for kw in ["كافيه", "قهوة", "cafe", "coffee"]:
+            if kw in query_text:
+                ai_cat_name = "كافيه"
+                break
+
     repo = PlaceRepository(db)
 
     # 1. Map AI category name (e.g. 'مطعم') to local category_id
