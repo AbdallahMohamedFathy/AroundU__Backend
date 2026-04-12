@@ -418,6 +418,7 @@ def _find_local_place_match(
     from src.repositories.place_repository import PlaceRepository
     from src.models.category import Category
 
+    from sqlalchemy import or_
     intent   = ai_data.get("intent", "").lower()
     entities = ai_data.get("entities", {})
     ai_cat_arabic = entities.get("category") or ""
@@ -440,16 +441,20 @@ def _find_local_place_match(
 
     # 1. Map category name to local category_id
     cat_id = None
-    if ai_cat_en:
-        try:
-            # Simple direct match or partial match on name
-            cat_row = db.query(Category).filter(
-                Category.name.ilike(f"%{ai_cat_en}%")
-            ).first()
-            if cat_row:
-                cat_id = cat_row.id
-        except Exception as exc:
-            logger.warning(f"[chatbot] Category match failed for {ai_cat_en}: {exc}")
+    try:
+        # More aggressive category matching: search for any category containing the term
+        # and try both original and translated terms.
+        cat_row = db.query(Category).filter(
+            or_(
+                Category.name.ilike(f"%{ai_cat_en}%"),
+                Category.name.ilike(f"%{ai_cat_arabic}%")
+            )
+        ).first()
+        
+        if cat_row:
+            cat_id = cat_row.id
+    except Exception as exc:
+        logger.warning(f"[chatbot] Aggressive category match failed: {exc}")
 
     # 2. Perform search based on intent
     try:
@@ -465,13 +470,23 @@ def _find_local_place_match(
             )
         else:
             # Fallback to general search with query context
-            query = ai_cat_arabic or ai_data.get("reply", "")[:30]
+            # We use a broad search here if intent is unknown
+            query = ai_cat_arabic or query_text
             results = repo.search_v2(
                 q=query,
                 lat=user_lat,
                 lng=user_lon,
                 limit=1
             )
+            
+            # LAST RESORT: Just find ANY nearby active place if everything else failed
+            if not results and user_lat and user_lon:
+                results = repo.get_nearby(
+                    latitude=user_lat,
+                    longitude=user_lon,
+                    radius_km=20.0,
+                    limit=1
+                )
 
         if results:
             match = results[0]
