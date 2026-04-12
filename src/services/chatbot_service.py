@@ -87,7 +87,16 @@ async def chat(
     # ── RAG: Inject local knowledge into the message ────────────────────────
     # We fetch real places *before* calling the AI so it knows about them.
     knowledge_block = _build_knowledge_block(db, message, user_lat, user_lon)
-    enriched_message = f"{message}\n\n[CONTEXT: Available real places in our database: {knowledge_block}]"
+    
+    if knowledge_block:
+        enriched_message = (
+            f"{message}\n\n"
+            f"معلومات إضافية من قاعدة البيانات للمساعدة في الرد:\n"
+            f"{knowledge_block}\n"
+            f"برجاء استخدام هذه الأماكن الحقيقية في ردك إذا كانت مناسبة لسؤال المستخدم."
+        )
+    else:
+        enriched_message = message
 
     payload = {
         "message":    enriched_message,
@@ -337,12 +346,17 @@ def _build_knowledge_block(
             results = repo.get_nearby(user_lat, user_lon, radius_km=5.0, limit=5)
 
         if not results:
-            return "No matching places found in our database."
+            return ""
 
         # Format as simple bullet points for the AI
         lines = []
         for p in results:
-            lines.append(f"- {p['name']} ({p.get('category', 'Place')})")
+            # Include name and category for the AI to refer to
+            info = f"- {p['name']} (تصنيف: {p.get('category', 'غير محدد')})"
+            if p.get('distance'):
+                dist = p['distance']
+                info += f" - يبعد عنك حوالي {int(dist)} متر"
+            lines.append(info)
         
         return "\n".join(lines)
 
