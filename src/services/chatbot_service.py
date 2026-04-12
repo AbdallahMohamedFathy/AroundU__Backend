@@ -465,7 +465,7 @@ def _find_local_place_match(
             )
         else:
             # Fallback to general search with query context
-            query = ai_cat_name or ai_data.get("reply", "")[:30]
+            query = ai_cat_arabic or ai_data.get("reply", "")[:30]
             results = repo.search_v2(
                 q=query,
                 lat=user_lat,
