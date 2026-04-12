@@ -84,13 +84,16 @@ async def chat(
     # Build context (non-blocking DB reads)
     context = _build_context(db, user_id, user_role, user_lat, user_lon)
 
+    # ── RAG: Inject local knowledge into the message ────────────────────────
+    # We fetch real places *before* calling the AI so it knows about them.
+    knowledge_block = _build_knowledge_block(db, message, user_lat, user_lon)
+    enriched_message = f"{message}\n\n[CONTEXT: Available real places in our database: {knowledge_block}]"
+
     payload = {
-        "message":    message,
+        "message":    enriched_message,
         "session_id": session_id,
         "user_lat":   user_lat,
         "user_lon":   user_lon,
-        # Attach context as extra field — chatbot ignores unknown keys
-        "context":    context,
     }
 
     t0 = time.monotonic()
@@ -305,6 +308,47 @@ async def _log_interaction(
         async_db.rollback()
     finally:
         async_db.close()
+
+
+def _build_knowledge_block(
+    db: Session,
+    query: str,
+    user_lat: Optional[float],
+    user_lon: Optional[float]
+) -> str:
+    """
+    Fetches the top 5 most relevant places and formats them as a string
+    to be injected into the AI's prompt.
+    """
+    from src.repositories.place_repository import PlaceRepository
+    repo = PlaceRepository(db)
+
+    try:
+        # Get 5 most relevant/nearby places
+        results = repo.search_v2(
+            q=query,
+            lat=user_lat,
+            lng=user_lon,
+            limit=5
+        )
+        
+        if not results and user_lat and user_lon:
+            # Fallback to nearby if search returns nothing
+            results = repo.get_nearby(user_lat, user_lon, radius_km=5.0, limit=5)
+
+        if not results:
+            return "No matching places found in our database."
+
+        # Format as simple bullet points for the AI
+        lines = []
+        for p in results:
+            lines.append(f"- {p['name']} ({p.get('category', 'Place')})")
+        
+        return "\n".join(lines)
+
+    except Exception as exc:
+        logger.warning(f"[chatbot] Knowledge retrieval failed: {exc}")
+        return "Database search currently unavailable."
 
 
 def _find_local_place_match(
