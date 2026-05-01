@@ -194,6 +194,20 @@ class PlaceRepository(BaseRepository[Place]):
                 p.rating,
                 p.review_count,
                 p.favorite_count,
+                (
+                    SELECT COALESCE(json_agg(
+                        json_build_object(
+                            'id', pi.id,
+                            'place_id', pi.place_id,
+                            'image_url', pi.image_url,
+                            'image_type', pi.image_type,
+                            'caption', pi.caption,
+                            'created_at', pi.created_at
+                        )
+                    ), '[]'::json)
+                    FROM place_images pi
+                    WHERE pi.place_id = p.id
+                ) as images,
                 {dist_score_sql if has_location else '0.0'} as distance_meters,
                 {final_score_sql} as score
             FROM places p
@@ -205,12 +219,25 @@ class PlaceRepository(BaseRepository[Place]):
 
         results = self.session.execute(text(query_str), params).fetchall()
 
-        # Fallback to fuzzy matching if no results and not short
         if not results and not is_short:
             fuzzy_sql = f"""
                 SELECT 
                     p.id, p.name, p.description, c.name as category_name,
                     p.rating, p.review_count, p.favorite_count,
+                    (
+                        SELECT COALESCE(json_agg(
+                            json_build_object(
+                                'id', pi.id,
+                                'place_id', pi.place_id,
+                                'image_url', pi.image_url,
+                                'image_type', pi.image_type,
+                                'caption', pi.caption,
+                                'created_at', pi.created_at
+                            )
+                        ), '[]'::json)
+                        FROM place_images pi
+                        WHERE pi.place_id = p.id
+                    ) as images,
                     {dist_score_sql if has_location else '0.0'} as distance_meters,
                     (similarity(p.name, :q) * 0.4) + (0.3 * (COALESCE(p.rating, 0.0) / 5.0)) as score
                 FROM places p
@@ -222,8 +249,19 @@ class PlaceRepository(BaseRepository[Place]):
             results = self.session.execute(text(fuzzy_sql), {"q": q, "limit": limit, "lat": lat, "lng": lng} if has_location else {"q": q, "limit": limit}).fetchall()
 
 
-        return [
-            {
+        import json
+        formatted_results = []
+        for r in results:
+            images_data = getattr(r, 'images', [])
+            if images_data is None:
+                images_data = []
+            elif isinstance(images_data, str):
+                try:
+                    images_data = json.loads(images_data)
+                except Exception:
+                    images_data = []
+
+            formatted_results.append({
                 "id": r.id,
                 "name": r.name,
                 "category": r.category_name,
@@ -231,10 +269,11 @@ class PlaceRepository(BaseRepository[Place]):
                 "rating": float(r.rating or 0),
                 "review_count": int(r.review_count or 0),
                 "favorite_count": int(r.favorite_count or 0),
-                "score": float(r.score or 0)
-            }
-            for r in results
-        ]
+                "score": float(r.score or 0),
+                "images": images_data
+            })
+            
+        return formatted_results
 
     def get_popular_nearby(
         self, 
@@ -259,6 +298,20 @@ class PlaceRepository(BaseRepository[Place]):
             SELECT 
                 p.id, p.name, p.description, c.name as category_name,
                 p.rating, p.review_count, p.favorite_count,
+                (
+                    SELECT COALESCE(json_agg(
+                        json_build_object(
+                            'id', pi.id,
+                            'place_id', pi.place_id,
+                            'image_url', pi.image_url,
+                            'image_type', pi.image_type,
+                            'caption', pi.caption,
+                            'created_at', pi.created_at
+                        )
+                    ), '[]'::json)
+                    FROM place_images pi
+                    WHERE pi.place_id = p.id
+                ) as images,
                 0.0 as score
             FROM places p
             JOIN categories c ON p.category_id = c.id
@@ -273,8 +326,19 @@ class PlaceRepository(BaseRepository[Place]):
 
         results = self.session.execute(text(query_str), params).fetchall()
 
-        return [
-            {
+        import json
+        formatted_results = []
+        for r in results:
+            images_data = getattr(r, 'images', [])
+            if images_data is None:
+                images_data = []
+            elif isinstance(images_data, str):
+                try:
+                    images_data = json.loads(images_data)
+                except Exception:
+                    images_data = []
+
+            formatted_results.append({
                 "id": r.id,
                 "name": r.name,
                 "category": r.category_name,
@@ -282,10 +346,11 @@ class PlaceRepository(BaseRepository[Place]):
                 "rating": float(r.rating or 0),
                 "review_count": int(r.review_count or 0),
                 "favorite_count": int(r.favorite_count or 0),
-                "score": 0.0
-            }
-            for r in results
-        ]
+                "score": 0.0,
+                "images": images_data
+            })
+            
+        return formatted_results
     def get_recommendation_candidates(
         self,
         latitude: float,

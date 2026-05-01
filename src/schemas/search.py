@@ -6,6 +6,8 @@ class SearchParams(BaseModel):
     q: Optional[str] = None
     category: Optional[str] = None
 
+from src.schemas.place_image import PlaceImageResponse
+
 class PlaceSearchResponse(BaseModel):
     id: int
     name: str = Field(..., description="Place name")
@@ -15,6 +17,7 @@ class PlaceSearchResponse(BaseModel):
     review_count: int = Field(..., description="Total review count")
     favorite_count: int = Field(..., description="Total favorite count")
     score: float = Field(..., description="Calculated relevance score (0-1)")
+    images: List[PlaceImageResponse] = Field(default_factory=list, description="List of images associated with the place")
 
 class TrendingSearch(BaseModel):
     query: str
