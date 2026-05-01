@@ -98,32 +98,73 @@ def verify_email(uow: UnitOfWork, token: str):
         uow.commit()
         return True
 
-def request_password_reset(uow: UnitOfWork, email: str) -> str:
+import hashlib
+from fastapi import BackgroundTasks
+from src.utils.email import send_password_reset_email
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def request_password_reset(uow: UnitOfWork, email: str, background_tasks: BackgroundTasks) -> str:
     from src.core.logger import logger
+    from src.models.password_reset_token import PasswordResetToken
     with uow:
         user = uow.user_repository.get_by_email(email)
         if not user:
             return ""   # Avoid email enumeration
         
-        token = secrets.token_urlsafe(32)
-        user.reset_token = token
-        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=30)
+        # Invalidate old tokens
+        uow.session.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.is_used == False
+        ).update({"is_used": True})
+        
+        # Generate raw token and hash it
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = _hash_token(raw_token)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+        
+        reset_entry = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        uow.session.add(reset_entry)
         uow.commit()
         
-        # In a real app, send an email here. For now, log the token.
-        logger.info(f"PASSWORD RESET REQUESTED FOR {email}. TOKEN: {token}")
+        # Enqueue email sending in background
+        background_tasks.add_task(
+            send_password_reset_email,
+            email=user.email,
+            token=raw_token,
+            user_name=user.full_name
+        )
         
-        return token
+        logger.info(f"PASSWORD RESET REQUESTED FOR {email}. TOKEN ENQUEUED.")
+        
+        return raw_token
 
-def reset_password(uow: UnitOfWork, token: str, new_password: str):
+def reset_password(uow: UnitOfWork, raw_token: str, new_password: str):
+    from src.models.password_reset_token import PasswordResetToken
     with uow:
-        user = uow.user_repository.get_by_reset_token(token)
-        if not user or not user.reset_token_expires or user.reset_token_expires < datetime.now(timezone.utc):
-            raise APIException("Invalid or expired reset token", code=status.HTTP_400_BAD_REQUEST)
+        token_hash = _hash_token(raw_token)
+        reset_entry = uow.session.query(PasswordResetToken).filter(
+            PasswordResetToken.token_hash == token_hash
+        ).first()
         
+        if not reset_entry or reset_entry.is_used or reset_entry.expires_at < datetime.now(timezone.utc):
+            raise APIException("Invalid, used, or expired reset token", code=status.HTTP_400_BAD_REQUEST)
+            
+        user = uow.user_repository.get_by_id(reset_entry.user_id)
+        if not user:
+            raise APIException("User not found", code=status.HTTP_404_NOT_FOUND)
+        
+        # Update user password
         user.password_hash = get_password_hash(new_password)
-        user.reset_token = None
-        user.reset_token_expires = None
+        
+        # Mark token as used
+        reset_entry.is_used = True
+        
         uow.commit()
         return True
 

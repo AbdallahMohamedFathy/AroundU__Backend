@@ -92,11 +92,14 @@ def verify_user_email(token: str, uow=Depends(get_uow)):
     return {"message": "Email verified successfully"}
 
 
+from fastapi import BackgroundTasks
+
 # ─── FORGOT PASSWORD  POST /auth/forgot-password ────────────────────────────
 @router.post("/forgot-password")
-def forgot_password(data: PasswordResetRequest, uow=Depends(get_uow)):
+@limiter.limit("5/minute")
+def forgot_password(request: Request, data: PasswordResetRequest, background_tasks: BackgroundTasks, uow=Depends(get_uow)):
     """Send a password-reset link to the provided email (if it exists)."""
-    auth_service.request_password_reset(uow, data.email)
+    auth_service.request_password_reset(uow, data.email, background_tasks)
     return {"message": "If that email is registered, a reset link has been sent"}
 
 
