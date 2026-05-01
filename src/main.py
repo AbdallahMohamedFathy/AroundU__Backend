@@ -118,6 +118,41 @@ def on_startup():
                 conn.commit()
                 logger.info("Table 'ai_interactions' created successfully.")
 
+            # ── service_api_keys table ──────────────────────────────────────
+            api_key_table = conn.execute(text(
+                "SELECT to_regclass('public.service_api_keys');"
+            )).scalar()
+            if not api_key_table:
+                logger.warning("Table 'service_api_keys' missing. Creating it...")
+                conn.execute(text("""
+                    CREATE TABLE service_api_keys (
+                        id           UUID PRIMARY KEY,
+                        service_name VARCHAR NOT NULL,
+                        api_key_hash VARCHAR NOT NULL UNIQUE,
+                        permissions  JSON NOT NULL,
+                        allowed_ips  JSON,
+                        is_active    BOOLEAN DEFAULT TRUE,
+                        created_at   TIMESTAMPTZ DEFAULT NOW(),
+                        last_used_at TIMESTAMPTZ
+                    );
+                    CREATE INDEX ix_service_api_keys_hash ON service_api_keys(api_key_hash);
+                """))
+                conn.commit()
+                
+                # Insert a default key for testing
+                import uuid
+                import secrets
+                
+                raw_key = f"ai_dev_{secrets.token_hex(16)}"
+                conn.execute(text(f"""
+                    INSERT INTO service_api_keys (id, service_name, api_key_hash, permissions, is_active)
+                    VALUES ('{uuid.uuid4()}', 'Railway Auto-Generated', '{raw_key}', '["read:interactions", "read:places", "read:analytics", "read:training_data"]', true);
+                """))
+                conn.commit()
+                
+                logger.info("Table 'service_api_keys' created successfully.")
+                logger.info(f"======> GENERATED DEFAULT AI API KEY: {raw_key} <======")
+
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
 
