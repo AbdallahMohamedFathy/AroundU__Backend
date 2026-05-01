@@ -5,10 +5,18 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
-import logging
+import socket
 from src.core.config import settings
-import requests
 from src.core.logger import logger
+
+# Force IPv4 to fix "Network is unreachable" error on Railway
+def _force_ipv4():
+    old_getaddrinfo = socket.getaddrinfo
+    def new_getaddrinfo(*args, **kwargs):
+        responses = old_getaddrinfo(*args, **kwargs)
+        return [response for response in responses if response[0] == socket.AF_INET]
+    socket.getaddrinfo = new_getaddrinfo
+
 def send_email(
     to_email: str,
     subject: str,
@@ -16,47 +24,40 @@ def send_email(
     body_text: Optional[str] = None
 ) -> bool:
     """
-    Send an email using Resend API (or SMTP fallback).
+    Send an email using Gmail SMTP SSL (Port 465).
     """
     logger.info(f"[EMAIL] Attempting to send email to {to_email}")
 
-    if settings.RESEND_API_KEY:
-        logger.info(f"[EMAIL] Using Resend API for {to_email}...")
-        try:
-            # Note: Resend requires a verified domain to send from a custom email. 
-            # In testing, you MUST send from 'onboarding@resend.dev' and only TO the email you registered with Resend.
-            headers = {
-                "Authorization": f"Bearer {settings.RESEND_API_KEY}",
-                "Content-Type": "application/json"
-            }
-            
-            # Since you just created the account, you must use onboarding@resend.dev as the 'From' address.
-            # Once you verify your domain later, you can change this back to settings.EMAILS_FROM_EMAIL
-            payload = {
-                "from": "AroundU <onboarding@resend.dev>",
-                "to": [to_email],
-                "subject": subject,
-                "html": body_html,
-            }
-            if body_text:
-                payload["text"] = body_text
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("[EMAIL] SMTP credentials not configured. Email not sent.")
+        return False
 
-            response = requests.post("https://api.resend.com/emails", headers=headers, json=payload, timeout=10)
-            
-            if response.status_code in [200, 201]:
-                logger.info(f"[EMAIL] Resend Email sent successfully to {to_email}")
-                return True
-            else:
-                logger.error(f"[EMAIL] Resend API FAILED: {response.status_code} - {response.text}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"[EMAIL] Resend Request FAILED: {str(e)}")
-            return False
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
+        msg['To'] = to_email
 
-    # --- SMTP Fallback (Disabled / Not Recommended for Railway Free Tier) ---
-    logger.warning("[EMAIL] No RESEND_API_KEY found. Skipping email sending.")
-    return False
+        if body_text:
+            msg.attach(MIMEText(body_text, 'plain'))
+        msg.attach(MIMEText(body_html, 'html'))
+
+        # Force port 465 for SSL (bypasses some Railway blocks)
+        port = 465 
+        logger.info(f"[EMAIL] Connecting to SMTP server {settings.SMTP_HOST}:{port} (SSL)...")
+        _force_ipv4()
+        
+        # Use SMTP_SSL instead of SMTP + starttls
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, port) as server:
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"[EMAIL] Email sent successfully to {to_email}")
+        return True
+
+    except Exception as e:
+        logger.error(f"[EMAIL] FAILED to send email to {to_email}: {str(e)}")
+        return False
 
 
 
