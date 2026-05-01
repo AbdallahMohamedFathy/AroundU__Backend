@@ -66,7 +66,7 @@ async def get_places(
                 name=p.name,
                 category="Unknown", # p.category.name if p.category else "Unknown"
                 rating=p.rating or 0.0,
-                review_count=p.reviews_count or 0,
+                review_count=p.review_count or 0,
                 lat=p.latitude,
                 lng=p.longitude
             ) for p in places
