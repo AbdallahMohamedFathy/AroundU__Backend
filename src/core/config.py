@@ -69,12 +69,8 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_PATH")
     FIREBASE_SERVICE_ACCOUNT_JSON: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_JSON")
 
-    # SMTP / Email
-    RESEND_API_KEY: Optional[str] = None
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
+    # Email Service (Brevo API)
+    BREVO_API_KEY: Optional[str] = None
     EMAILS_FROM_NAME: str = "7waleek"
     EMAILS_FROM_EMAIL: str = "7waleekteam@gmail.com"
     FRONTEND_URL: str = "https://7waleek.com"

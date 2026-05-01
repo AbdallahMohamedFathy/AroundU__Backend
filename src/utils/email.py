@@ -1,21 +1,10 @@
 """
 Email utilities for sending verification and password reset emails
 """
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from typing import Optional
-import socket
 from src.core.config import settings
 from src.core.logger import logger
-
-# Force IPv4 to fix "Network is unreachable" error on Railway
-def _force_ipv4():
-    old_getaddrinfo = socket.getaddrinfo
-    def new_getaddrinfo(*args, **kwargs):
-        responses = old_getaddrinfo(*args, **kwargs)
-        return [response for response in responses if response[0] == socket.AF_INET]
-    socket.getaddrinfo = new_getaddrinfo
 
 def send_email(
     to_email: str,
@@ -24,39 +13,50 @@ def send_email(
     body_text: Optional[str] = None
 ) -> bool:
     """
-    Send an email using Gmail SMTP SSL (Port 465).
+    Send an email using Brevo (Sendinblue) HTTP API to bypass Railway SMTP blocks.
     """
-    logger.info(f"[EMAIL] Attempting to send email to {to_email}")
+    logger.info(f"[EMAIL] Attempting to send email to {to_email} via Brevo API")
 
-    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning("[EMAIL] SMTP credentials not configured. Email not sent.")
+    if not settings.BREVO_API_KEY:
+        logger.warning("[EMAIL] BREVO_API_KEY not configured. Email not sent.")
         return False
 
     try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
-        msg['To'] = to_email
-
-        if body_text:
-            msg.attach(MIMEText(body_text, 'plain'))
-        msg.attach(MIMEText(body_html, 'html'))
-
-        # Force port 465 for SSL (bypasses some Railway blocks)
-        port = 465 
-        logger.info(f"[EMAIL] Connecting to SMTP server {settings.SMTP_HOST}:{port} (SSL)...")
-        _force_ipv4()
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "api-key": settings.BREVO_API_KEY,
+            "content-type": "application/json"
+        }
         
-        # Use SMTP_SSL instead of SMTP + starttls
-        with smtplib.SMTP_SSL(settings.SMTP_HOST, port) as server:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(msg)
+        payload = {
+            "sender": {
+                "name": settings.EMAILS_FROM_NAME,
+                "email": settings.EMAILS_FROM_EMAIL
+            },
+            "to": [
+                {
+                    "email": to_email
+                }
+            ],
+            "subject": subject,
+            "htmlContent": body_html
+        }
+        
+        if body_text:
+            payload["textContent"] = body_text
 
-        logger.info(f"[EMAIL] Email sent successfully to {to_email}")
-        return True
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+        if response.status_code in [200, 201]:
+            logger.info(f"[EMAIL] Email sent successfully to {to_email}")
+            return True
+        else:
+            logger.error(f"[EMAIL] Brevo API FAILED: {response.status_code} - {response.text}")
+            return False
 
     except Exception as e:
-        logger.error(f"[EMAIL] FAILED to send email to {to_email}: {str(e)}")
+        logger.error(f"[EMAIL] Request to Brevo FAILED: {str(e)}")
         return False
 
 
