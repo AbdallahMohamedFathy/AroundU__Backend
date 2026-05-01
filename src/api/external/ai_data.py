@@ -51,7 +51,8 @@ async def get_places(
 ):
     """Fetch sanitized places metadata."""
     limit = min(limit, 100)
-    query = db.query(Place)
+    from sqlalchemy.orm import joinedload
+    query = db.query(Place).options(joinedload(Place.category))
     if category:
         # Assuming place has a category relationship or field. 
         # Using string matching or category ID based on the DB schema.
@@ -64,7 +65,7 @@ async def get_places(
             AIPlaceResponse(
                 place_id=str(p.id),
                 name=p.name,
-                category="Unknown", # p.category.name if p.category else "Unknown"
+                category=p.category.name if p.category else "Unknown",
                 rating=p.rating or 0.0,
                 review_count=p.review_count or 0,
                 lat=p.latitude,
