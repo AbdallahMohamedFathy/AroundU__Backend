@@ -31,8 +31,17 @@ def get_firebase_app() -> firebase_admin.App:
             logger.error(f"Failed to initialize Firebase with JSON string: {e}")
             raise ValueError(f"Invalid FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
 
-    # Priority 2: File path
+    # Priority 2: File path from settings
     service_account_path = settings.FIREBASE_SERVICE_ACCOUNT_PATH
+    
+    # Priority 3: Auto-detect common file names in project root
+    if not service_account_path:
+        for candidate in ["firebase-credentials.json", "firebase-service-account.json"]:
+            if os.path.exists(candidate):
+                service_account_path = candidate
+                logger.info(f"Auto-detected Firebase credentials at: {candidate}")
+                break
+
     if not service_account_path:
         logger.error("No Firebase credentials provided in settings.")
         raise ValueError(
