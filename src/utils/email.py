@@ -10,6 +10,16 @@ from src.core.config import settings
 from src.core.logger import logger
 
 
+import socket
+
+# Force IPv4 to fix "Network is unreachable" error on Railway (IPv6 issue)
+def _force_ipv4():
+    old_getaddrinfo = socket.getaddrinfo
+    def new_getaddrinfo(*args, **kwargs):
+        responses = old_getaddrinfo(*args, **kwargs)
+        return [response for response in responses if response[0] == socket.AF_INET]
+    socket.getaddrinfo = new_getaddrinfo
+
 def send_email(
     to_email: str,
     subject: str,
@@ -37,7 +47,9 @@ def send_email(
             msg.attach(MIMEText(body_text, 'plain'))
         msg.attach(MIMEText(body_html, 'html'))
 
-        logger.info(f"[EMAIL] Connecting to SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT}...")
+        logger.info(f"[EMAIL] Connecting to SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT} (Forcing IPv4)...")
+        _force_ipv4() # Apply IPv4 patch
+        
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
             server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
