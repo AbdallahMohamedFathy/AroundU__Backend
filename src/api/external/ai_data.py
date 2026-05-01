@@ -30,7 +30,7 @@ async def get_interactions(
         "data": [
             AIInteractionResponse(
                 user_id=str(i.user_id),
-                event_type=i.interaction_type,
+                event_type=i.type,
                 place_id=str(i.place_id) if i.place_id else None,
                 rating_value=None,
                 timestamp=i.created_at
