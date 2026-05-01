@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_JSON: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_JSON")
 
     # SMTP / Email
+    RESEND_API_KEY: Optional[str] = None
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
