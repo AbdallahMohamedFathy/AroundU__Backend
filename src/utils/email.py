@@ -7,8 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Optional
 import logging
 from src.core.config import settings
-
-logger = logging.getLogger(__name__)
+from src.core.logger import logger
 
 
 def send_email(

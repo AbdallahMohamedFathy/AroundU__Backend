@@ -132,15 +132,19 @@ def request_password_reset(uow: UnitOfWork, email: str, background_tasks: Backgr
         uow.session.add(reset_entry)
         uow.commit()
         
-        # Enqueue email sending in background
-        background_tasks.add_task(
-            send_password_reset_email,
-            email=user.email,
-            token=raw_token,
-            user_name=user.full_name
-        )
+        # Send email directly (synchronous) for debugging
+        try:
+            logger.info(f"[RESET] About to send email to {user.email}")
+            send_password_reset_email(
+                email=user.email,
+                token=raw_token,
+                user_name=user.full_name
+            )
+            logger.info(f"[RESET] Email function completed for {user.email}")
+        except Exception as e:
+            logger.error(f"[RESET] Email sending CRASHED: {str(e)}")
         
-        logger.info(f"PASSWORD RESET REQUESTED FOR {email}. TOKEN ENQUEUED.")
+        logger.info(f"PASSWORD RESET REQUESTED FOR {email}.")
         
         return raw_token
 
