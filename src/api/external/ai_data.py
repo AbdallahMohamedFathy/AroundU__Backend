@@ -104,8 +104,25 @@ async def get_analytics(
             lng=p.longitude
         )
 
+    # 3. Trending categories
+    # We find categories with the highest total review count across their places
+    trending_cats = db.query(
+        Place.category_id,
+        func.sum(Place.review_count).label('total_reviews')
+    ).filter(Place.is_active == True).group_by(Place.category_id).order_by(func.sum(Place.review_count).desc()).limit(3).all()
+    
+    trending_category_names = []
+    if trending_cats:
+        from src.models.category import Category
+        cat_ids = [tc.category_id for tc in trending_cats if tc.category_id]
+        if cat_ids:
+            cats = db.query(Category).filter(Category.id.in_(cat_ids)).all()
+            # Preserve order
+            cat_map = {c.id: c.name for c in cats}
+            trending_category_names = [cat_map[cid] for cid in cat_ids if cid in cat_map]
+
     return AIAnalyticsResponse(
         top_rated_places=[map_place(p) for p in top_rated],
         most_visited_places=[map_place(p) for p in most_visited],
-        trending_categories=["COFFEE", "RESTAURANT"] # This usually requires a complex group_by query, leaving static for now
+        trending_categories=trending_category_names
     )
