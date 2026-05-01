@@ -19,46 +19,36 @@ def send_email(
 ) -> bool:
     """
     Send an email using SMTP configuration from settings.
-
-    Args:
-        to_email: Recipient email address
-        subject: Email subject
-        body_html: HTML body content
-        body_text: Plain text body content (optional)
-
-    Returns:
-        True if email sent successfully, False otherwise
     """
+    logger.info(f"[EMAIL] Attempting to send email to {to_email}")
+    logger.info(f"[EMAIL] SMTP_HOST={settings.SMTP_HOST}, SMTP_PORT={settings.SMTP_PORT}")
+    logger.info(f"[EMAIL] SMTP_USER={'SET' if settings.SMTP_USER else 'NOT SET'}, SMTP_PASSWORD={'SET' if settings.SMTP_PASSWORD else 'NOT SET'}")
+
     if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning("SMTP credentials not configured. Email not sent.")
+        logger.warning("[EMAIL] SMTP credentials not configured. Email not sent.")
         return False
 
     try:
-        # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
         msg['To'] = to_email
 
-        # Add plain text and HTML parts
         if body_text:
-            part1 = MIMEText(body_text, 'plain')
-            msg.attach(part1)
+            msg.attach(MIMEText(body_text, 'plain'))
+        msg.attach(MIMEText(body_html, 'html'))
 
-        part2 = MIMEText(body_html, 'html')
-        msg.attach(part2)
-
-        # Send email
+        logger.info(f"[EMAIL] Connecting to SMTP server {settings.SMTP_HOST}:{settings.SMTP_PORT}...")
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
             server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.send_message(msg)
 
-        logger.info(f"Email sent successfully to {to_email}")
+        logger.info(f"[EMAIL] Email sent successfully to {to_email}")
         return True
 
     except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        logger.error(f"[EMAIL] FAILED to send email to {to_email}: {str(e)}")
         return False
 
 
