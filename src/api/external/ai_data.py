@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/ai/data", tags=["AI Gateway"])
 @router.get("/interactions", response_model=dict)
 @limiter.limit("20/minute")
 async def get_interactions(
-    request: dict = None, # Limiter requires a request object, but fastAPI injects it automatically if we add `from fastapi import Request`
+    request: Request,
     skip: int = 0, 
     limit: int = 100,
     service = Depends(verify_ai_service("read:interactions")),
@@ -42,7 +42,7 @@ async def get_interactions(
 @router.get("/places", response_model=dict)
 @limiter.limit("20/minute")
 async def get_places(
-    request: dict = None,
+    request: Request,
     category: str = None,
     skip: int = 0, 
     limit: int = 100,
@@ -77,7 +77,7 @@ async def get_places(
 @router.get("/analytics", response_model=AIAnalyticsResponse)
 @limiter.limit("10/minute")
 async def get_analytics(
-    request: dict = None,
+    request: Request,
     service = Depends(verify_ai_service("read:analytics")),
     db: Session = Depends(get_db)
 ):
