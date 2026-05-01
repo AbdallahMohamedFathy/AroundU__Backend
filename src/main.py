@@ -153,6 +153,38 @@ def on_startup():
                 logger.info("Table 'service_api_keys' created successfully.")
                 logger.info(f"======> GENERATED DEFAULT AI API KEY: {raw_key} <======")
 
+            # ── Add Social Auth columns to users table ────────────────────
+            try:
+                cols = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='users';"
+                )).fetchall()
+                existing_cols = {row[0] for row in cols}
+                
+                if 'firebase_uid' not in existing_cols:
+                    logger.info("Adding 'firebase_uid' column to users table...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN firebase_uid VARCHAR UNIQUE;"))
+                    conn.execute(text("CREATE INDEX ix_users_firebase_uid ON users(firebase_uid);"))
+                    conn.commit()
+                    
+                if 'provider' not in existing_cols:
+                    logger.info("Adding 'provider' column to users table...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN provider VARCHAR DEFAULT 'local';"))
+                    conn.commit()
+                    
+                if 'is_deleted' not in existing_cols:
+                    logger.info("Adding 'is_deleted' column to users table...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;"))
+                    conn.commit()
+                    
+                if 'deleted_at' not in existing_cols:
+                    logger.info("Adding 'deleted_at' column to users table...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN deleted_at TIMESTAMPTZ;"))
+                    conn.commit()
+                    
+                logger.info("Users table columns check complete.")
+            except Exception as col_err:
+                logger.error(f"Error adding columns to users: {col_err}")
+
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
 
