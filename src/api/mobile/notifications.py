@@ -103,3 +103,38 @@ async def get_unread_count(
     with uow:
         count = uow.notification_repository.get_unread_count(current_user.id)
     return {"unread_count": count}
+
+
+@router.delete("/clear-all", status_code=status.HTTP_200_OK)
+async def clear_all_notifications(
+    current_user: User = Depends(get_current_user),
+    uow: UnitOfWork = Depends(get_uow)
+):
+    """
+    Delete all notifications for the current user.
+    """
+    with uow:
+        uow.notification_repository.delete_all_for_user(current_user.id)
+        uow.commit()
+        
+    return {"status": "success", "message": "All notifications deleted successfully"}
+
+
+@router.delete("/{notification_id}", status_code=status.HTTP_200_OK)
+async def delete_notification(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    uow: UnitOfWork = Depends(get_uow)
+):
+    """
+    Delete a specific notification.
+    """
+    with uow:
+        notification = uow.notification_repository.get_by_id(notification_id)
+        if not notification or notification.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Notification not found")
+            
+        uow.notification_repository.delete(notification)
+        uow.commit()
+        
+    return {"status": "success", "message": "Notification deleted successfully"}

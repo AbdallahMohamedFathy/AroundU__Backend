@@ -95,3 +95,11 @@ class NotificationRepository(BaseRepository[Notification]):
             "total_sent": total_sent,
             "read_count": total_read
         }
+
+    def delete_all_for_user(self, user_id: int):
+        """
+        Delete all notifications for a user.
+        """
+        self.session.query(Notification) \
+            .filter(Notification.user_id == user_id) \
+            .delete(synchronize_session=False)
