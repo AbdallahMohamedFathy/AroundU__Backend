@@ -121,3 +121,85 @@ def reset_password(uow: UnitOfWork, token: str, new_password: str):
         user.reset_token_expires = None
         uow.commit()
         return True
+
+def social_login(uow: UnitOfWork, data: Any):
+    # data is of type SocialLogin from src.schemas.user
+    from firebase_admin import auth
+    from src.utils.firebase import get_firebase_app
+    
+    # Ensure Firebase is initialized
+    try:
+        get_firebase_app()
+    except Exception as e:
+        raise APIException(f"Firebase not configured: {e}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    try:
+        # Verify the Firebase token
+        decoded_token = auth.verify_id_token(data.id_token)
+        firebase_uid = decoded_token.get('uid')
+        email = decoded_token.get('email')
+        name = decoded_token.get('name', 'User')
+        
+        if not firebase_uid:
+            raise APIException("Invalid ID token", code=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        raise APIException(f"Firebase authentication failed: {str(e)}", code=status.HTTP_401_UNAUTHORIZED)
+        
+    with uow:
+        # 1. Check if user exists by firebase_uid
+        user = uow.user_repository.get_by_firebase_uid(firebase_uid)
+        
+        # 2. If not found by firebase_uid, check by email (Account linking)
+        if not user and email:
+            user = uow.user_repository.get_by_email(email)
+            if user:
+                user.firebase_uid = firebase_uid
+                user.provider = data.provider
+        
+        # 3. If still not found, create new user
+        if not user:
+            from src.models.user import User
+            user = User(
+                email=email,
+                full_name=name,
+                firebase_uid=firebase_uid,
+                provider=data.provider,
+                is_verified=True, # Social emails are typically verified
+            )
+            uow.user_repository.add(user)
+            uow.session.flush()
+            
+        if not user.is_active:
+            raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
+        
+        # 4. Handle Device Token for FCM (Push Notifications)
+        if data.device_token:
+            from src.models.device import DeviceToken
+            existing_device = uow.session.query(DeviceToken).filter_by(device_id=data.device_token.device_id).first()
+            if existing_device:
+                existing_device.user_id = user.id
+                existing_device.fcm_token = data.device_token.fcm_token
+            else:
+                new_device = DeviceToken(
+                    user_id=user.id,
+                    device_id=data.device_token.device_id,
+                    device_type=data.device_token.device_type,
+                    fcm_token=data.device_token.fcm_token
+                )
+                uow.session.add(new_device)
+                
+        # 5. Generate Backend JWT Tokens
+        access_token = create_access_token(subject=user.id)
+        refresh_token = create_refresh_token(subject=user.id)
+        
+        user.hashed_refresh_token = get_password_hash(refresh_token)
+        uow.commit()
+        
+        user_response = UserResponse.model_validate(user)
+
+        return {
+            "access_token": access_token, 
+            "refresh_token": refresh_token,
+            "token_type": "bearer", 
+            "user": user_response
+        }
