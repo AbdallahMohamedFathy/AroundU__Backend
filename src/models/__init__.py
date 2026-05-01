@@ -21,3 +21,5 @@ from .ai_interaction import AIInteraction
 from .token import RefreshToken
 from .device import DeviceToken
 from .audit_log import AuditLog
+from .property_favorite import PropertyFavorite
+from .password_reset_token import PasswordResetToken
