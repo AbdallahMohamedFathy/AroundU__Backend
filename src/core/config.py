@@ -69,6 +69,15 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_PATH")
     FIREBASE_SERVICE_ACCOUNT_JSON: Optional[str] = Field(default=None, alias="FIREBASE_SERVICE_ACCOUNT_JSON")
 
+    # SMTP / Email
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAILS_FROM_NAME: str = "7waleek"
+    EMAILS_FROM_EMAIL: str = "7waleekteam@gmail.com"
+    FRONTEND_URL: str = "https://7waleek.com"
+
     def get_cors_origins(self) -> list:
         if self.CORS_ORIGINS == "*":
             return ["*"]
