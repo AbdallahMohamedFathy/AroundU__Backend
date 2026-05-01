@@ -99,6 +99,7 @@ def verify_email(uow: UnitOfWork, token: str):
         return True
 
 def request_password_reset(uow: UnitOfWork, email: str) -> str:
+    from src.core.logger import logger
     with uow:
         user = uow.user_repository.get_by_email(email)
         if not user:
@@ -108,13 +109,17 @@ def request_password_reset(uow: UnitOfWork, email: str) -> str:
         user.reset_token = token
         user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=30)
         uow.commit()
+        
+        # In a real app, send an email here. For now, log the token.
+        logger.info(f"PASSWORD RESET REQUESTED FOR {email}. TOKEN: {token}")
+        
         return token
 
 def reset_password(uow: UnitOfWork, token: str, new_password: str):
     with uow:
         user = uow.user_repository.get_by_reset_token(token)
-        if user.reset_token_expires < datetime.now(timezone.utc):
-            raise APIException("Invalid or expired reset token")
+        if not user or not user.reset_token_expires or user.reset_token_expires < datetime.now(timezone.utc):
+            raise APIException("Invalid or expired reset token", code=status.HTTP_400_BAD_REQUEST)
         
         user.password_hash = get_password_hash(new_password)
         user.reset_token = None
