@@ -123,7 +123,6 @@ def reset_password(uow: UnitOfWork, token: str, new_password: str):
         return True
 
 def social_login(uow: UnitOfWork, data: Any):
-    # data is of type SocialLogin from src.schemas.user
     from firebase_admin import auth
     from src.utils.firebase import get_firebase_app
     
@@ -139,9 +138,13 @@ def social_login(uow: UnitOfWork, data: Any):
         firebase_uid = decoded_token.get('uid')
         email = decoded_token.get('email')
         name = decoded_token.get('name', 'User')
+        # Detect provider from Firebase token
+        provider = decoded_token.get('firebase', {}).get('sign_in_provider', 'google.com')
         
         if not firebase_uid:
             raise APIException("Invalid ID token", code=status.HTTP_400_BAD_REQUEST)
+    except APIException:
+        raise
     except Exception as e:
         raise APIException(f"Firebase authentication failed: {str(e)}", code=status.HTTP_401_UNAUTHORIZED)
         
@@ -154,7 +157,7 @@ def social_login(uow: UnitOfWork, data: Any):
             user = uow.user_repository.get_by_email(email)
             if user:
                 user.firebase_uid = firebase_uid
-                user.provider = data.provider
+                user.provider = provider
         
         # 3. If still not found, create new user
         if not user:
@@ -163,36 +166,19 @@ def social_login(uow: UnitOfWork, data: Any):
                 email=email,
                 full_name=name,
                 firebase_uid=firebase_uid,
-                provider=data.provider,
-                is_verified=True, # Social emails are typically verified
+                provider=provider,
+                is_verified=True,
             )
             uow.user_repository.add(user)
             uow.session.flush()
             
         if not user.is_active:
             raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
-        
-        # 4. Handle Device Token for FCM (Push Notifications)
-        if data.device_token:
-            from src.models.device import DeviceToken
-            existing_device = uow.session.query(DeviceToken).filter_by(device_id=data.device_token.device_id).first()
-            if existing_device:
-                existing_device.user_id = user.id
-                existing_device.fcm_token = data.device_token.fcm_token
-            else:
-                new_device = DeviceToken(
-                    user_id=user.id,
-                    device_id=data.device_token.device_id,
-                    device_type=data.device_token.device_type,
-                    fcm_token=data.device_token.fcm_token
-                )
-                uow.session.add(new_device)
                 
-        # 5. Generate Backend JWT Tokens
+        # 4. Generate Backend JWT Tokens
         access_token = create_access_token(subject=user.id)
         refresh_token = create_refresh_token(subject=user.id)
         
-        user.hashed_refresh_token = get_password_hash(refresh_token)
         uow.commit()
         
         user_response = UserResponse.model_validate(user)
