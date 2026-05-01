@@ -63,6 +63,8 @@ class PropertyResponse(PropertyBase):
     images: List[PropertyImageResponse] = []
     reviews: List[PropertyReviewResponse] = []
     review_count: int = 0
+    favorite_count: int = 0
+    is_favorited: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +79,7 @@ class PropertyMyResponse(PropertyBase):
     updated_at: datetime
     images: List[PropertyImageResponse] = []
     review_count: int = 0
+    favorite_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,6 +95,8 @@ class PropertyResponse(PropertyBase):
     images: List[PropertyImageResponse] = []
     reviews: List[PropertyReviewResponse] = []
     review_count: int = 0
+    favorite_count: int = 0
+    is_favorited: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -102,6 +107,8 @@ class PropertyShortResponse(BaseModel):
     price: float
     main_image_url: Optional[str] = None
     review_count: int = 0
+    favorite_count: int = 0
+    is_favorited: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True)
 

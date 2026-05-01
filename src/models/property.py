@@ -30,7 +30,12 @@ class Property(Base):
     def review_count(self) -> int:
         return len(getattr(self, "reviews", []))
 
+    @property
+    def favorite_count(self) -> int:
+        return len(getattr(self, "favorites", []))
+
     # Relationships
     owner = relationship("User", backref="properties")
     images = relationship("PropertyImage", back_populates="prop", cascade="all, delete-orphan")
     reviews = relationship("PropertyReview", back_populates="prop", cascade="all, delete-orphan")
+    favorites = relationship("PropertyFavorite", back_populates="prop", cascade="all, delete-orphan")

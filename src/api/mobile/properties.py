@@ -19,6 +19,28 @@ def add_property_review(
     repo = PropertyRepository(uow.session)
     return property_service.create_property_review(repo, id, data, current_user)
 
+# ─── FAVORITES ───────────────────────────────────────────────────────────────
+@router.post("/{id}/favorites", status_code=status.HTTP_201_CREATED)
+def add_property_favorite(
+    id: int,
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    """Add a property to favorites."""
+    repo = PropertyRepository(uow.session)
+    return property_service.add_property_favorite(repo, id, current_user)
+
+@router.delete("/{id}/favorites", status_code=status.HTTP_204_NO_CONTENT)
+def remove_property_favorite(
+    id: int,
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    """Remove a property from favorites."""
+    repo = PropertyRepository(uow.session)
+    property_service.remove_property_favorite(repo, id, current_user)
+    return None
+
 # ─── GET all (must come before /{id}) ───────────────────────────────────────
 @router.get("/", response_model=PropertyListResponse)
 def list_properties(

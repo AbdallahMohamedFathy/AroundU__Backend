@@ -46,6 +46,7 @@ class User(Base):
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     property_reviews = relationship("PropertyReview", back_populates="user", cascade="all, delete-orphan")
+    property_favorites = relationship("PropertyFavorite", back_populates="user", cascade="all, delete-orphan")
     
     # New Auth Relationships
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")

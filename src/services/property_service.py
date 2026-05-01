@@ -33,6 +33,41 @@ def create_property_review(repo: Any, property_id: int, review_data: PropertyRev
     repo.session.refresh(db_review)
     return db_review
 
+def add_property_favorite(repo: Any, property_id: int, current_user: Any):
+    from src.models.property_favorite import PropertyFavorite
+    db_prop = repo.get_by_id(property_id)
+    if not db_prop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+    
+    existing = repo.session.query(PropertyFavorite).filter(
+        PropertyFavorite.property_id == property_id,
+        PropertyFavorite.user_id == current_user.id
+    ).first()
+    
+    if existing:
+        raise APIException("Property already in favorites", code=status.HTTP_400_BAD_REQUEST)
+        
+    db_fav = PropertyFavorite(
+        property_id=property_id,
+        user_id=current_user.id
+    )
+    repo.session.add(db_fav)
+    repo.session.commit()
+    return {"message": "Property added to favorites"}
+
+def remove_property_favorite(repo: Any, property_id: int, current_user: Any):
+    from src.models.property_favorite import PropertyFavorite
+    db_fav = repo.session.query(PropertyFavorite).filter(
+        PropertyFavorite.property_id == property_id,
+        PropertyFavorite.user_id == current_user.id
+    ).first()
+    
+    if not db_fav:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Favorite not found")
+        
+    repo.session.delete(db_fav)
+    repo.session.commit()
+    return {"message": "Property removed from favorites"}
 
 
 MAX_IMAGES = 5
