@@ -29,6 +29,15 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), uo
     return auth_service.authenticate_user(uow, user_in)
 
 
+# ─── SOCIAL LOGIN  POST /auth/social-login ───────────────────────────────────
+from src.schemas.user import SocialLogin
+
+@router.post("/social-login", response_model=AuthResponse)
+@limiter.limit("5/minute")
+def social_login(request: Request, data: SocialLogin, uow=Depends(get_uow)):
+    """Authenticate or Register a user using Firebase ID Token (Google/Apple)."""
+    return auth_service.social_login(uow, data)
+
 # ─── REFRESH  POST /auth/refresh-token ──────────────────────────────────────
 @router.post("/refresh-token")
 def refresh_token(refresh_token: str, uow=Depends(get_uow)):

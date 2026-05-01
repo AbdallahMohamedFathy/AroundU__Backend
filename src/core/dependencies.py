@@ -162,3 +162,38 @@ class RoleChecker:
             )
 
         return user
+
+# =========================================================
+# AI API Key Dependency
+# =========================================================
+from fastapi.security.api_key import APIKeyHeader
+from src.models.api_key import ServiceAPIKey
+from fastapi import Security, HTTPException, Request
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_ai_service(required_permission: str):
+    def _verify(request: Request, api_key: str = Security(api_key_header), db: Session = Depends(get_db)):
+        if not api_key:
+            raise HTTPException(status_code=401, detail={"error": "UNAUTHORIZED", "message": "Missing X-API-Key header"})
+        
+        # NOTE: Using a simple lookup for now. In production, cache the hashed key in Redis.
+        # Here we assume the api_key itself is passed and we check its hash or exact match.
+        # For simplicity in this structure without a hashing setup for API keys yet:
+        service = db.query(ServiceAPIKey).filter(
+            ServiceAPIKey.api_key_hash == api_key, # In prod: verify_hash(api_key, hash)
+            ServiceAPIKey.is_active == True
+        ).first()
+        
+        if not service:
+            raise HTTPException(status_code=403, detail={"error": "FORBIDDEN", "message": "Invalid API Key"})
+            
+        if required_permission not in service.permissions:
+            raise HTTPException(status_code=403, detail={"error": "FORBIDDEN", "message": "Insufficient permissions"})
+            
+        client_ip = request.client.host
+        if service.allowed_ips and client_ip not in service.allowed_ips:
+            raise HTTPException(status_code=403, detail={"error": "FORBIDDEN", "message": "IP not whitelisted"})
+        
+        return service
+    return _verify

@@ -22,3 +22,6 @@ class UserRepository(BaseRepository[User]):
 
     def get_by_reset_token(self, token: str) -> Optional[User]:
         return self.session.query(User).filter(User.reset_token == token).first()
+
+    def get_by_firebase_uid(self, uid: str) -> Optional[User]:
+        return self.session.query(User).filter(User.firebase_uid == uid, User.is_deleted == False).first()

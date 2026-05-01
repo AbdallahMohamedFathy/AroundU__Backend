@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: Optional[EmailStr] = None
 
 
 class UserCreate(UserBase):
@@ -14,7 +14,20 @@ class UserCreate(UserBase):
 
 
 class UserLogin(UserBase):
+    email: EmailStr
     password: str
+
+
+class SocialLogin(BaseModel):
+    id_token: str
+    device_model: Optional[str] = None
+    os_version: Optional[str] = None
+
+
+class DeviceTokenCreate(BaseModel):
+    fcm_token: str
+    device_model: Optional[str] = None
+    os_version: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
