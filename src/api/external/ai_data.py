@@ -83,9 +83,29 @@ async def get_analytics(
     db: Session = Depends(get_db)
 ):
     """Pre-computed analytics for AI."""
-    # This should be cached in Redis in production
+    from sqlalchemy import func
+    from sqlalchemy.orm import joinedload
+    
+    # 1. Top rated places
+    top_rated = db.query(Place).options(joinedload(Place.category)).filter(Place.is_active == True).order_by(Place.rating.desc()).limit(5).all()
+    
+    # 2. Most visited (places with most interactions)
+    # Using review_count as a proxy for simplicity, or we can query interactions
+    most_visited = db.query(Place).options(joinedload(Place.category)).filter(Place.is_active == True).order_by(Place.review_count.desc()).limit(5).all()
+    
+    def map_place(p):
+        return AIPlaceResponse(
+            place_id=str(p.id),
+            name=p.name,
+            category=p.category.name if p.category else "Unknown",
+            rating=p.rating or 0.0,
+            review_count=p.review_count or 0,
+            lat=p.latitude,
+            lng=p.longitude
+        )
+
     return AIAnalyticsResponse(
-        top_rated_places=[],
-        most_visited_places=[],
-        trending_categories=["COFFEE", "RESTAURANT"]
+        top_rated_places=[map_place(p) for p in top_rated],
+        most_visited_places=[map_place(p) for p in most_visited],
+        trending_categories=["COFFEE", "RESTAURANT"] # This usually requires a complex group_by query, leaving static for now
     )
