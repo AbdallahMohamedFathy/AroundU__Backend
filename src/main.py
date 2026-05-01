@@ -181,6 +181,11 @@ def on_startup():
                     conn.execute(text("ALTER TABLE users ADD COLUMN deleted_at TIMESTAMPTZ;"))
                     conn.commit()
                     
+                # Ensure password_hash is nullable (for social login)
+                logger.info("Ensuring password_hash can be null for social logins...")
+                conn.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;"))
+                conn.commit()
+                    
                 logger.info("Users table columns check complete.")
             except Exception as col_err:
                 logger.error(f"Error adding columns to users: {col_err}")
