@@ -191,13 +191,9 @@ def on_startup():
                 logger.error(f"Error adding columns to users: {col_err}")
 
             # ── password_reset_tokens table ──────────────────────────────
-            prt_table = conn.execute(text(
-                "SELECT to_regclass('public.password_reset_tokens');"
-            )).scalar()
-            if not prt_table:
-                logger.warning("Table 'password_reset_tokens' missing. Creating it...")
+            try:
                 conn.execute(text("""
-                    CREATE TABLE password_reset_tokens (
+                    CREATE TABLE IF NOT EXISTS password_reset_tokens (
                         id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         token_hash    VARCHAR NOT NULL UNIQUE,
@@ -205,20 +201,19 @@ def on_startup():
                         is_used       BOOLEAN DEFAULT FALSE NOT NULL,
                         created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
                     );
-                    CREATE INDEX ix_prt_user_id    ON password_reset_tokens(user_id);
-                    CREATE INDEX ix_prt_token_hash ON password_reset_tokens(token_hash);
                 """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_prt_user_id    ON password_reset_tokens(user_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_prt_token_hash ON password_reset_tokens(token_hash);"))
                 conn.commit()
-                logger.info("Table 'password_reset_tokens' created successfully.")
+                logger.info("Table 'password_reset_tokens' ensured.")
+            except Exception as prt_err:
+                logger.error(f"Error creating password_reset_tokens: {prt_err}")
+                conn.rollback()
 
             # ── property_favorites table ─────────────────────────────────
-            pf_table = conn.execute(text(
-                "SELECT to_regclass('public.property_favorites');"
-            )).scalar()
-            if not pf_table:
-                logger.warning("Table 'property_favorites' missing. Creating it...")
+            try:
                 conn.execute(text("""
-                    CREATE TABLE property_favorites (
+                    CREATE TABLE IF NOT EXISTS property_favorites (
                         id           SERIAL PRIMARY KEY,
                         user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         property_id  INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
@@ -226,11 +221,14 @@ def on_startup():
                         updated_at   TIMESTAMPTZ,
                         CONSTRAINT unique_user_property_favorite UNIQUE (user_id, property_id)
                     );
-                    CREATE INDEX ix_pf_user_id     ON property_favorites(user_id);
-                    CREATE INDEX ix_pf_property_id ON property_favorites(property_id);
                 """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pf_user_id     ON property_favorites(user_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_pf_property_id ON property_favorites(property_id);"))
                 conn.commit()
-                logger.info("Table 'property_favorites' created successfully.")
+                logger.info("Table 'property_favorites' ensured.")
+            except Exception as pf_err:
+                logger.error(f"Error creating property_favorites: {pf_err}")
+                conn.rollback()
 
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
