@@ -98,14 +98,18 @@ def send_verification_email(email: str, token: str, user_name: str) -> bool:
     </head>
     <body>
         <div class="container">
-            <h2>Welcome to AroundU, {user_name}!</h2>
+            <!-- App Logo -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://7waleek.com/logo.jpeg" alt="7waleek Logo" style="max-width: 150px; height: auto;" />
+            </div>
+            <h2>Welcome to 7waleek, {user_name}!</h2>
             <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
             <a href="{verification_link}" class="button">Verify Email Address</a>
             <p>Or copy and paste this link into your browser:</p>
             <p style="word-break: break-all;">{verification_link}</p>
             <p>This link will expire in 24 hours.</p>
             <div class="footer">
-                <p>If you didn't create an account with AroundU, please ignore this email.</p>
+                <p>If you didn't create an account with 7waleek, please ignore this email.</p>
             </div>
         </div>
     </body>
@@ -113,7 +117,7 @@ def send_verification_email(email: str, token: str, user_name: str) -> bool:
     """
 
     text_body = f"""
-    Welcome to AroundU, {user_name}!
+    Welcome to 7waleek, {user_name}!
 
     Thank you for registering. Please verify your email address by clicking the link below:
 
@@ -121,12 +125,12 @@ def send_verification_email(email: str, token: str, user_name: str) -> bool:
 
     This link will expire in 24 hours.
 
-    If you didn't create an account with AroundU, please ignore this email.
+    If you didn't create an account with 7waleek, please ignore this email.
     """
 
     return send_email(
         to_email=email,
-        subject="Verify your AroundU account",
+        subject="Verify your 7waleek account",
         body_html=html_body,
         body_text=text_body
     )
@@ -174,6 +178,10 @@ def send_password_reset_email(email: str, token: str, user_name: str) -> bool:
     </head>
     <body>
         <div class="container">
+            <!-- App Logo -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://res.cloudinary.com/dvecsfbmu/image/upload/v1777668197/WhatsApp_Image_2026-05-01_at_11.32.59_PM_rti73a.jpg" alt="7waleek Logo" style="max-width: 150px; height: auto;" />
+            </div>
             <h2>Password Reset Request</h2>
             <p>Hello {user_name},</p>
             <p>We received a request to reset your password. Click the button below to create a new password:</p>
@@ -208,7 +216,7 @@ def send_password_reset_email(email: str, token: str, user_name: str) -> bool:
 
     return send_email(
         to_email=email,
-        subject="Reset your AroundU password",
+        subject="Reset your 7waleek password",
         body_html=html_body,
         body_text=text_body
     )
