@@ -15,13 +15,13 @@ owner_only = RoleChecker(["OWNER", "ADMIN"])
 def get_subcategory_repo(db=Depends(get_db)):
     return SubCategoryRepository(db)
 
-@router.get("/category/{category_id}", response_model=List[SubCategoryResponse])
-def get_subcategories_by_category(
-    category_id: int,
+@router.get("/place/{place_id}", response_model=List[SubCategoryResponse])
+def get_subcategories_by_place(
+    place_id: int,
     repo=Depends(get_subcategory_repo)
 ):
-    """Get all subcategories belonging to a specific main category."""
-    return subcategory_service.get_subcategories_by_category(repo, category_id)
+    """Get all subcategories belonging to a specific place."""
+    return subcategory_service.get_subcategories_by_place(repo, place_id)
 
 @router.get("/my", response_model=List[SubCategoryResponse])
 def get_my_subcategories(

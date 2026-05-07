@@ -7,9 +7,9 @@ class SubCategoryRepository(BaseRepository[SubCategory]):
     def __init__(self, session: Session):
         super().__init__(SubCategory, session)
 
-    def get_by_category(self, category_id: int) -> List[SubCategory]:
+    def get_by_place(self, place_id: int) -> List[SubCategory]:
         return self.session.query(self.model).filter(
-            self.model.category_id == category_id,
+            self.model.place_id == place_id,
             self.model.is_deleted == False
         ).all()
 

@@ -12,4 +12,3 @@ class Category(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     places = relationship("Place", back_populates="category")
-    subcategories = relationship("SubCategory", back_populates="category", cascade="all, delete-orphan")

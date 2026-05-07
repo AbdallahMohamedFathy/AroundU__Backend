@@ -7,18 +7,21 @@ from src.models.subcategory import SubCategory
 from fastapi import status
 import datetime
 
-def get_subcategories_by_category(repo: SubCategoryRepository, category_id: int):
-    return repo.get_by_category(category_id)
+def get_subcategories_by_place(repo: SubCategoryRepository, place_id: int):
+    return repo.get_by_place(place_id)
 
 def get_owner_subcategories(repo: SubCategoryRepository, owner_id: int):
     return repo.get_by_owner(owner_id)
 
 def create_subcategory(uow: UnitOfWork, subcategory_in: SubCategoryCreate, owner_id: int):
     with uow:
-        # Check if category exists
-        category = uow.category_repository.get_by_id(subcategory_in.category_id)
-        if not category:
-            raise APIException("Category not found", code=status.HTTP_404_NOT_FOUND)
+        # Check if place exists and belongs to owner
+        place = uow.place_repository.get_by_id(subcategory_in.place_id)
+        if not place:
+            raise APIException("Place not found", code=status.HTTP_404_NOT_FOUND)
+        
+        if place.owner_id != owner_id:
+            raise APIException("You don't have permission to add subcategories to this place", code=status.HTTP_403_FORBIDDEN)
 
         # Prevent duplicate subcategory names for same owner
         existing = uow.subcategory_repository.get_by_name_and_owner(subcategory_in.name, owner_id)

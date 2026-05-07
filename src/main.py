@@ -242,14 +242,14 @@ def on_startup():
                         id           SERIAL PRIMARY KEY,
                         name         VARCHAR(255) NOT NULL,
                         image_url    VARCHAR,
-                        category_id  INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+                        place_id     INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
                         owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         is_deleted   BOOLEAN DEFAULT FALSE,
                         deleted_at   TIMESTAMPTZ,
                         created_at   TIMESTAMPTZ DEFAULT NOW(),
                         updated_at   TIMESTAMPTZ
                     );
-                    CREATE INDEX IF NOT EXISTS ix_subcategories_category_id ON subcategories(category_id);
+                    CREATE INDEX IF NOT EXISTS ix_subcategories_place_id ON subcategories(place_id);
                     CREATE INDEX IF NOT EXISTS ix_subcategories_owner_id ON subcategories(owner_id);
                 """))
                 conn.commit()
