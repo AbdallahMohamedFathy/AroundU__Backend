@@ -393,6 +393,7 @@ app.include_router(dashboard_owner.router, prefix="/api/owner", tags=["Dashboard
 app.include_router(owner_notifications.router, prefix="/api/owner/notifications", tags=["Dashboard - Owner Notifications"])
 
 # ─── EXTERNAL API (AI GATEWAY) ──────────────────────────────────────────
+from src.api.external import ai_data
 app.include_router(ai_data.router, prefix="/api/v1")
 
 # ─── MENU MANAGEMENT API ────────────────────────────────────
