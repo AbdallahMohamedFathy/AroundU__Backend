@@ -260,8 +260,11 @@ def on_startup():
                 
                 if 'place_id' not in existing_cols:
                     if 'category_id' in existing_cols:
-                        logger.info("Migrating subcategories: renaming category_id to place_id...")
+                        logger.info("Migrating subcategories: renaming category_id to place_id and fixing foreign key...")
                         conn.execute(text("ALTER TABLE subcategories RENAME COLUMN category_id TO place_id;"))
+                        # Drop the old constraint that points to 'categories' table
+                        conn.execute(text("ALTER TABLE subcategories DROP CONSTRAINT IF EXISTS subcategories_category_id_fkey;"))
+                        # Add new constraint pointing to 'places' table
                         conn.execute(text("ALTER TABLE subcategories ADD CONSTRAINT subcategories_place_id_fkey FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE;"))
                     else:
                         logger.info("Migrating subcategories: adding place_id column...")
