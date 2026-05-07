@@ -32,6 +32,11 @@ from src.api.dashboard import categories as dashboard_categories
 from src.api.dashboard import admin as dashboard_admin
 from src.api.dashboard import owner as dashboard_owner
 
+# Menu Management
+from src.api.routes import categories as menu_categories
+from src.api.routes import subcategories as menu_subcategories
+from src.api.routes import items as menu_items
+
 # Core
 from src.core.config import settings
 from src.core.database import get_db
@@ -230,6 +235,62 @@ def on_startup():
                 logger.error(f"Error creating property_favorites: {pf_err}")
                 conn.rollback()
 
+            # ── subcategories table ──────────────────────────────────────
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS subcategories (
+                        id           SERIAL PRIMARY KEY,
+                        name         VARCHAR(255) NOT NULL,
+                        image_url    VARCHAR,
+                        category_id  INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+                        owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        is_deleted   BOOLEAN DEFAULT FALSE,
+                        deleted_at   TIMESTAMPTZ,
+                        created_at   TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at   TIMESTAMPTZ
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_subcategories_category_id ON subcategories(category_id);
+                    CREATE INDEX IF NOT EXISTS ix_subcategories_owner_id ON subcategories(owner_id);
+                """))
+                conn.commit()
+                logger.info("Table 'subcategories' ensured.")
+            except Exception as sub_err:
+                logger.error(f"Error creating subcategories: {sub_err}")
+                conn.rollback()
+
+            # ── items table migration ────────────────────────────────────
+            try:
+                cols = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='items';"
+                )).fetchall()
+                existing_cols = {row[0] for row in cols}
+
+                if 'sub_category_id' not in existing_cols:
+                    logger.info("Migrating 'items' table: adding sub_category_id...")
+                    conn.execute(text("ALTER TABLE items ADD COLUMN sub_category_id INTEGER REFERENCES subcategories(id) ON DELETE CASCADE;"))
+                    conn.commit()
+                
+                if 'image_url' not in existing_cols:
+                    conn.execute(text("ALTER TABLE items ADD COLUMN image_url VARCHAR;"))
+                    conn.commit()
+
+                if 'is_available' not in existing_cols:
+                    conn.execute(text("ALTER TABLE items ADD COLUMN is_available BOOLEAN DEFAULT TRUE;"))
+                    conn.commit()
+                
+                if 'is_deleted' not in existing_cols:
+                    conn.execute(text("ALTER TABLE items ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;"))
+                    conn.commit()
+                
+                if 'deleted_at' not in existing_cols:
+                    conn.execute(text("ALTER TABLE items ADD COLUMN deleted_at TIMESTAMPTZ;"))
+                    conn.commit()
+
+                logger.info("Items table check complete.")
+            except Exception as item_mig_err:
+                logger.error(f"Error migrating items table: {item_mig_err}")
+                conn.rollback()
+
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
 
@@ -332,8 +393,12 @@ app.include_router(dashboard_owner.router, prefix="/api/owner", tags=["Dashboard
 app.include_router(owner_notifications.router, prefix="/api/owner/notifications", tags=["Dashboard - Owner Notifications"])
 
 # ─── EXTERNAL API (AI GATEWAY) ──────────────────────────────────────────
-from src.api.external import ai_data
 app.include_router(ai_data.router, prefix="/api/v1")
+
+# ─── MENU MANAGEMENT API ────────────────────────────────────
+app.include_router(menu_categories.router, prefix="/api/v1")
+app.include_router(menu_subcategories.router, prefix="/api/v1")
+app.include_router(menu_items.router, prefix="/api/v1")
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

@@ -41,6 +41,7 @@ class User(Base):
 
     # Relationships
     places = relationship("Place", back_populates="owner")
+    subcategories = relationship("SubCategory", back_populates="owner", cascade="all, delete-orphan")
     search_history = relationship("SearchHistory", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")

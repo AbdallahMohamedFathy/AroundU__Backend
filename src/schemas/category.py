@@ -1,14 +1,21 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
+from datetime import datetime
 
 class CategoryBase(BaseModel):
-    name: str
+    name: str = Field(..., description="Name of the category")
     icon: Optional[str] = None
 
-class CategoryResponse(BaseModel):
+class CategoryCreate(CategoryBase):
+    pass
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="Name of the category")
+    icon: Optional[str] = None
+
+class CategoryResponse(CategoryBase):
     id: int
-    name: str
-    icon: str | None
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

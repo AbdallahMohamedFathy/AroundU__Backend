@@ -10,18 +10,17 @@ router = APIRouter(
     dependencies=[Depends(dashboard_guard)]
 )
 
-@router.post("/place/{place_id}", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
 def create_new_item(
-    place_id: int,
     item_in: ItemCreate,
     current_user: User = Depends(get_current_user),
     uow: UnitOfWork = Depends(get_uow)
 ):
+    """Dashboard: Create a new item."""
     return item_service.create_item(
         uow=uow,
-        place_id=place_id,
         item_in=item_in,
-        current_user=current_user
+        owner_id=current_user.id
     )
 
 
@@ -32,11 +31,12 @@ def update_existing_item(
     current_user: User = Depends(get_current_user),
     uow: UnitOfWork = Depends(get_uow)
 ):
+    """Dashboard: Update an item."""
     return item_service.update_item(
         uow=uow,
         item_id=item_id,
         item_in=item_in,
-        current_user=current_user
+        owner_id=current_user.id
     )
 
 
@@ -46,8 +46,27 @@ def remove_item(
     current_user: User = Depends(get_current_user),
     uow: UnitOfWork = Depends(get_uow)
 ):
+    """Dashboard: Delete an item."""
     item_service.delete_item(
         uow=uow,
         item_id=item_id,
-        current_user=current_user
+        owner_id=current_user.id
     )
+    return None
+
+from fastapi import UploadFile, File
+from src.utils.file_upload import save_upload_file
+
+@router.post("/{item_id}/image", response_model=ItemResponse)
+async def upload_item_image(
+    item_id: int,
+    file: UploadFile = File(...),
+    uow: UnitOfWork = Depends(get_uow),
+    current_user: User = Depends(get_current_user)
+):
+    """Dashboard: Upload an image for an item."""
+    # Save the file
+    file_path = await save_upload_file(file, subfolder="items")
+    
+    # Update item in database
+    return item_service.update_item_image(uow, item_id, file_path, current_user.id)

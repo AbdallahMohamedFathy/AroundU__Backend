@@ -26,6 +26,8 @@ from src.repositories.chat_message_repository import ChatMessageRepository
 from src.repositories.conversation_repository import ConversationRepository
 from src.repositories.message_repository import MessageRepository
 from src.repositories.search_repository import SearchRepository
+from src.repositories.subcategory_repository import SubCategoryRepository
+from src.repositories.item_repository import ItemRepository
 
 from src.schemas.user import UserResponse
 from src.services import user_service
@@ -83,6 +85,14 @@ def get_message_repository(db: Session = Depends(get_db)):
 
 def get_search_repository(db: Session = Depends(get_db)):
     return SearchRepository(db)
+
+
+def get_subcategory_repository(db: Session = Depends(get_db)):
+    return SubCategoryRepository(db)
+
+
+def get_item_repository(db: Session = Depends(get_db)):
+    return ItemRepository(db)
 
 # provider for unit of work
 def get_uow():
