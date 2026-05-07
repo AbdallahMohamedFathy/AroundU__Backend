@@ -8,6 +8,7 @@ from src.utils.location_parser import extract_coordinates
 from sqlalchemy import text
 from src.core.exceptions import APIException
 from src.core.logger import logger
+import requests
 
 # Rule 2: No SQLAlchemy or Model imports. 
 # We import types ONLY for type-hinting if absolutely necessary, but here we use the repo ones.
@@ -150,9 +151,13 @@ def create_place(uow: Any, request_data: Any, current_user: Any):
             }
         )
 
-        uow.commit()
-
-        return PlaceResponse.model_validate(db_place)
+        # Trigger chatbot data reload after successful commit
+        try:
+            response = requests.post("https://youmnaaaa-gp-chatbot.hf.space/reload-data", timeout=5)
+            response.raise_for_status()
+            logger.info("Chatbot data reload triggered successfully.")
+        except Exception as e:
+            logger.warning(f"Failed to trigger chatbot data reload: {e}")
 
 
 
