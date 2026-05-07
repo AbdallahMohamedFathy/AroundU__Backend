@@ -251,10 +251,17 @@ def on_startup():
                     CREATE INDEX IF NOT EXISTS ix_subcategories_place_id ON subcategories(place_id);
                     CREATE INDEX IF NOT EXISTS ix_subcategories_owner_id ON subcategories(owner_id);
                 """))
+                
+                # Cleanup: Remove image_url if it still exists from previous version
+                conn.execute(text("ALTER TABLE subcategories DROP COLUMN IF EXISTS image_url;"))
+                
+                # Fix categories: Add created_at if missing
+                conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();"))
+                
                 conn.commit()
-                logger.info("Table 'subcategories' ensured.")
+                logger.info("Table 'subcategories' and 'categories' schema ensured.")
             except Exception as sub_err:
-                logger.error(f"Error creating subcategories: {sub_err}")
+                logger.error(f"Error fixing subcategories/categories: {sub_err}")
                 conn.rollback()
 
             # ── items table migration ────────────────────────────────────
