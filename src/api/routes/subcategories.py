@@ -59,19 +59,3 @@ def delete_subcategory(
     """Owner: Delete a subcategory (Soft delete)."""
     subcategory_service.delete_subcategory(uow, id, current_user.id)
     return None
-
-from src.utils.file_upload import save_upload_file
-
-@router.post("/{id}/image", response_model=SubCategoryResponse)
-async def upload_subcategory_image(
-    id: int,
-    file: UploadFile = File(...),
-    uow=Depends(get_uow),
-    current_user=Depends(owner_only)
-):
-    """Owner: Upload an image for a subcategory."""
-    # Save the file
-    file_path = await save_upload_file(file, subfolder="subcategories")
-    
-    # Update subcategory in database
-    return subcategory_service.update_subcategory_image(uow, id, file_path, current_user.id)

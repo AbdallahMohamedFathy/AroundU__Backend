@@ -241,7 +241,6 @@ def on_startup():
                     CREATE TABLE IF NOT EXISTS subcategories (
                         id           SERIAL PRIMARY KEY,
                         name         VARCHAR(255) NOT NULL,
-                        image_url    VARCHAR,
                         place_id     INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
                         owner_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         is_deleted   BOOLEAN DEFAULT FALSE,

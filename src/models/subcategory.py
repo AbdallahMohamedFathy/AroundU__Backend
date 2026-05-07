@@ -8,7 +8,6 @@ class SubCategory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
-    image_url = Column(String, nullable=True)
     place_id = Column(Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     

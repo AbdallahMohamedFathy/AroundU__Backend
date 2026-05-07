@@ -71,16 +71,3 @@ def delete_subcategory(uow: UnitOfWork, subcategory_id: int, owner_id: int):
         subcategory.deleted_at = datetime.datetime.now(datetime.timezone.utc)
         uow.commit()
         return True
-
-def update_subcategory_image(uow: UnitOfWork, subcategory_id: int, image_url: str, owner_id: int):
-    with uow:
-        subcategory = uow.subcategory_repository.get_by_id(subcategory_id)
-        if not subcategory or subcategory.is_deleted:
-            raise APIException("SubCategory not found", code=status.HTTP_404_NOT_FOUND)
-
-        if subcategory.owner_id != owner_id:
-            raise APIException("You don't have permission to update this subcategory", code=status.HTTP_403_FORBIDDEN)
-
-        subcategory.image_url = image_url
-        uow.commit()
-        return subcategory

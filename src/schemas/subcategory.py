@@ -4,7 +4,6 @@ from datetime import datetime
 
 class SubCategoryBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    image_url: Optional[str] = None
     place_id: int
 
 class SubCategoryCreate(SubCategoryBase):
@@ -12,7 +11,6 @@ class SubCategoryCreate(SubCategoryBase):
 
 class SubCategoryUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
-    image_url: Optional[str] = None
     place_id: Optional[int] = None
 
 class SubCategoryResponse(SubCategoryBase):
