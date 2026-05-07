@@ -236,7 +236,9 @@ def on_startup():
                 conn.rollback()
 
             # ── subcategories table ──────────────────────────────────────
+            # ── subcategories table ──────────────────────────────────────
             try:
+                # Ensure table exists first
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS subcategories (
                         id           SERIAL PRIMARY KEY,
@@ -248,11 +250,28 @@ def on_startup():
                         created_at   TIMESTAMPTZ DEFAULT NOW(),
                         updated_at   TIMESTAMPTZ
                     );
-                    CREATE INDEX IF NOT EXISTS ix_subcategories_place_id ON subcategories(place_id);
-                    CREATE INDEX IF NOT EXISTS ix_subcategories_owner_id ON subcategories(owner_id);
                 """))
                 
-                # Cleanup: Remove image_url if it still exists from previous version
+                # Check columns for migration
+                cols = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='subcategories';"
+                )).fetchall()
+                existing_cols = {row[0] for row in cols}
+                
+                if 'place_id' not in existing_cols:
+                    if 'category_id' in existing_cols:
+                        logger.info("Migrating subcategories: renaming category_id to place_id...")
+                        conn.execute(text("ALTER TABLE subcategories RENAME COLUMN category_id TO place_id;"))
+                        conn.execute(text("ALTER TABLE subcategories ADD CONSTRAINT subcategories_place_id_fkey FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE;"))
+                    else:
+                        logger.info("Migrating subcategories: adding place_id column...")
+                        conn.execute(text("ALTER TABLE subcategories ADD COLUMN place_id INTEGER REFERENCES places(id) ON DELETE CASCADE;"))
+                
+                # Create indexes
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_subcategories_place_id ON subcategories(place_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_subcategories_owner_id ON subcategories(owner_id);"))
+
+                # Cleanup: Remove image_url if it still exists
                 conn.execute(text("ALTER TABLE subcategories DROP COLUMN IF EXISTS image_url;"))
                 
                 # Fix categories: Add created_at if missing
