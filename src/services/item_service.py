@@ -40,11 +40,12 @@ def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, owner_id: in
             
         # Check ownership via subcategory
         subcategory = uow.subcategory_repository.get_by_id(db_item.sub_category_id)
+        if not subcategory:
+            raise APIException("SubCategory not found", code=status.HTTP_404_NOT_FOUND)
         if subcategory.owner_id != owner_id:
             raise APIException("You don't have permission to update this item", code=status.HTTP_403_FORBIDDEN)
 
         if item_in.name and item_in.name != db_item.name:
-            # If sub_category_id is also changing, use the new one, otherwise use the current one
             target_sub_id = item_in.sub_category_id or db_item.sub_category_id
             existing = uow.item_repository.get_by_name_and_subcategory(item_in.name, target_sub_id)
             if existing:
@@ -54,6 +55,8 @@ def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, owner_id: in
         for field, value in update_data.items():
             setattr(db_item, field, value)
         
+        uow.session.flush()
+        uow.session.refresh(db_item)
         uow.commit()
         return db_item
 
