@@ -570,9 +570,64 @@ def _find_local_place_match(
 
         if results:
             match = results[0]
-            # Double check: If the user asked for a specific category but the match is far 
-            # or unrelated, we might still want to return it, but here we prioritize top match.
             match["place_id"] = str(match["id"])
+
+            # ── Enrich with full place details needed by the mobile UI ──────────
+            try:
+                from sqlalchemy import text as _text
+                detail = db.execute(
+                    _text("""
+                        SELECT
+                            p.address,
+                            p.phone,
+                            p.latitude,
+                            p.longitude,
+                            p.opening_hours,
+                            p.is_open,
+                            (
+                                SELECT pi.image_url
+                                FROM place_images pi
+                                WHERE pi.place_id = p.id
+                                  AND (pi.image_type = 'main' OR pi.image_type IS NULL)
+                                ORDER BY pi.created_at ASC
+                                LIMIT 1
+                            ) AS main_image_url
+                        FROM places p
+                        WHERE p.id = :pid
+                    """),
+                    {"pid": match["id"]},
+                ).fetchone()
+
+                if detail:
+                    match["address"]       = detail[0]
+                    match["phone"]         = detail[1]
+                    match["latitude"]      = float(detail[2]) if detail[2] else None
+                    match["longitude"]     = float(detail[3]) if detail[3] else None
+                    match["opening_hours"] = detail[4]
+                    match["is_open"]       = bool(detail[5]) if detail[5] is not None else None
+                    match["main_image_url"] = detail[6]
+
+                # distance_km if location was provided
+                if user_lat and user_lon and match.get("latitude") and match.get("longitude"):
+                    dist_row = db.execute(
+                        _text("""
+                            SELECT ST_Distance(
+                                ST_SetSRID(ST_MakePoint(:plon, :plat), 4326)::geography,
+                                ST_SetSRID(ST_MakePoint(:ulon, :ulat), 4326)::geography
+                            ) / 1000.0 AS distance_km
+                        """),
+                        {
+                            "plat": match["latitude"], "plon": match["longitude"],
+                            "ulat": user_lat,          "ulon": user_lon,
+                        },
+                    ).fetchone()
+                    match["distance_km"] = round(float(dist_row[0]), 2) if dist_row else None
+                else:
+                    match["distance_km"] = None
+
+            except Exception as enrich_exc:
+                logger.warning(f"[chatbot] Could not enrich place details: {enrich_exc}")
+
             return match
 
     except Exception as exc:
