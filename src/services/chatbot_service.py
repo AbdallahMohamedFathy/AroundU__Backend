@@ -584,8 +584,6 @@ def _find_local_place_match(
                             p.phone,
                             p.latitude,
                             p.longitude,
-                            p.opening_hours,
-                            p.is_open,
                             (
                                 SELECT pi.image_url
                                 FROM place_images pi
@@ -607,13 +605,14 @@ def _find_local_place_match(
 
                 if detail:
                     match["address"]        = detail[0]
-                    match["phone"]          = detail[1]
+                    phone_val               = detail[1]
+                    match["phone"]          = phone_val[0] if phone_val and isinstance(phone_val, list) else phone_val
                     match["lat"]            = float(detail[2]) if detail[2] else None
                     match["long"]           = float(detail[3]) if detail[3] else None
-                    match["openning_hours"] = detail[4]
-                    match["is_open"]        = bool(detail[5]) if detail[5] is not None else None
-                    match["image_url"]      = detail[6]
-                    match["sub_category"]   = detail[7]
+                    match["image_url"]      = detail[4]
+                    match["sub_category"]   = detail[5]
+                    match["openning_hours"] = "مفتوح الآن"
+                    match["is_open"]        = True
 
                 # is_favorite for the current user
                 if user_id:
