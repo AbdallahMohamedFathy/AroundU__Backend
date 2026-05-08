@@ -339,6 +339,60 @@ def on_startup():
                 logger.error(f"Error migrating items table: {item_mig_err}")
                 conn.rollback()
 
+            # ── orders and carts table creation ──────────────────────────
+            try:
+                logger.info("Ensuring orders and carts tables exist...")
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS orders (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        order_type VARCHAR NOT NULL,
+                        status VARCHAR NOT NULL DEFAULT 'PENDING',
+                        full_name VARCHAR NOT NULL,
+                        phone_number VARCHAR NOT NULL,
+                        address VARCHAR,
+                        notes VARCHAR,
+                        total_price FLOAT NOT NULL DEFAULT 0.0,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
+                    CREATE INDEX IF NOT EXISTS ix_orders_owner_id ON orders(owner_id);
+
+                    CREATE TABLE IF NOT EXISTS order_items (
+                        id SERIAL PRIMARY KEY,
+                        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+                        item_id INTEGER NOT NULL,
+                        item_name VARCHAR NOT NULL,
+                        unit_price FLOAT NOT NULL,
+                        quantity INTEGER NOT NULL,
+                        total_price FLOAT NOT NULL
+                    );
+
+                    CREATE TABLE IF NOT EXISTS carts (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        total_price FLOAT NOT NULL DEFAULT 0.0,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_carts_user_id ON carts(user_id);
+                    CREATE INDEX IF NOT EXISTS ix_carts_owner_id ON carts(owner_id);
+
+                    CREATE TABLE IF NOT EXISTS cart_items (
+                        id SERIAL PRIMARY KEY,
+                        cart_id INTEGER NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
+                        item_id INTEGER NOT NULL,
+                        quantity INTEGER NOT NULL DEFAULT 1,
+                        unit_price FLOAT NOT NULL
+                    );
+                """))
+                conn.commit()
+                logger.info("Orders and carts tables ensured.")
+            except Exception as order_mig_err:
+                logger.error(f"Error creating orders/carts tables: {order_mig_err}")
+                conn.rollback()
+
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
 
