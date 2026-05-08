@@ -314,6 +314,14 @@ def on_startup():
                     conn.execute(text("ALTER TABLE items ADD COLUMN deleted_at TIMESTAMPTZ;"))
                     conn.commit()
 
+                if 'created_at' not in existing_cols:
+                    conn.execute(text("ALTER TABLE items ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();"))
+                    conn.commit()
+
+                if 'updated_at' not in existing_cols:
+                    conn.execute(text("ALTER TABLE items ADD COLUMN updated_at TIMESTAMPTZ;"))
+                    conn.commit()
+
                 logger.info("Items table check complete.")
             except Exception as item_mig_err:
                 logger.error(f"Error migrating items table: {item_mig_err}")
