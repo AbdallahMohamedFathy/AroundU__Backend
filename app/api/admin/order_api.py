@@ -19,6 +19,33 @@ async def get_all_orders(db=Depends(get_db), current_user=Depends(get_current_us
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     
     service = OrderService(db)
-    orders = await service.order_repo.get_user_orders_all() # need to implement this
-    # ... placeholder logic ...
-    return []
+    orders = await service.order_repo.get_all_orders()
+    
+    result = []
+    for o in orders:
+        items_res = [
+            OrderItemResponse(
+                id=i.id,
+                item_id=i.item_id,
+                item_name=i.item_name,
+                unit_price=i.unit_price,
+                quantity=i.quantity,
+                total_price=i.total_price,
+            ) for i in o.items
+        ]
+        result.append(OrderResponse(
+            id=o.id,
+            user_id=o.user_id,
+            owner_id=o.owner_id,
+            place_id=o.place_id,
+            order_type=o.order_type,
+            status=o.status,
+            full_name=o.full_name,
+            phone_number=o.phone_number,
+            address=o.address,
+            notes=o.notes,
+            total_price=o.total_price,
+            items=items_res,
+            created_at=o.created_at,
+        ))
+    return result

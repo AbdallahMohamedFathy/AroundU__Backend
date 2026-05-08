@@ -23,6 +23,10 @@ class OrderRepository:
         result = await self.db.execute(select(Order).where(Order.owner_id == owner_id))
         return result.scalars().all()
 
+    async def get_all_orders(self) -> List[Order]:
+        result = await self.db.execute(select(Order).order_by(Order.created_at.desc()))
+        return result.scalars().all()
+
     async def create_order(self, order: Order, items: List[OrderItem]) -> Order:
         self.db.add(order)
         for item in items:
