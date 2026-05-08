@@ -14,9 +14,10 @@ router = APIRouter(tags=["Owner"])
     description="Owner receives list of orders placed to their business – **for owner**",
 )
 async def get_owner_orders(db=Depends(get_db), current_user=Depends(get_current_user)):
-    # Simple role check (mocked)
-    if getattr(current_user, "role", None) != "owner":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required")
+    # Role check (case-insensitive)
+    user_role = str(getattr(current_user, "role", "")).upper()
+    if user_role != "OWNER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Owner access required (current role: {user_role})")
     service = OrderService(db)
     orders = await service.order_repo.get_owner_orders(current_user.id)
     result = []

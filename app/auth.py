@@ -34,7 +34,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+from sqlalchemy import select
+from app.core.database import AsyncSessionLocal
+from src.models.user import User as DBUser
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> DBUser:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -48,12 +52,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     except JWTError:
         raise credentials_exception
     
-    # For now, we return a User object with the REAL ID. 
-    # To test as owner, you can check if the ID is in a list or just set it based on your test user.
-    # In full integration, fetch user from DB here.
-    user_role = "owner" if int(user_id) == 1 else "user" # Example: ID 1 is owner
-    return User(id=int(user_id), username=f"user_{user_id}", role=user_role)
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(DBUser).where(DBUser.id == int(user_id)))
+        user = result.scalars().first()
+        if user is None:
+            raise credentials_exception
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="User account is inactive")
+        
+        # Ensure the role is consistent (the routes expect lowercase or specific casing)
+        # We'll normalize it to lowercase for the mock-like compatibility or just use it as is
+        return user
 
-def get_current_active_user(current_user: User = Depends(get_current_user)):
-    # Here you could check if the user is active, banned, etc.
+def get_current_active_user(current_user: DBUser = Depends(get_current_user)):
     return current_user
