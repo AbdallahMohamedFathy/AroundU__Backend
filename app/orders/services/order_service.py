@@ -16,6 +16,8 @@ from app.orders.schemas.order import OrderCreate, OrderItemCreate, OrderResponse
 class InvalidStatusTransition(Exception):
     pass
 
+from src.models.place import Place
+
 class OrderService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -25,8 +27,24 @@ class OrderService:
     # ---------------------------------------------------------------------
     # Checkout
     # ---------------------------------------------------------------------
-    async def checkout(self, user_id: int, owner_id: int, order_data: OrderCreate) -> OrderResponse:
-        # 1️⃣ Identify items to order (either from request body or from DB cart)
+    async def checkout(self, user_id: int, order_data: OrderCreate, owner_id: int = None) -> OrderResponse:
+        # 1️⃣ Resolve owner_id if not provided
+        resolved_owner_id = owner_id or order_data.owner_id
+        
+        if not resolved_owner_id:
+            if not order_data.place_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail="Either owner_id or place_id must be provided"
+                )
+            # Find owner from place
+            place_result = await self.db.execute(select(Place).where(Place.id == order_data.place_id))
+            place = place_result.scalars().first()
+            if not place:
+                raise HTTPException(status_code=404, detail="Place not found")
+            resolved_owner_id = place.owner_id
+
+        # 2️⃣ Identify items to order (either from request body or from DB cart)
         items_to_order = []
         
         if order_data.items and len(order_data.items) > 0:
@@ -34,21 +52,21 @@ class OrderService:
             items_to_order = order_data.items
         else:
             # Fallback to DB cart
-            cart = await self.cart_repo.get_cart(user_id, owner_id)
+            cart = await self.cart_repo.get_cart(user_id, resolved_owner_id)
             if not cart or not cart.items:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart is empty and no items provided in request")
             items_to_order = cart.items
 
-        # 2️⃣ Validate quantities
+        # 3️⃣ Validate quantities
         for item in items_to_order:
             if item.quantity <= 0:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid quantity")
 
-        # 3️⃣ Create Order and OrderItems inside a transaction
+        # 4️⃣ Create Order and OrderItems inside a transaction
         async with self.db.begin():
             order = Order(
                 user_id=user_id,
-                owner_id=owner_id,
+                owner_id=resolved_owner_id,
                 place_id=order_data.place_id,
                 order_type=order_data.order_type,
                 status=OrderStatus.PENDING,

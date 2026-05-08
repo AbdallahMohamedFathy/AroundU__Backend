@@ -13,16 +13,29 @@ router = APIRouter(tags=["Mobile - Orders"])
 @router.post(
     "/checkout/{owner_id}",
     response_model=OrderResponse,
-    description="Create a new order (checkout) – **for user**",
+    description="Create a new order (checkout) – identifies owner via **path**",
 )
-async def checkout_order(
+async def checkout_order_via_path(
     owner_id: int,
     order_data: OrderCreate,
     db=Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     service = OrderService(db)
-    return await service.checkout(user_id=current_user.id, owner_id=owner_id, order_data=order_data)
+    return await service.checkout(user_id=current_user.id, order_data=order_data, owner_id=owner_id)
+
+@router.post(
+    "/checkout",
+    response_model=OrderResponse,
+    description="Create a new order (checkout) – identifies owner automatically from **place_id** in body",
+)
+async def checkout_order_direct(
+    order_data: OrderCreate,
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    service = OrderService(db)
+    return await service.checkout(user_id=current_user.id, order_data=order_data)
 
 @router.get(
     "/my",
