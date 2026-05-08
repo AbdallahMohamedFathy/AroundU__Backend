@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 
 engine = create_async_engine(
-    DATABASE_URL.replace("postgresql://", "postgresql+psycopg://").replace("postgres://", "postgresql+psycopg://"),
+    DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://").replace("postgres://", "postgresql+asyncpg://"),
     echo=True,
     future=True,
 )
