@@ -5,7 +5,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 
 engine = create_async_engine(
-    DATABASE_URL, echo=True, future=True
+    DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://").replace("postgres://", "postgresql+asyncpg://"),
+    echo=True,
+    future=True,
 )
 
 AsyncSessionLocal = sessionmaker(
@@ -18,7 +20,6 @@ async def init_db():
     # Import all models here to ensure they are registered with Base
     from app.orders.models.cart import Cart
     from app.orders.models.cart_item import CartItem
-    from app.orders.models.order import Order
-    from app.orders.models.order_item import OrderItem
+    from app.orders.models.order_models import Order, OrderItem
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
