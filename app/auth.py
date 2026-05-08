@@ -6,9 +6,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-# Secret key for JWT – in production use a secure env variable
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecretkey")
-ALGORITHM = "HS256"
+from src.core.config import settings
+# Use the project's real security settings
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/mobile/auth/login")
@@ -41,15 +42,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = _FAKE_USERS_DB.get(username)
-    if user is None:
-        raise credentials_exception
-    return user
+    
+    # For now, we return a User object with the REAL ID. 
+    # To test as owner, you can check if the ID is in a list or just set it based on your test user.
+    # In full integration, fetch user from DB here.
+    user_role = "owner" if int(user_id) == 1 else "user" # Example: ID 1 is owner
+    return User(id=int(user_id), username=f"user_{user_id}", role=user_role)
 
 def get_current_active_user(current_user: User = Depends(get_current_user)):
     # Here you could check if the user is active, banned, etc.

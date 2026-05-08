@@ -3,7 +3,8 @@ from typing import List
 
 from app.dependencies import get_db
 from app.orders.services.order_service import OrderService
-from app.orders.schemas.order import OrderCreate, OrderResponse, OrderStatus
+from app.orders.schemas.order import OrderCreate, OrderResponse
+from app.orders.enums.enums import OrderStatus
 from app.auth import get_current_user
 
 # Group all order endpoints under the "Orders" tag in Swagger UI
