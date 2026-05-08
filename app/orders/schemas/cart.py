@@ -21,7 +21,7 @@ class CartItemResponse(BaseModel):
     total_price: float
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CartResponse(BaseModel):
     id: int
@@ -32,4 +32,4 @@ class CartResponse(BaseModel):
     created_at: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
