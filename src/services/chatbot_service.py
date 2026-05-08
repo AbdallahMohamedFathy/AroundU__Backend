@@ -156,17 +156,6 @@ async def chat(
                 ai_data["intent"] = "nearest_place"
                 ai_data["reply"] = f"ليقيتلك '{local_match['name']}' في بني سويف، ينفعك؟"
 
-    # Attach full menu (subcategories + items with images) to best_place
-    if best_place:
-        place_id_for_menu = best_place.get("id") or best_place.get("place_id")
-        if place_id_for_menu:
-            try:
-                place_id_int = int(place_id_for_menu)
-                best_place["menu"] = _get_place_menu(db, place_id_int)
-            except Exception as menu_exc:
-                logger.warning(f"[chatbot] Could not fetch menu for place {place_id_for_menu}: {menu_exc}")
-                best_place["menu"] = []
-
     # Fire recommendation notification if we have a valid place
     if best_place and not is_fallback and background_tasks:
         place_id = best_place.get("id") or best_place.get("place_id")
@@ -192,70 +181,6 @@ async def chat(
 # ──────────────────────────────────────────────────────────────────────────────
 # Internal Helpers
 # ──────────────────────────────────────────────────────────────────────────────
-
-def _get_place_menu(db: Session, place_id: int) -> list:
-    """
-    Returns the full menu for a place as a list of subcategories,
-    each containing a list of available items (with image_url).
-    Example output:
-    [
-      {
-        "id": 1,
-        "name": "برجر",
-        "items": [
-          {"id": 5, "name": "برجر كلاسيك", "price": 89, "image_url": "...", "is_available": true}
-        ]
-      },
-      ...
-    ]
-    """
-    from sqlalchemy import text
-    menu = []
-    try:
-        # Fetch non-deleted subcategories for this place
-        subcats = db.execute(
-            text("""
-                SELECT id, name
-                FROM subcategories
-                WHERE place_id = :pid AND is_deleted = FALSE
-                ORDER BY id
-            """),
-            {"pid": place_id},
-        ).fetchall()
-
-        for sub in subcats:
-            sub_id, sub_name = sub[0], sub[1]
-            # Fetch available, non-deleted items for this subcategory
-            items = db.execute(
-                text("""
-                    SELECT id, name, description, price, image_url, is_available
-                    FROM items
-                    WHERE sub_category_id = :sid
-                      AND (is_deleted IS NULL OR is_deleted = FALSE)
-                      AND (is_available IS NULL OR is_available = TRUE)
-                    ORDER BY id
-                """),
-                {"sid": sub_id},
-            ).fetchall()
-
-            menu.append({
-                "id":    sub_id,
-                "name":  sub_name,
-                "items": [
-                    {
-                        "id":           row[0],
-                        "name":         row[1],
-                        "description":  row[2],
-                        "price":        float(row[3]) if row[3] else None,
-                        "image_url":    row[4],
-                        "is_available": bool(row[5]) if row[5] is not None else True,
-                    }
-                    for row in items
-                ],
-            })
-    except Exception as exc:
-        logger.warning(f"[chatbot] _get_place_menu failed for place {place_id}: {exc}")
-    return menu
 
 async def _call_chatbot(payload: dict) -> tuple[dict, bool]:
     """
