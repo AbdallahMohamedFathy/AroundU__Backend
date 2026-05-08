@@ -503,10 +503,20 @@ app.include_router(menu_categories.router, prefix="/api/v1")
 app.include_router(menu_subcategories.router, prefix="/api/v1")
 app.include_router(menu_items.router, prefix="/api/v1")
 
-# ─── ORDERS SYSTEM API ──────────────────────────────────────
-app.include_router(cart_routes.router, prefix="/api/cart")
-app.include_router(order_routes.router, prefix="/api/orders")
-app.include_router(owner_routes.router, prefix="/api/owner_orders")
+# ─── ORDERS SYSTEM - REORGANIZED CONTAINERS ────────────────
+from app.api.user import order_api as user_orders, cart_api as user_cart
+from app.api.owner import order_api as owner_orders
+from app.api.admin import order_api as admin_orders
+
+# User/Mobile Group
+app.include_router(user_orders.router, prefix="/api/user/orders", tags=["Mobile - Orders"])
+app.include_router(user_cart.router, prefix="/api/user/cart", tags=["Mobile - Cart"])
+
+# Owner/Dashboard Group
+app.include_router(owner_orders.router, prefix="/api/owner/orders", tags=["Dashboard - Owner"])
+
+# Admin/Dashboard Group
+app.include_router(admin_orders.router, prefix="/api/admin/orders", tags=["Dashboard - Admin"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK
