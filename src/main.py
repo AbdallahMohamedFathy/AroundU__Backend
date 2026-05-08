@@ -322,6 +322,15 @@ def on_startup():
                     conn.execute(text("ALTER TABLE items ADD COLUMN updated_at TIMESTAMPTZ;"))
                     conn.commit()
 
+                # Fix legacy columns: make old NOT NULL columns nullable for new schema
+                conn.execute(text("ALTER TABLE items DROP CONSTRAINT IF EXISTS items_place_id_fkey;"))
+                conn.execute(text("ALTER TABLE items ALTER COLUMN place_id DROP NOT NULL;"))
+                conn.execute(text("ALTER TABLE items ALTER COLUMN discount DROP NOT NULL;"))
+                conn.execute(text("ALTER TABLE items ALTER COLUMN discount SET DEFAULT 0;"))
+                conn.execute(text("ALTER TABLE items ALTER COLUMN is_active DROP NOT NULL;"))
+                conn.execute(text("ALTER TABLE items ALTER COLUMN is_active SET DEFAULT TRUE;"))
+                conn.commit()
+
                 logger.info("Items table check complete.")
             except Exception as item_mig_err:
                 logger.error(f"Error migrating items table: {item_mig_err}")
