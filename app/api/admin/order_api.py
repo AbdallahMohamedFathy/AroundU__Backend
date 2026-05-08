@@ -3,7 +3,7 @@ from typing import List
 
 from app.dependencies import get_db
 from app.orders.services.order_service import OrderService
-from app.orders.schemas.order import OrderResponse
+from app.orders.schemas.order import OrderResponse, OrderItemResponse
 from app.auth import get_current_user
 
 router = APIRouter(tags=["Dashboard - Admin"])
