@@ -27,22 +27,14 @@ class OrderService:
     # ---------------------------------------------------------------------
     # Checkout
     # ---------------------------------------------------------------------
-    async def checkout(self, user_id: int, order_data: OrderCreate, owner_id: int = None) -> OrderResponse:
-        # 1️⃣ Resolve owner_id if not provided
-        resolved_owner_id = owner_id or order_data.owner_id
+    async def checkout(self, user_id: int, order_data: OrderCreate) -> OrderResponse:
+        # 1️⃣ Resolve owner_id from place_id (UX: User only deals with Place)
+        place_result = await self.db.execute(select(Place).where(Place.id == order_data.place_id))
+        place = place_result.scalars().first()
+        if not place:
+            raise HTTPException(status_code=404, detail="Place not found")
         
-        if not resolved_owner_id:
-            if not order_data.place_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, 
-                    detail="Either owner_id or place_id must be provided"
-                )
-            # Find owner from place
-            place_result = await self.db.execute(select(Place).where(Place.id == order_data.place_id))
-            place = place_result.scalars().first()
-            if not place:
-                raise HTTPException(status_code=404, detail="Place not found")
-            resolved_owner_id = place.owner_id
+        resolved_owner_id = place.owner_id
 
         # 2️⃣ Identify items to order (either from request body or from DB cart)
         items_to_order = []
