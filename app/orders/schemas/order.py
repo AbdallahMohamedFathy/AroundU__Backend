@@ -29,6 +29,8 @@ class OrderCreate(BaseModel):
             raise ValueError('address is required for CASH_ON_DELIVERY orders')
         return v
 
+from datetime import datetime
+
 class OrderItemResponse(BaseModel):
     id: int
     item_id: int
@@ -52,7 +54,7 @@ class OrderResponse(BaseModel):
     notes: Optional[str]
     total_price: float
     items: List[OrderItemResponse] = []
-    created_at: Optional[str]
+    created_at: Optional[datetime]
 
     class Config:
         from_attributes = True

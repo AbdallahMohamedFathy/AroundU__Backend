@@ -28,6 +28,7 @@ class OrderRepository:
         for item in items:
             self.db.add(item)
         await self.db.flush()
+        await self.db.refresh(order)
         return order
 
     async def update_status(self, order: Order, new_status: OrderStatus) -> Order:
