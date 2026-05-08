@@ -92,7 +92,7 @@ class OrderService:
 
             # 5️⃣ Clear cart after successful order creation (only if we used the DB cart)
             if not (order_data.items and len(order_data.items) > 0):
-                cart = await self.cart_repo.get_cart(user_id, owner_id)
+                cart = await self.cart_repo.get_cart(user_id, resolved_owner_id)
                 if cart:
                     await self.cart_repo.clear_cart(cart)
 
@@ -101,6 +101,7 @@ class OrderService:
             id=order.id,
             user_id=order.user_id,
             owner_id=order.owner_id,
+            place_id=order.place_id,
             order_type=order.order_type,
             status=order.status,
             full_name=order.full_name,
@@ -119,7 +120,7 @@ class OrderService:
                 )
                 for item in order_items
             ],
-            created_at=order.created_at.isoformat() if order.created_at else None,
+            created_at=order.created_at,
         )
 
     # ---------------------------------------------------------------------
