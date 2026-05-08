@@ -154,7 +154,7 @@ async def chat(
             best_place = local_match
             if intent == "fallback":
                 ai_data["intent"] = "nearest_place"
-                ai_data["reply"] = f"ليقيتلك '{local_match['name']}' في بني سويف، ينفعك؟"
+                ai_data["reply"] = f"لقيتلك '{local_match['name']}' في بني سويف، ينفعك؟"
 
     # Fire recommendation notification if we have a valid place
     if best_place and not is_fallback and background_tasks:
