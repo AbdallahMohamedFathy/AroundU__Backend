@@ -593,7 +593,12 @@ def _find_local_place_match(
                                   AND (pi.image_type = 'main' OR pi.image_type IS NULL)
                                 ORDER BY pi.created_at ASC
                                 LIMIT 1
-                            ) AS main_image_url
+                            ) AS main_image_url,
+                            (
+                                SELECT string_agg(s.name, '، ')
+                                FROM subcategories s
+                                WHERE s.place_id = p.id AND s.is_deleted = FALSE
+                            ) AS sub_category
                         FROM places p
                         WHERE p.id = :pid
                     """),
@@ -603,13 +608,14 @@ def _find_local_place_match(
                 if detail:
                     match["address"]        = detail[0]
                     match["phone"]          = detail[1]
-                    match["latitude"]       = float(detail[2]) if detail[2] else None
-                    match["longitude"]      = float(detail[3]) if detail[3] else None
-                    match["opening_hours"]  = detail[4]
+                    match["lat"]            = float(detail[2]) if detail[2] else None
+                    match["long"]           = float(detail[3]) if detail[3] else None
+                    match["openning_hours"] = detail[4]
                     match["is_open"]        = bool(detail[5]) if detail[5] is not None else None
-                    match["main_image_url"] = detail[6]
+                    match["image_url"]      = detail[6]
+                    match["sub_category"]   = detail[7]
 
-                # is_favorited for the current user
+                # is_favorite for the current user
                 if user_id:
                     fav_row = db.execute(
                         _text("""
@@ -619,12 +625,12 @@ def _find_local_place_match(
                         """),
                         {"uid": user_id, "pid": match["id"]},
                     ).fetchone()
-                    match["is_favorited"] = fav_row is not None
+                    match["is_favorite"] = fav_row is not None
                 else:
-                    match["is_favorited"] = False
+                    match["is_favorite"] = False
 
                 # distance_km if location was provided
-                if user_lat and user_lon and match.get("latitude") and match.get("longitude"):
+                if user_lat and user_lon and match.get("lat") and match.get("long"):
                     dist_row = db.execute(
                         _text("""
                             SELECT ST_Distance(
@@ -633,8 +639,8 @@ def _find_local_place_match(
                             ) / 1000.0 AS distance_km
                         """),
                         {
-                            "plat": match["latitude"], "plon": match["longitude"],
-                            "ulat": user_lat,          "ulon": user_lon,
+                            "plat": match["lat"], "plon": match["long"],
+                            "ulat": user_lat,     "ulon": user_lon,
                         },
                     ).fetchone()
                     match["distance_km"] = round(float(dist_row[0]), 2) if dist_row else None
