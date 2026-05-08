@@ -37,6 +37,9 @@ from src.api.routes import categories as menu_categories
 from src.api.routes import subcategories as menu_subcategories
 from src.api.routes import items as menu_items
 
+# Orders System
+from app.routes import order_routes, cart_routes, owner_routes
+
 # Core
 from src.core.config import settings
 from src.core.database import get_db
@@ -445,6 +448,11 @@ app.include_router(ai_data.router, prefix="/api/v1")
 app.include_router(menu_categories.router, prefix="/api/v1")
 app.include_router(menu_subcategories.router, prefix="/api/v1")
 app.include_router(menu_items.router, prefix="/api/v1")
+
+# ─── ORDERS SYSTEM API ──────────────────────────────────────
+app.include_router(cart_routes.router, prefix="/api/cart")
+app.include_router(order_routes.router, prefix="/api/orders")
+app.include_router(owner_routes.router, prefix="/api/owner_orders")
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK
