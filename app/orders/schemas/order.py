@@ -16,6 +16,7 @@ class OrderItemCreate(BaseModel):
         return v
 
 class OrderCreate(BaseModel):
+    place_id: Optional[int] = Field(None, gt=0)
     order_type: OrderType
     full_name: str = Field(..., min_length=1)
     phone_number: str = Field(..., min_length=1)
@@ -46,6 +47,7 @@ class OrderResponse(BaseModel):
     id: int
     user_id: int
     owner_id: int
+    place_id: Optional[int]
     order_type: OrderType
     status: OrderStatus
     full_name: str

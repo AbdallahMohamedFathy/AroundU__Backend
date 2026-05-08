@@ -49,6 +49,7 @@ class OrderService:
             order = Order(
                 user_id=user_id,
                 owner_id=owner_id,
+                place_id=order_data.place_id,
                 order_type=order_data.order_type,
                 status=OrderStatus.PENDING,
                 full_name=order_data.full_name,

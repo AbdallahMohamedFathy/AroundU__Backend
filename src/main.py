@@ -347,6 +347,7 @@ def on_startup():
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        place_id INTEGER REFERENCES places(id) ON DELETE CASCADE,
                         order_type VARCHAR NOT NULL,
                         status VARCHAR NOT NULL DEFAULT 'PENDING',
                         full_name VARCHAR NOT NULL,
@@ -356,8 +357,17 @@ def on_startup():
                         total_price FLOAT NOT NULL DEFAULT 0.0,
                         created_at TIMESTAMPTZ DEFAULT NOW()
                     );
+                    -- Ensure place_id column exists if table was already created
+                    DO $$ 
+                    BEGIN 
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='place_id') THEN
+                            ALTER TABLE orders ADD COLUMN place_id INTEGER REFERENCES places(id) ON DELETE CASCADE;
+                        END IF;
+                    END $$;
+                    
                     CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
                     CREATE INDEX IF NOT EXISTS ix_orders_owner_id ON orders(owner_id);
+                    CREATE INDEX IF NOT EXISTS ix_orders_place_id ON orders(place_id);
 
                     CREATE TABLE IF NOT EXISTS order_items (
                         id SERIAL PRIMARY KEY,

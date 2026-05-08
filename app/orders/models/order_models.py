@@ -9,6 +9,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
     owner_id = Column(Integer, nullable=False, index=True)
+    place_id = Column(Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=True, index=True)
     order_type = Column(Enum(OrderType), nullable=False)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     full_name = Column(String, nullable=False)
