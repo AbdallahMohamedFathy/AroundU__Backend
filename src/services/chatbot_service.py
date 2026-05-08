@@ -145,9 +145,10 @@ async def chat(
         local_match = _find_local_place_match(
             db=db,
             ai_data=ai_data,
-            query_text=message, 
+            query_text=message,
             user_lat=user_lat,
-            user_lon=user_lon
+            user_lon=user_lon,
+            user_id=user_id,
         )
         if local_match:
             best_place = local_match
@@ -496,7 +497,8 @@ def _find_local_place_match(
     ai_data: dict,
     query_text: str,
     user_lat: Optional[float],
-    user_lon: Optional[float]
+    user_lon: Optional[float],
+    user_id: Optional[int] = None,
 ) -> Optional[dict]:
     """
     Tries to find the most relevant place in OUR database.
@@ -599,13 +601,27 @@ def _find_local_place_match(
                 ).fetchone()
 
                 if detail:
-                    match["address"]       = detail[0]
-                    match["phone"]         = detail[1]
-                    match["latitude"]      = float(detail[2]) if detail[2] else None
-                    match["longitude"]     = float(detail[3]) if detail[3] else None
-                    match["opening_hours"] = detail[4]
-                    match["is_open"]       = bool(detail[5]) if detail[5] is not None else None
+                    match["address"]        = detail[0]
+                    match["phone"]          = detail[1]
+                    match["latitude"]       = float(detail[2]) if detail[2] else None
+                    match["longitude"]      = float(detail[3]) if detail[3] else None
+                    match["opening_hours"]  = detail[4]
+                    match["is_open"]        = bool(detail[5]) if detail[5] is not None else None
                     match["main_image_url"] = detail[6]
+
+                # is_favorited for the current user
+                if user_id:
+                    fav_row = db.execute(
+                        _text("""
+                            SELECT 1 FROM favorites
+                            WHERE user_id = :uid AND place_id = :pid
+                            LIMIT 1
+                        """),
+                        {"uid": user_id, "pid": match["id"]},
+                    ).fetchone()
+                    match["is_favorited"] = fav_row is not None
+                else:
+                    match["is_favorited"] = False
 
                 # distance_km if location was provided
                 if user_lat and user_lon and match.get("latitude") and match.get("longitude"):
