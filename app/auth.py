@@ -53,16 +53,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> DBUser:
         raise credentials_exception
     
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(DBUser).where(DBUser.id == int(user_id)))
-        user = result.scalars().first()
-        if user is None:
-            raise credentials_exception
-        if not user.is_active:
-            raise HTTPException(status_code=403, detail="User account is inactive")
-        
-        # Ensure the role is consistent (the routes expect lowercase or specific casing)
-        # We'll normalize it to lowercase for the mock-like compatibility or just use it as is
-        return user
+        try:
+            result = await session.execute(select(DBUser).where(DBUser.id == int(user_id)))
+            user = result.scalars().first()
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"User with ID {user_id} not found in database",
+                )
+            if not user.is_active:
+                raise HTTPException(status_code=403, detail="User account is inactive")
+            return user
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error during authentication: {str(e)}"
+            )
 
 def get_current_active_user(current_user: DBUser = Depends(get_current_user)):
     return current_user
