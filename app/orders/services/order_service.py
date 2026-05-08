@@ -5,8 +5,7 @@ from sqlalchemy import select, update
 
 from fastapi import HTTPException, status
 
-from app.orders.models.order import Order
-from app.orders.models.order_item import OrderItem
+from app.orders.models.order_models import Order, OrderItem
 from app.orders.models.cart import Cart
 from app.orders.models.cart_item import CartItem
 from app.orders.enums.enums import OrderType, OrderStatus
