@@ -12,8 +12,9 @@ class CartRepository:
         self.db = db
 
     async def get_cart(self, user_id: int, place_id: int) -> Optional[Cart]:
+        from sqlalchemy.orm import selectinload
         result = await self.db.execute(
-            select(Cart).where(Cart.user_id == user_id, Cart.place_id == place_id)
+            select(Cart).options(selectinload(Cart.items)).where(Cart.user_id == user_id, Cart.place_id == place_id)
         )
         return result.scalars().first()
 
@@ -44,7 +45,8 @@ class CartRepository:
         return cart_item
 
     async def update_item(self, cart_item_id: int, quantity: int) -> CartItem:
-        result = await self.db.execute(select(CartItem).where(CartItem.id == cart_item_id))
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(select(CartItem).options(selectinload(CartItem.cart)).where(CartItem.id == cart_item_id))
         cart_item = result.scalars().first()
         if not cart_item:
             raise ValueError("CartItem not found")
@@ -53,7 +55,8 @@ class CartRepository:
         return cart_item
 
     async def delete_item(self, cart_item_id: int) -> None:
-        result = await self.db.execute(select(CartItem).where(CartItem.id == cart_item_id))
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(select(CartItem).options(selectinload(CartItem.cart)).where(CartItem.id == cart_item_id))
         cart_item = result.scalars().first()
         if not cart_item:
             raise ValueError("CartItem not found")
