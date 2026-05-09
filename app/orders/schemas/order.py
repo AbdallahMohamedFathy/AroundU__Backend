@@ -30,6 +30,7 @@ class OrderItemResponse(BaseModel):
     id: int
     item_id: int
     item_name: str
+    image_url: Optional[str] = None
     unit_price: float
     quantity: int
     total_price: float

@@ -85,6 +85,7 @@ async def get_order(
             "id": i.id,
             "item_id": i.item_id,
             "item_name": i.item_name,
+            "image_url": i.image_url,
             "unit_price": i.unit_price,
             "quantity": i.quantity,
             "total_price": i.total_price,

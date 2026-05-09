@@ -32,12 +32,21 @@ class CartService:
             
         unit_price = float(db_item.price)
         
-        cart_item = await self.repo.add_item(cart, item.item_id, item.quantity, unit_price)
+        cart_item = await self.repo.add_item(
+            cart=cart, 
+            item_id=item.item_id, 
+            quantity=item.quantity, 
+            unit_price=unit_price,
+            item_name=db_item.name,
+            image_url=db_item.image_url
+        )
         await self.repo.db.commit() # Ensure changes are saved
         
         return CartItemResponse(
             id=cart_item.id,
             item_id=cart_item.item_id,
+            item_name=cart_item.item_name,
+            image_url=cart_item.image_url,
             quantity=cart_item.quantity,
             unit_price=cart_item.unit_price,
             total_price=cart_item.unit_price * cart_item.quantity,
@@ -51,6 +60,8 @@ class CartService:
             CartItemResponse(
                 id=item.id,
                 item_id=item.item_id,
+                item_name=item.item_name,
+                image_url=item.image_url,
                 quantity=item.quantity,
                 unit_price=item.unit_price,
                 total_price=item.unit_price * item.quantity,
@@ -78,6 +89,8 @@ class CartService:
         return CartItemResponse(
             id=cart_item.id,
             item_id=cart_item.item_id,
+            item_name=cart_item.item_name,
+            image_url=cart_item.image_url,
             quantity=cart_item.quantity,
             unit_price=cart_item.unit_price,
             total_price=cart_item.unit_price * cart_item.quantity,

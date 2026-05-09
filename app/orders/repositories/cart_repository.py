@@ -24,7 +24,7 @@ class CartRepository:
         await self.db.flush()
         return cart
 
-    async def add_item(self, cart: Cart, item_id: int, quantity: int, unit_price: float) -> CartItem:
+    async def add_item(self, cart: Cart, item_id: int, quantity: int, unit_price: float, item_name: str, image_url: Optional[str] = None) -> CartItem:
         # If item already in cart, just increase quantity
         existing = await self.db.execute(
             select(CartItem).where(CartItem.cart_id == cart.id, CartItem.item_id == item_id)
@@ -33,10 +33,14 @@ class CartRepository:
         if cart_item:
             cart_item.quantity += quantity
             cart_item.unit_price = unit_price  # reflect latest price
+            cart_item.item_name = item_name
+            cart_item.image_url = image_url
         else:
             cart_item = CartItem(
                 cart_id=cart.id,
                 item_id=item_id,
+                item_name=item_name,
+                image_url=image_url,
                 quantity=quantity,
                 unit_price=unit_price,
             )

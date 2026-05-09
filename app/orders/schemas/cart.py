@@ -9,6 +9,8 @@ class CartItemCreate(BaseModel):
 class CartItemResponse(BaseModel):
     id: int
     item_id: int
+    item_name: Optional[str] = None
+    image_url: Optional[str] = None
     quantity: int
     unit_price: float
     total_price: float

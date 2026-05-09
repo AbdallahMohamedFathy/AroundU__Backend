@@ -104,6 +104,7 @@ class OrderService:
                 order_id=order.id,
                 item_id=item.item_id,
                 item_name=name,
+                image_url=db_item.image_url,
                 unit_price=price,
                 quantity=item.quantity,
                 total_price=price * item.quantity,

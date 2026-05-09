@@ -29,6 +29,7 @@ class OrderItem(Base):
     order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     item_id = Column(Integer, nullable=False)   # snapshot reference to original Item
     item_name = Column(String, nullable=False)  # snapshot — preserved even if item changes
+    image_url = Column(String, nullable=True)   # snapshot image
     unit_price = Column(Float, nullable=False)  # snapshot — price at time of order
     quantity = Column(Integer, nullable=False)
     total_price = Column(Float, nullable=False)
