@@ -14,7 +14,7 @@ AsyncSessionLocal = sessionmaker(
     bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
 )
 
-Base = declarative_base()
+from src.core.database import Base
 
 async def init_db():
     # Import all models here to ensure they are registered with Base
