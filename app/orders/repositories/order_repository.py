@@ -12,7 +12,10 @@ class OrderRepository:
         self.db = db
 
     async def get_order(self, order_id: int) -> Optional[Order]:
-        result = await self.db.execute(select(Order).where(Order.id == order_id))
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(
+            select(Order).options(selectinload(Order.items)).where(Order.id == order_id)
+        )
         return result.scalars().first()
 
     async def get_user_orders(self, user_id: int) -> List[Order]:
@@ -40,7 +43,10 @@ class OrderRepository:
         return result.scalars().all()
 
     async def get_all_orders(self) -> List[Order]:
-        result = await self.db.execute(select(Order).order_by(Order.created_at.desc()))
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(
+            select(Order).options(selectinload(Order.items)).order_by(Order.created_at.desc())
+        )
         return result.scalars().all()
 
     async def create_order(self, order: Order, items: List[OrderItem]) -> Order:
