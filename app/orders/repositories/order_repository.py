@@ -1,11 +1,11 @@
 from typing import Optional, List
 
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.orders.models.order_models import Order, OrderItem
-# Removed duplicate import; OrderItem is imported from order_models
 from app.orders.enums.enums import OrderStatus
+
 
 class OrderRepository:
     def __init__(self, db: AsyncSession):
@@ -16,11 +16,27 @@ class OrderRepository:
         return result.scalars().first()
 
     async def get_user_orders(self, user_id: int) -> List[Order]:
-        result = await self.db.execute(select(Order).where(Order.user_id == user_id))
+        result = await self.db.execute(
+            select(Order).where(Order.user_id == user_id).order_by(Order.created_at.desc())
+        )
+        return result.scalars().all()
+
+    async def get_place_orders(self, place_id: int) -> List[Order]:
+        """Return all orders for a specific place (branch) — used by owner dashboard."""
+        result = await self.db.execute(
+            select(Order).where(Order.place_id == place_id).order_by(Order.created_at.desc())
+        )
         return result.scalars().all()
 
     async def get_owner_orders(self, owner_id: int) -> List[Order]:
-        result = await self.db.execute(select(Order).where(Order.owner_id == owner_id))
+        """Return all orders across ALL places belonging to this owner — requires JOIN with Place."""
+        from src.models.place import Place
+        result = await self.db.execute(
+            select(Order)
+            .join(Place, Order.place_id == Place.id)
+            .where(Place.owner_id == owner_id)
+            .order_by(Order.created_at.desc())
+        )
         return result.scalars().all()
 
     async def get_all_orders(self) -> List[Order]:
@@ -48,4 +64,3 @@ class OrderRepository:
     async def count_orders(self) -> int:
         result = await self.db.execute(select(func.count(Order.id)))
         return result.scalar_one() or 0
-        return result.scalar() or 0

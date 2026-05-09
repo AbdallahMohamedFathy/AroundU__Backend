@@ -26,7 +26,7 @@ class CartItemResponse(BaseModel):
 class CartResponse(BaseModel):
     id: int
     user_id: int
-    owner_id: int
+    place_id: int
     total_price: float
     items: List[CartItemResponse] = []
     created_at: Optional[str]

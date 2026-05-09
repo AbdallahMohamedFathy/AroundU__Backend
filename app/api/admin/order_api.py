@@ -8,19 +8,23 @@ from app.auth import get_current_user
 
 router = APIRouter(tags=["Dashboard - Admin"])
 
+
 @router.get(
     "/all-orders",
     response_model=List[OrderResponse],
-    description="Admin can see ALL orders in the system - **Admin only**",
+    summary="Get All Orders",
+    description="Admin can see ALL orders in the system across all places and all owners — **Admin only**.",
 )
-async def get_all_orders(db=Depends(get_db), current_user=Depends(get_current_user)):
-    # Role check
+async def get_all_orders(
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     if getattr(current_user, "role", "").upper() != "ADMIN":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    
+
     service = OrderService(db)
     orders = await service.order_repo.get_all_orders()
-    
+
     result = []
     for o in orders:
         items_res = [
@@ -31,12 +35,12 @@ async def get_all_orders(db=Depends(get_db), current_user=Depends(get_current_us
                 unit_price=i.unit_price,
                 quantity=i.quantity,
                 total_price=i.total_price,
-            ) for i in o.items
+            )
+            for i in o.items
         ]
         result.append(OrderResponse(
             id=o.id,
             user_id=o.user_id,
-            owner_id=o.owner_id,
             place_id=o.place_id,
             order_type=o.order_type,
             status=o.status,

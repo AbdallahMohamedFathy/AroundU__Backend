@@ -1,7 +1,9 @@
 from typing import List, Optional
+from datetime import datetime
 
 from pydantic import BaseModel, Field, validator
 from app.orders.enums.enums import OrderType, OrderStatus
+
 
 class OrderItemCreate(BaseModel):
     item_id: int = Field(..., gt=0)
@@ -15,8 +17,9 @@ class OrderItemCreate(BaseModel):
             raise ValueError('unit_price must be positive')
         return v
 
+
 class OrderCreate(BaseModel):
-    place_id: int = Field(..., gt=0)
+    place_id: int = Field(..., gt=0, description="The Place (branch) to order from")
     order_type: OrderType
     full_name: str = Field(..., min_length=1)
     phone_number: str = Field(..., min_length=1)
@@ -30,7 +33,6 @@ class OrderCreate(BaseModel):
             raise ValueError('address is required for CASH_ON_DELIVERY orders')
         return v
 
-from datetime import datetime
 
 class OrderItemResponse(BaseModel):
     id: int
@@ -43,10 +45,10 @@ class OrderItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class OrderResponse(BaseModel):
     id: int
     user_id: int
-    owner_id: int
     place_id: Optional[int]
     order_type: OrderType
     status: OrderStatus
