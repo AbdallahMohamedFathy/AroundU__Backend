@@ -37,8 +37,6 @@ from src.api.routes import categories as menu_categories
 from src.api.routes import subcategories as menu_subcategories
 from src.api.routes import items as menu_items
 
-# Orders System
-from app.routes import order_routes, cart_routes, owner_routes
 
 # Core
 from src.core.config import settings
