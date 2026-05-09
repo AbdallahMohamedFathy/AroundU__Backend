@@ -40,37 +40,37 @@ async def get_cart(
 
 
 @router.patch(
-    "/{place_id}/items/{item_id}",
+    "/{place_id}/items/{cart_item_id}",
     response_model=CartItemResponse,
     summary="Update Cart Item Quantity",
     description="Update quantity of an item in the cart for a specific **place (branch)**."
 )
 async def update_cart_item(
     place_id: int,
-    item_id: int,
+    cart_item_id: int,
     quantity: int,
     db=Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     service = CartService(db)
     return await service.update_item(
-        user_id=current_user.id, place_id=place_id, cart_item_id=item_id, quantity=quantity
+        user_id=current_user.id, place_id=place_id, cart_item_id=cart_item_id, quantity=quantity
     )
 
 
 @router.delete(
-    "/{place_id}/items/{item_id}",
+    "/{place_id}/items/{cart_item_id}",
     summary="Remove Item from Cart",
     description="Remove a specific item from the cart for a **place (branch)**."
 )
 async def delete_cart_item(
     place_id: int,
-    item_id: int,
+    cart_item_id: int,
     db=Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     service = CartService(db)
-    await service.delete_item(user_id=current_user.id, place_id=place_id, cart_item_id=item_id)
+    await service.delete_item(user_id=current_user.id, place_id=place_id, cart_item_id=cart_item_id)
     return {"detail": "Item removed from cart"}
 
 
