@@ -30,6 +30,16 @@ class OrderService:
     # Checkout
     # ------------------------------------------------------------------
     async def checkout(self, user_id: int, order_data: OrderCreate) -> OrderResponse:
+        try:
+            return await self._checkout_impl(user_id, order_data)
+        except HTTPException:
+            raise
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            raise HTTPException(status_code=500, detail=str(error_details))
+
+    async def _checkout_impl(self, user_id: int, order_data: OrderCreate) -> OrderResponse:
         # 1️⃣ Validate that the Place exists
         place_result = await self.db.execute(select(Place).where(Place.id == order_data.place_id))
         place = place_result.scalars().first()
