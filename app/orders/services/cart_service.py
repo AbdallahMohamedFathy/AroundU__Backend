@@ -5,8 +5,8 @@ from app.orders.models.cart_item import CartItem
 from app.orders.repositories.cart_repository import CartRepository
 from app.orders.schemas.cart import CartItemCreate, CartResponse, CartItemResponse
 from fastapi import HTTPException, status
-
-
+from sqlalchemy import select
+from src.models.item import Item
 class CartService:
     def __init__(self, db: AsyncSession):
         self.repo = CartRepository(db)
@@ -20,7 +20,21 @@ class CartService:
     async def add_item(self, user_id: int, place_id: int, item: CartItemCreate) -> CartItemResponse:
         # Cart is scoped per Place (branch) — items from another place not allowed
         cart = await self.get_or_create_cart(user_id, place_id)
-        cart_item = await self.repo.add_item(cart, item.item_id, item.quantity, item.unit_price)
+        
+        # Secure lookup: fetch the true item details from DB
+        item_result = await self.repo.db.execute(select(Item).where(Item.id == item.item_id))
+        db_item = item_result.scalars().first()
+        if not db_item or db_item.is_deleted or not db_item.is_available:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Item with id {item.item_id} is currently unavailable"
+            )
+            
+        unit_price = float(db_item.price)
+        
+        cart_item = await self.repo.add_item(cart, item.item_id, item.quantity, unit_price)
+        await self.repo.db.commit() # Ensure changes are saved
+        
         return CartItemResponse(
             id=cart_item.id,
             item_id=cart_item.item_id,

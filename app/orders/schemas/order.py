@@ -7,15 +7,7 @@ from app.orders.enums.enums import OrderType, OrderStatus
 
 class OrderItemCreate(BaseModel):
     item_id: int = Field(..., gt=0)
-    item_name: str = Field(..., min_length=1)
-    unit_price: float = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
-
-    @validator('unit_price')
-    def price_positive(cls, v):
-        if v <= 0:
-            raise ValueError('unit_price must be positive')
-        return v
 
 
 class OrderCreate(BaseModel):

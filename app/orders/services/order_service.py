@@ -14,7 +14,7 @@ from app.orders.repositories.cart_repository import CartRepository
 from app.orders.schemas.order import OrderCreate, OrderItemCreate, OrderResponse, OrderItemResponse
 
 from src.models.place import Place
-
+from src.models.item import Item
 
 class InvalidStatusTransition(Exception):
     pass
@@ -59,46 +59,60 @@ class OrderService:
                     detail="Invalid quantity — must be greater than 0"
                 )
 
-        # 4️⃣ Create Order + OrderItems in a transaction
-        async with self.db.begin():
-            order = Order(
-                user_id=user_id,
-                place_id=order_data.place_id,   # ✅ only place_id stored
-                order_type=order_data.order_type,
-                status=OrderStatus.PENDING,
-                full_name=order_data.full_name,
-                phone_number=order_data.phone_number,
-                address=order_data.address,
-                notes=order_data.notes,
-                total_price=0.0,
-            )
+        # 4️⃣ Create Order + OrderItems
+        order = Order(
+            user_id=user_id,
+            place_id=order_data.place_id,
+            order_type=order_data.order_type,
+            status=OrderStatus.PENDING,
+            full_name=order_data.full_name,
+            phone_number=order_data.phone_number,
+            address=order_data.address,
+            notes=order_data.notes,
+            total_price=0.0,
+        )
+        self.db.add(order)
+        await self.db.flush()  # get order.id without committing
 
-            order_items: List[OrderItem] = []
-            total_price = 0.0
+        order_items: List[OrderItem] = []
+        total_price = 0.0
 
-            for item in items_to_order:
-                price = getattr(item, 'unit_price', 0.0)
-                name = getattr(item, 'item_name', f"Item {item.item_id}")
-
-                item_snapshot = OrderItem(
-                    order=order,
-                    item_id=item.item_id,
-                    item_name=name,         # snapshot
-                    unit_price=price,       # snapshot
-                    quantity=item.quantity,
-                    total_price=price * item.quantity,
+        for item in items_to_order:
+            # Secure lookup: fetch the true item details from DB
+            item_result = await self.db.execute(select(Item).where(Item.id == item.item_id))
+            db_item = item_result.scalars().first()
+            if not db_item or db_item.is_deleted or not db_item.is_available:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Item with id {item.item_id} is currently unavailable"
                 )
-                order_items.append(item_snapshot)
-                total_price += item_snapshot.total_price
 
-            order.total_price = total_price
-            await self.order_repo.create_order(order, order_items)
+            price = float(db_item.price)
+            name = db_item.name
 
-            # 5️⃣ Clear cart after checkout (only if we used the saved cart)
-            if not (order_data.items and len(order_data.items) > 0):
-                cart = await self.cart_repo.get_cart(user_id, order_data.place_id)
-                if cart:
-                    await self.cart_repo.clear_cart(cart)
+            item_snapshot = OrderItem(
+                order_id=order.id,
+                item_id=item.item_id,
+                item_name=name,
+                unit_price=price,
+                quantity=item.quantity,
+                total_price=price * item.quantity,
+            )
+            self.db.add(item_snapshot)
+            order_items.append(item_snapshot)
+            total_price += item_snapshot.total_price
+
+        order.total_price = total_price
+        await self.db.flush()
+
+        # 5️⃣ Clear cart after checkout (only if we used the saved cart)
+        if not (order_data.items and len(order_data.items) > 0):
+            cart = await self.cart_repo.get_cart(user_id, order_data.place_id)
+            if cart:
+                await self.cart_repo.clear_cart(cart)
+
+        await self.db.commit()
+        await self.db.refresh(order)
 
         return OrderResponse(
             id=order.id,
@@ -166,6 +180,7 @@ class OrderService:
             )
 
         await self.order_repo.update_status(order, new_status)
+        await self.db.commit()
         await self.db.refresh(order)
 
         items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
@@ -205,6 +220,26 @@ class OrderService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only PENDING orders can be cancelled by the user"
             )
-        await self.order_repo.cancel_order(order)
+        order.status = OrderStatus.CANCELLED
+        await self.db.commit()
         await self.db.refresh(order)
-        return await self.change_status(order_id, OrderStatus.CANCELLED, actor="user")
+        items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        items = items_result.scalars().all()
+        return OrderResponse(
+            id=order.id,
+            user_id=order.user_id,
+            place_id=order.place_id,
+            order_type=order.order_type,
+            status=order.status,
+            full_name=order.full_name,
+            phone_number=order.phone_number,
+            address=order.address,
+            notes=order.notes,
+            total_price=order.total_price,
+            items=[
+                OrderItemResponse(id=i.id, item_id=i.item_id, item_name=i.item_name,
+                                  unit_price=i.unit_price, quantity=i.quantity, total_price=i.total_price)
+                for i in items
+            ],
+            created_at=order.created_at,
+        )

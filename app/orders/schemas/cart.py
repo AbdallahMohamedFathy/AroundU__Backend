@@ -5,13 +5,6 @@ from pydantic import BaseModel, Field, validator
 class CartItemCreate(BaseModel):
     item_id: int = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
-    unit_price: float = Field(..., gt=0)
-
-    @validator('unit_price')
-    def price_must_be_positive(cls, v):
-        if v <= 0:
-            raise ValueError('unit_price must be positive')
-        return v
 
 class CartItemResponse(BaseModel):
     id: int
