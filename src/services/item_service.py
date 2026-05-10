@@ -6,11 +6,14 @@ from src.core.exceptions import APIException
 from fastapi import status
 import datetime
 
-def get_items(repo: Any, name: Optional[str] = None, sub_category_id: Optional[int] = None, skip: int = 0, limit: int = 10):
-    return repo.search_items(name=name, sub_category_id=sub_category_id, skip=skip, limit=limit)
+def get_items(repo: Any, name: Optional[str] = None, sub_category_id: Optional[int] = None, place_id: Optional[int] = None, skip: int = 0, limit: int = 10):
+    return repo.search_items(name=name, sub_category_id=sub_category_id, place_id=place_id, skip=skip, limit=limit)
 
 def get_items_by_subcategory(repo: Any, sub_category_id: int):
     return repo.get_by_subcategory(sub_category_id)
+
+def get_items_by_place(repo: Any, place_id: int):
+    return repo.get_by_place(place_id)
 
 def create_item(uow: UnitOfWork, item_in: ItemCreate, owner_id: int):
     with uow:

@@ -58,7 +58,7 @@ class PlaceResponse(PlaceBase):
     branches: List['PlaceResponse'] = []
     is_favorited: Optional[bool] = False  # Calculated field based on current user
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class NearbyPlaceResponse(BaseModel):
@@ -69,7 +69,7 @@ class NearbyPlaceResponse(BaseModel):
     distance: float
     is_favorited: Optional[bool] = False
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class NearbyPlaceListResponse(BaseModel):

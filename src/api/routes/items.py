@@ -19,13 +19,14 @@ def get_item_repo(db=Depends(get_db)):
 def get_items(
     name: Optional[str] = Query(None),
     sub_category_id: Optional[int] = Query(None),
+    place_id: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
     repo=Depends(get_item_repo)
 ):
     """Get all items with search and pagination support."""
     skip = (page - 1) * size
-    items, total = item_service.get_items(repo, name=name, sub_category_id=sub_category_id, skip=skip, limit=size)
+    items, total = item_service.get_items(repo, name=name, sub_category_id=sub_category_id, place_id=place_id, skip=skip, limit=size)
     pages = (total + size - 1) // size
     return {
         "items": items,

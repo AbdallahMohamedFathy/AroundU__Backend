@@ -141,6 +141,7 @@ class OrderService:
                     id=item.id,
                     item_id=item.item_id,
                     item_name=item.item_name,
+                    image_url=item.image_url,
                     unit_price=item.unit_price,
                     quantity=item.quantity,
                     total_price=item.total_price,
@@ -213,6 +214,7 @@ class OrderService:
                     id=i.id,
                     item_id=i.item_id,
                     item_name=i.item_name,
+                    image_url=i.image_url,
                     unit_price=i.unit_price,
                     quantity=i.quantity,
                     total_price=i.total_price,
@@ -248,7 +250,7 @@ class OrderService:
             notes=order.notes,
             total_price=order.total_price,
             items=[
-                OrderItemResponse(id=i.id, item_id=i.item_id, item_name=i.item_name,
+                OrderItemResponse(id=i.id, item_id=i.item_id, item_name=i.item_name, image_url=i.image_url,
                                   unit_price=i.unit_price, quantity=i.quantity, total_price=i.total_price)
                 for i in items
             ],

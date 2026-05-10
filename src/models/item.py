@@ -22,3 +22,7 @@ class Item(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     subcategory = relationship("SubCategory", back_populates="items")
+    
+    @property
+    def subcategory_name(self):
+        return self.subcategory.name if self.subcategory else None
