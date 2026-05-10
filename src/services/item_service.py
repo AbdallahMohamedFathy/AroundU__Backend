@@ -15,14 +15,14 @@ def get_items_by_subcategory(repo: Any, sub_category_id: int):
 def get_items_by_place(repo: Any, place_id: int):
     return repo.get_by_place(place_id)
 
-def create_item(uow: UnitOfWork, item_in: ItemCreate, owner_id: int):
+def create_item(uow: UnitOfWork, item_in: ItemCreate, user_id: int, user_role: str = "OWNER"):
     with uow:
         # Check if subcategory exists and belongs to owner
         subcategory = uow.subcategory_repository.get_by_id(item_in.sub_category_id)
         if not subcategory or subcategory.is_deleted:
             raise APIException("SubCategory not found", code=status.HTTP_404_NOT_FOUND)
         
-        if subcategory.owner_id != owner_id:
+        if user_role != "ADMIN" and subcategory.owner_id != user_id:
             raise APIException("You don't have permission to add items to this subcategory", code=status.HTTP_403_FORBIDDEN)
 
         # Prevent duplicate item names inside same subcategory
@@ -35,7 +35,7 @@ def create_item(uow: UnitOfWork, item_in: ItemCreate, owner_id: int):
         uow.commit()
         return db_item
 
-def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, owner_id: int):
+def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, user_id: int, user_role: str = "OWNER"):
     with uow:
         db_item = uow.item_repository.get_by_id(item_id)
         if not db_item or db_item.is_deleted:
@@ -45,7 +45,7 @@ def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, owner_id: in
         subcategory = uow.subcategory_repository.get_by_id(db_item.sub_category_id)
         if not subcategory:
             raise APIException("SubCategory not found", code=status.HTTP_404_NOT_FOUND)
-        if subcategory.owner_id != owner_id:
+        if user_role != "ADMIN" and subcategory.owner_id != user_id:
             raise APIException("You don't have permission to update this item", code=status.HTTP_403_FORBIDDEN)
 
         if item_in.name and item_in.name != db_item.name:
@@ -63,14 +63,14 @@ def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, owner_id: in
         uow.commit()
         return db_item
 
-def delete_item(uow: UnitOfWork, item_id: int, owner_id: int):
+def delete_item(uow: UnitOfWork, item_id: int, user_id: int, user_role: str = "OWNER"):
     with uow:
         db_item = uow.item_repository.get_by_id(item_id)
         if not db_item or db_item.is_deleted:
             raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
             
         subcategory = uow.subcategory_repository.get_by_id(db_item.sub_category_id)
-        if subcategory.owner_id != owner_id:
+        if user_role != "ADMIN" and subcategory.owner_id != user_id:
             raise APIException("You don't have permission to delete this item", code=status.HTTP_403_FORBIDDEN)
 
         # Soft delete
@@ -79,28 +79,28 @@ def delete_item(uow: UnitOfWork, item_id: int, owner_id: int):
         uow.commit()
         return True
 
-def toggle_availability(uow: UnitOfWork, item_id: int, owner_id: int):
+def toggle_availability(uow: UnitOfWork, item_id: int, user_id: int, user_role: str = "OWNER"):
     with uow:
         db_item = uow.item_repository.get_by_id(item_id)
         if not db_item or db_item.is_deleted:
             raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
             
         subcategory = uow.subcategory_repository.get_by_id(db_item.sub_category_id)
-        if subcategory.owner_id != owner_id:
+        if user_role != "ADMIN" and subcategory.owner_id != user_id:
             raise APIException("You don't have permission to modify this item", code=status.HTTP_403_FORBIDDEN)
 
         db_item.is_available = not db_item.is_available
         uow.commit()
         return db_item
 
-def update_item_image(uow: UnitOfWork, item_id: int, image_url: str, owner_id: int):
+def update_item_image(uow: UnitOfWork, item_id: int, image_url: str, user_id: int, user_role: str = "OWNER"):
     with uow:
         db_item = uow.item_repository.get_by_id(item_id)
         if not db_item or db_item.is_deleted:
             raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
             
         subcategory = uow.subcategory_repository.get_by_id(db_item.sub_category_id)
-        if subcategory.owner_id != owner_id:
+        if user_role != "ADMIN" and subcategory.owner_id != user_id:
             raise APIException("You don't have permission to update this item", code=status.HTTP_403_FORBIDDEN)
 
         db_item.image_url = image_url

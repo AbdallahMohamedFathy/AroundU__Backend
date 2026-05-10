@@ -20,7 +20,8 @@ def create_new_item(
     return item_service.create_item(
         uow=uow,
         item_in=item_in,
-        owner_id=current_user.id
+        user_id=current_user.id,
+        user_role=current_user.role
     )
 
 
@@ -36,7 +37,8 @@ def update_existing_item(
         uow=uow,
         item_id=item_id,
         item_in=item_in,
-        owner_id=current_user.id
+        user_id=current_user.id,
+        user_role=current_user.role
     )
 
 
@@ -50,7 +52,8 @@ def remove_item(
     item_service.delete_item(
         uow=uow,
         item_id=item_id,
-        owner_id=current_user.id
+        user_id=current_user.id,
+        user_role=current_user.role
     )
     return None
 
@@ -69,4 +72,4 @@ async def upload_item_image(
     file_path = await save_upload_file(file, subfolder="items")
     
     # Update item in database
-    return item_service.update_item_image(uow, item_id, file_path, current_user.id)
+    return item_service.update_item_image(uow, item_id, file_path, current_user.id, current_user.role)

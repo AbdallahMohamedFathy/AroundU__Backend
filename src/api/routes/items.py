@@ -51,7 +51,7 @@ def create_item(
     current_user=Depends(owner_only)
 ):
     """Owner: Create a new item."""
-    return item_service.create_item(uow, item_in, current_user.id)
+    return item_service.create_item(uow, item_in, current_user.id, current_user.role)
 
 @router.put("/{id}", response_model=ItemResponse)
 def update_item(
@@ -61,7 +61,7 @@ def update_item(
     current_user=Depends(owner_only)
 ):
     """Owner: Update an item."""
-    return item_service.update_item(uow, id, item_in, current_user.id)
+    return item_service.update_item(uow, id, item_in, current_user.id, current_user.role)
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(
@@ -70,7 +70,7 @@ def delete_item(
     current_user=Depends(owner_only)
 ):
     """Owner: Delete an item (Soft delete)."""
-    item_service.delete_item(uow, id, current_user.id)
+    item_service.delete_item(uow, id, current_user.id, current_user.role)
     return None
 
 @router.patch("/{id}/availability", response_model=ItemResponse)
@@ -80,7 +80,7 @@ def toggle_item_availability(
     current_user=Depends(owner_only)
 ):
     """Owner: Toggle item availability."""
-    return item_service.toggle_availability(uow, id, current_user.id)
+    return item_service.toggle_availability(uow, id, current_user.id, current_user.role)
 
 @router.post("/{id}/image", response_model=ItemResponse)
 async def upload_item_image(
@@ -94,4 +94,4 @@ async def upload_item_image(
     file_path = await save_upload_file(file, subfolder="items")
     
     # Update item in database
-    return item_service.update_item_image(uow, id, file_path, current_user.id)
+    return item_service.update_item_image(uow, id, file_path, current_user.id, current_user.role)
