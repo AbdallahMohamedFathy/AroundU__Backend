@@ -361,6 +361,9 @@ def on_startup():
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='place_id') THEN
                             ALTER TABLE orders ADD COLUMN place_id INTEGER REFERENCES places(id) ON DELETE CASCADE;
                         END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='owner_id') THEN
+                            ALTER TABLE orders ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+                        END IF;
                     END $$;
                     
                     CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
@@ -384,6 +387,14 @@ def on_startup():
                         total_price FLOAT NOT NULL DEFAULT 0.0,
                         created_at TIMESTAMPTZ DEFAULT NOW()
                     );
+                    
+                    DO $$ 
+                    BEGIN 
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='carts' AND column_name='owner_id') THEN
+                            ALTER TABLE carts ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+                        END IF;
+                    END $$;
+
                     CREATE INDEX IF NOT EXISTS ix_carts_user_id ON carts(user_id);
                     CREATE INDEX IF NOT EXISTS ix_carts_owner_id ON carts(owner_id);
 
