@@ -33,7 +33,7 @@ def create_item(uow: UnitOfWork, item_in: ItemCreate, user_id: int, user_role: s
         db_item = Item(**item_in.model_dump())
         uow.item_repository.create(db_item)
         uow.commit()
-        return db_item
+        return uow.item_repository.get_by_id(db_item.id)
 
 def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, user_id: int, user_role: str = "OWNER"):
     with uow:
@@ -61,7 +61,7 @@ def update_item(uow: UnitOfWork, item_id: int, item_in: ItemUpdate, user_id: int
         uow.session.flush()
         uow.session.refresh(db_item)
         uow.commit()
-        return db_item
+        return uow.item_repository.get_by_id(db_item.id)
 
 def delete_item(uow: UnitOfWork, item_id: int, user_id: int, user_role: str = "OWNER"):
     with uow:
@@ -91,7 +91,7 @@ def toggle_availability(uow: UnitOfWork, item_id: int, user_id: int, user_role: 
 
         db_item.is_available = not db_item.is_available
         uow.commit()
-        return db_item
+        return uow.item_repository.get_by_id(db_item.id)
 
 def update_item_image(uow: UnitOfWork, item_id: int, image_url: str, user_id: int, user_role: str = "OWNER"):
     with uow:
@@ -105,4 +105,4 @@ def update_item_image(uow: UnitOfWork, item_id: int, image_url: str, user_id: in
 
         db_item.image_url = image_url
         uow.commit()
-        return db_item
+        return uow.item_repository.get_by_id(db_item.id)
