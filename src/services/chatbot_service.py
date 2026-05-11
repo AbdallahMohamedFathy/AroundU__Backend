@@ -178,6 +178,24 @@ async def chat(
     }
 
 
+async def clear_chat_history(db: Session, user_id: int) -> bool:
+    """
+    Deletes all AI interactions for a specific user.
+    This effectively "clears" the chatbot memory for them.
+    """
+    try:
+        from sqlalchemy import delete
+        stmt = delete(AIInteraction).where(AIInteraction.user_id == user_id)
+        db.execute(stmt)
+        db.commit()
+        logger.info(f"[chatbot] Cleared history for user_id={user_id}")
+        return True
+    except Exception as exc:
+        logger.error(f"[chatbot] Failed to clear history for user_id={user_id}: {exc}")
+        db.rollback()
+        return False
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Internal Helpers
 # ──────────────────────────────────────────────────────────────────────────────

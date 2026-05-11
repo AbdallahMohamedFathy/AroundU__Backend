@@ -112,3 +112,27 @@ async def chat_with_ai(
     )
 
     return result
+
+
+@router.delete(
+    "/history",
+    status_code=status.HTTP_200_OK,
+    summary="Clear chat history",
+    tags=["Mobile - AI"],
+)
+async def clear_history(
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """
+    Deletes all previous AI interactions for the authenticated user.
+    """
+    success = await chatbot_service.clear_chat_history(db, current_user.id)
+    if not success:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not clear chat history",
+        )
+    
+    return {"status": "success", "message": "Chat history cleared"}
