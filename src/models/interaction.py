@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Float
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from src.core.database import Base
 import enum
@@ -24,5 +24,5 @@ class Interaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    place = relationship("Place", backref="interactions")
+    place = relationship("Place", backref=backref("interactions", cascade="all, delete-orphan"), passive_deletes=True)
     user = relationship("User", backref="interactions")
