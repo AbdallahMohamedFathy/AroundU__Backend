@@ -197,7 +197,7 @@ def delete_branch(
         if branch.parent_id is None:
             raise APIException("Primary establishment cannot be deleted via branch endpoint", code=status.HTTP_400_BAD_REQUEST)
             
-        uow.place_repository.delete(branch_id)
+        uow.place_repository.delete(branch)
         uow.commit()
         return None
 
