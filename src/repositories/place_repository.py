@@ -76,6 +76,8 @@ class PlaceRepository(BaseRepository[Place]):
                 p.name, 
                 p.description,
                 c.name as category_name,
+                p.delivery_price,
+                p.working_hours,
                 ST_Distance(p.location, ref_point.pt) as distance_meters
             FROM places p
             JOIN categories c ON p.category_id = c.id
@@ -110,7 +112,9 @@ class PlaceRepository(BaseRepository[Place]):
                 "name": r.name,
                 "category": r.category_name,
                 "description": r.description,
-                "distance": r.distance_meters
+                "distance": r.distance_meters,
+                "delivery_price": r.delivery_price,
+                "working_hours": r.working_hours
             }
             for r in results
         ]
@@ -405,6 +409,8 @@ class PlaceRepository(BaseRepository[Place]):
                 p.review_count,
                 p.favorite_count,
                 p.is_active,
+                p.delivery_price,
+                p.working_hours,
                 c.name AS category_name,
                 (
                     SELECT COALESCE(json_agg(
@@ -471,6 +477,8 @@ class PlaceRepository(BaseRepository[Place]):
                 "favorite_count": int(r.favorite_count or 0),
                 "category": r.category_name,
                 "distance_km": float(r.distance_km) if r.distance_km else 0.0,
+                "delivery_price": float(r.delivery_price or 0),
+                "working_hours": r.working_hours,
                 "images": images_data
             })
             
@@ -515,6 +523,8 @@ class PlaceRepository(BaseRepository[Place]):
                 p.favorite_count,
                 p.is_active,
                 p.created_at,
+                p.delivery_price,
+                p.working_hours,
                 c.name as category_name,
                 ST_Distance(p.location, ref_point.pt) / 1000.0 AS distance_km,
                 (
@@ -595,6 +605,8 @@ class PlaceRepository(BaseRepository[Place]):
                 "created_at": r.created_at,
                 "category": r.category_name,
                 "distance_km": float(r.distance_km) if r.distance_km else 0.0,
+                "delivery_price": float(r.delivery_price or 0),
+                "working_hours": r.working_hours,
                 "images": images_data,
                 "trending_score": float(r.trending_score) if r.trending_score else 0.0,
                 "branches": [] # Eager loading branches for trending is often overkill, keep empty for now

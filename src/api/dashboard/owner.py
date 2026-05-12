@@ -770,6 +770,64 @@ async def get_admin_anomaly_summary(
 
 
 # ---------------------------------------------------------------------------
+# Settings (Delivery Price & Working Hours)
+# ---------------------------------------------------------------------------
+
+@router.get("/my-place/delivery-price")
+def get_delivery_price(
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Get the current delivery price for the owner's primary place."""
+    place_id = get_owner_place_id(db, current_user.id)
+    place = db.query(Place).filter(Place.id == place_id).first()
+    return {"delivery_price": place.delivery_price}
+
+@router.put("/my-place/delivery-price")
+def update_delivery_price(
+    payload: Dict[str, float], # {"delivery_price": 15.0}
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Update the delivery price for the owner's primary place."""
+    place_id = get_owner_place_id(db, current_user.id)
+    place = db.query(Place).filter(Place.id == place_id).first()
+    
+    new_price = payload.get("delivery_price")
+    if new_price is None or new_price < 0:
+        raise APIException("Invalid delivery price", code=status.HTTP_400_BAD_REQUEST)
+        
+    place.delivery_price = new_price
+    db.commit()
+    return {"message": "Delivery price updated successfully", "delivery_price": place.delivery_price}
+
+@router.get("/my-place/working-hours")
+def get_working_hours(
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Get the current working hours for the owner's primary place."""
+    place_id = get_owner_place_id(db, current_user.id)
+    place = db.query(Place).filter(Place.id == place_id).first()
+    return {"working_hours": place.working_hours}
+
+@router.put("/my-place/working-hours")
+def update_working_hours(
+    payload: Dict[str, str], # {"working_hours": "9:00 AM - 11:00 PM"}
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Update the working hours for the owner's primary place."""
+    place_id = get_owner_place_id(db, current_user.id)
+    place = db.query(Place).filter(Place.id == place_id).first()
+    
+    new_hours = payload.get("working_hours")
+    place.working_hours = new_hours
+    db.commit()
+    return {"message": "Working hours updated successfully", "working_hours": place.working_hours}
+
+
+# ---------------------------------------------------------------------------
 # Image management
 # ---------------------------------------------------------------------------
 

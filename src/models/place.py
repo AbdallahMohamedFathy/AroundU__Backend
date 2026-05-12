@@ -40,6 +40,10 @@ class Place(Base):
         index=True
     )
     is_active = Column(Boolean, default=True, nullable=False)
+    
+    delivery_price = Column(Float, default=0.0, nullable=False, server_default='0.0')
+    working_hours = Column(String, nullable=True) # e.g. "9:00 AM - 11:00 PM"
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

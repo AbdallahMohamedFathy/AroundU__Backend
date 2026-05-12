@@ -337,6 +337,26 @@ def on_startup():
                 logger.error(f"Error migrating items table: {item_mig_err}")
                 conn.rollback()
 
+            # ── places table migration ───────────────────────────────────
+            try:
+                cols = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='places';"
+                )).fetchall()
+                existing_cols = {row[0] for row in cols}
+
+                if 'delivery_price' not in existing_cols:
+                    logger.info("Adding 'delivery_price' column to places table...")
+                    conn.execute(text("ALTER TABLE places ADD COLUMN delivery_price FLOAT DEFAULT 0.0;"))
+                    conn.commit()
+                
+                if 'working_hours' not in existing_cols:
+                    logger.info("Adding 'working_hours' column to places table...")
+                    conn.execute(text("ALTER TABLE places ADD COLUMN working_hours VARCHAR;"))
+                    conn.commit()
+            except Exception as place_mig_err:
+                logger.error(f"Error migrating places table: {place_mig_err}")
+                conn.rollback()
+
             # ── orders and carts table creation ──────────────────────────
             try:
                 logger.info("Ensuring orders and carts tables exist...")

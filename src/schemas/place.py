@@ -18,6 +18,8 @@ class PlaceBase(BaseModel):
     facebook_url: Optional[str] = None
     whatsapp_number: Optional[str] = None
     tiktok_url: Optional[str] = None
+    delivery_price: float = 0.0
+    working_hours: Optional[str] = None
 
 
 class PlaceCreate(PlaceBase):
@@ -42,6 +44,8 @@ class PlaceUpdate(BaseModel):
     facebook_url: Optional[str] = None
     whatsapp_number: Optional[str] = None
     tiktok_url: Optional[str] = None
+    delivery_price: Optional[float] = None
+    working_hours: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -67,6 +71,8 @@ class NearbyPlaceResponse(BaseModel):
     category: str
     description: Optional[str] = None
     distance: float
+    delivery_price: float = 0.0
+    working_hours: Optional[str] = None
     is_favorited: Optional[bool] = False
 
     model_config = {"from_attributes": True}
