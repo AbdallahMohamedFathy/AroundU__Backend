@@ -35,7 +35,7 @@ from src.models.interaction import Interaction
 from src.models.place import Place
 from src.models.review import Review
 from src.models.user import User
-from src.schemas.place import PlaceResponse
+from src.schemas.place import PlaceResponse, PlaceUpdate
 from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
 from src.services import place_image_service
 from src.services.ai_service import ai_connector
