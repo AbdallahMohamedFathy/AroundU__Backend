@@ -176,6 +176,32 @@ def add_branch(
             raise APIException(f"Failed to copy data: {str(e)}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@router.delete("/branches/{branch_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_branch(
+    branch_id: int,
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user=Depends(owner_guard),
+):
+    """Delete a specific branch belonging to the owner."""
+    with uow:
+        branch = uow.place_repository.get_by_id(branch_id)
+        
+        if not branch:
+            raise APIException("Branch not found", code=status.HTTP_404_NOT_FOUND)
+            
+        # Security: Must be the owner
+        if branch.owner_id != current_user.id:
+            raise APIException("Not authorized to delete this place", code=status.HTTP_403_FORBIDDEN)
+            
+        # Business Logic: Only branches (places with parents) can be deleted via this endpoint
+        if branch.parent_id is None:
+            raise APIException("Primary establishment cannot be deleted via branch endpoint", code=status.HTTP_400_BAD_REQUEST)
+            
+        uow.place_repository.delete(branch_id)
+        uow.commit()
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Dashboard KPIs
 # ---------------------------------------------------------------------------
