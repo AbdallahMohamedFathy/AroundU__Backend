@@ -167,6 +167,11 @@ def get_place(
     )
     
     response_data = PlaceResponse.model_validate(place)
+    
+    # Populate related branches (Siblings + Parent if child, or all Children if parent)
+    related_branches = repo.get_related_branches(place)
+    response_data.branches = [PlaceResponse.model_validate(b) for b in related_branches]
+
     if current_user:
         with uow:
             fav = uow.favorite_repository.get_by_user_and_place(current_user.id, place_id)

@@ -19,6 +19,33 @@ class PlaceRepository(BaseRepository[Place]):
             )\
             .filter(Place.id == place_id).first()
 
+    def get_related_branches(self, place: Place) -> List[Place]:
+        """
+        Returns all related branches for a place:
+        - If it's a parent: returns all its children.
+        - If it's a child: returns its parent and all its siblings.
+        """
+        if not place.parent_id:
+            # It's a parent, return all active children
+            return self.session.query(Place).filter(
+                Place.parent_id == place.id,
+                Place.is_active == True
+            ).all()
+        else:
+            # It's a child, return parent + all active siblings (excluding self)
+            parent = self.session.query(Place).filter(Place.id == place.parent_id).first()
+            siblings = self.session.query(Place).filter(
+                Place.parent_id == place.parent_id,
+                Place.id != place.id,
+                Place.is_active == True
+            ).all()
+            
+            results = []
+            if parent and parent.is_active:
+                results.append(parent)
+            results.extend(siblings)
+            return results
+
     def get_by_owner_id(self, owner_id: int) -> Optional[Place]:
         """Returns the primary place for an owner (first one found)."""
         return self.session.query(Place).filter(Place.owner_id == owner_id).first()
