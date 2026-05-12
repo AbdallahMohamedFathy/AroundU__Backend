@@ -202,6 +202,49 @@ def delete_branch(
         return None
 
 
+@router.patch("/branches/{branch_id}", response_model=PlaceResponse)
+def update_branch(
+    branch_id: int,
+    payload: PlaceUpdate,
+    uow: Annotated[Any, Depends(get_uow)],
+    current_user=Depends(owner_guard),
+):
+    """Update any field of a specific branch belonging to the owner."""
+    with uow:
+        branch = uow.place_repository.get_by_id(branch_id)
+        
+        if not branch:
+            raise APIException("Branch not found", code=status.HTTP_404_NOT_FOUND)
+            
+        # Security: Must be the owner
+        if branch.owner_id != current_user.id:
+            raise APIException("Not authorized to update this place", code=status.HTTP_403_FORBIDDEN)
+            
+        # Update fields
+        update_data = payload.model_dump(exclude_unset=True)
+        
+        # Special handling for coordinates to update PostGIS location
+        lat = update_data.get("latitude")
+        lng = update_data.get("longitude")
+        
+        updated_branch = uow.place_repository.update(branch, update_data)
+        
+        if lat is not None or lng is not None:
+            new_lat = lat if lat is not None else branch.latitude
+            new_lng = lng if lng is not None else branch.longitude
+            uow.session.execute(
+                text("""
+                    UPDATE places
+                    SET location = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+                    WHERE id = :id
+                """),
+                {"lng": float(new_lng), "lat": float(new_lat), "id": branch.id}
+            )
+            
+        uow.commit()
+        return PlaceResponse.model_validate(updated_branch)
+
+
 # ---------------------------------------------------------------------------
 # Dashboard KPIs
 # ---------------------------------------------------------------------------
