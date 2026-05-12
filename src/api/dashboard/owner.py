@@ -900,6 +900,28 @@ def update_working_hours(
     return {"message": "Working hours updated successfully", "working_hours": place.working_hours}
 
 
+from pydantic import BaseModel, Field
+
+class UpdateStatus(BaseModel):
+    is_active: bool = Field(..., description="Set to true to open the place, false to mark as closed")
+
+@router.put("/my-place/status")
+def update_place_status(
+    payload: UpdateStatus,
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Toggle the active status (Open/Closed) for the owner's primary place."""
+    place_id = get_owner_place_id(db, current_user.id)
+    place = db.query(Place).filter(Place.id == place_id).first()
+    
+    place.is_active = payload.is_active
+    db.commit()
+    
+    status_text = "Open" if place.is_active else "Closed"
+    return {"message": f"Place status updated to {status_text}", "is_active": place.is_active}
+
+
 # ---------------------------------------------------------------------------
 # Image management
 # ---------------------------------------------------------------------------
