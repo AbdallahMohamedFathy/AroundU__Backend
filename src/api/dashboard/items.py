@@ -58,7 +58,7 @@ def remove_item(
     return None
 
 from fastapi import UploadFile, File
-from src.utils.file_upload import save_upload_file
+from src.services.cloudinary_service import upload_image, delete_image
 
 @router.post("/{item_id}/image", response_model=ItemResponse)
 async def upload_item_image(
@@ -68,8 +68,27 @@ async def upload_item_image(
     current_user: User = Depends(get_current_user)
 ):
     """Dashboard: Upload an image for an item."""
-    # Save the file
-    file_path = await save_upload_file(file, subfolder="items")
+    # 1. Fetch item to check permissions and get old image URL
+    with uow:
+        db_item = uow.item_repository.get_by_id(item_id)
+        if not db_item or db_item.is_deleted:
+            from src.core.exceptions import APIException
+            raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
+            
+        # Permission check via subcategory
+        subcategory = uow.subcategory_repository.get_by_id(db_item.sub_category_id)
+        if current_user.role != "ADMIN" and subcategory.owner_id != current_user.id:
+            from src.core.exceptions import APIException
+            raise APIException("You don't have permission to update this item", code=status.HTTP_403_FORBIDDEN)
+            
+        old_image_url = db_item.image_url
+
+    # 2. Upload new image to Cloudinary
+    new_image_url = upload_image(file, folder="items")
     
-    # Update item in database
-    return item_service.update_item_image(uow, item_id, file_path, current_user.id, current_user.role)
+    # 3. Delete old image from Cloudinary if it exists
+    if old_image_url:
+        delete_image(old_image_url)
+    
+    # 4. Update item in database
+    return item_service.update_item_image(uow, item_id, new_image_url, current_user.id, current_user.role)
