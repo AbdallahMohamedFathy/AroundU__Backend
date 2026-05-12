@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTim
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from geoalchemy2 import Geography
 from src.core.database import Base
 
 
@@ -24,7 +25,6 @@ class Place(Base):
     search_vector = Column(TSVECTOR)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
-    from geoalchemy2 import Geography
     location = Column(Geography(geometry_type='POINT', srid=4326), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     owner_id = Column(
