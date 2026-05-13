@@ -36,8 +36,9 @@ from src.models.place import Place
 from src.models.review import Review
 from src.models.user import User
 from src.schemas.place import PlaceResponse, PlaceUpdate
-from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
-from src.services import place_image_service
+from src.schemas.review import ReviewListResponse
+from src.services import place_image_service, review_service
+from src.core.dependencies import get_db, get_uow, get_place_image_repository, get_review_repository
 from src.services.ai_service import ai_connector
 from src.services.anomaly_helpers import (
     prepare_district_data,
@@ -301,7 +302,24 @@ def get_owner_dashboard(
         raise
     except Exception:
         logger.error(f"Error in get_owner_dashboard: {traceback.format_exc()}")
-        raise APIException("Dashboard failed", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise APIException("Internal error fetching dashboard metrics", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@router.get("/places/{place_id}/reviews", response_model=ReviewListResponse)
+def get_owner_place_reviews(
+    place_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    repo=Depends(get_review_repository),
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Owner: Get reviews for a specific branch."""
+    # Verify ownership
+    place = db.query(Place).filter(Place.id == place_id, Place.owner_id == current_user.id).first()
+    if not place:
+        raise APIException("Place not found or access denied", code=status.HTTP_404_NOT_FOUND)
+        
+    return review_service.get_place_reviews(repo, place_id, page, page_size)
 
 
 # ---------------------------------------------------------------------------
