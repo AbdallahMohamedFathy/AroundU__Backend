@@ -35,6 +35,18 @@ async def get_owner_orders(
 
     result = []
     for o in orders:
+        items_res = [
+            {
+                "id": i.id,
+                "item_id": i.item_id,
+                "item_name": i.item_name,
+                "image_url": i.image_url,
+                "unit_price": i.unit_price,
+                "quantity": i.quantity,
+                "total_price": i.total_price,
+            }
+            for i in getattr(o, 'items', [])
+        ]
         result.append(OrderResponse(
             id=o.id,
             user_id=o.user_id,
@@ -46,7 +58,7 @@ async def get_owner_orders(
             address=o.address,
             notes=o.notes,
             total_price=o.total_price,
-            items=[],
+            items=items_res,
             created_at=o.created_at,
         ))
     return result
@@ -78,6 +90,18 @@ async def get_place_orders(
 
     result = []
     for o in orders:
+        items_res = [
+            {
+                "id": i.id,
+                "item_id": i.item_id,
+                "item_name": i.item_name,
+                "image_url": i.image_url,
+                "unit_price": i.unit_price,
+                "quantity": i.quantity,
+                "total_price": i.total_price,
+            }
+            for i in getattr(o, 'items', [])
+        ]
         result.append(OrderResponse(
             id=o.id,
             user_id=o.user_id,
@@ -89,7 +113,7 @@ async def get_place_orders(
             address=o.address,
             notes=o.notes,
             total_price=o.total_price,
-            items=[],
+            items=items_res,
             created_at=o.created_at,
         ))
     return result

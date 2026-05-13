@@ -19,24 +19,34 @@ class OrderRepository:
         return result.scalars().first()
 
     async def get_user_orders(self, user_id: int) -> List[Order]:
+        from sqlalchemy.orm import selectinload
         result = await self.db.execute(
-            select(Order).where(Order.user_id == user_id).order_by(Order.created_at.desc())
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.user_id == user_id)
+            .order_by(Order.created_at.desc())
         )
         return result.scalars().all()
 
     async def get_place_orders(self, place_id: int) -> List[Order]:
         """Return all orders for a specific place (branch) — used by owner dashboard."""
+        from sqlalchemy.orm import selectinload
         result = await self.db.execute(
-            select(Order).where(Order.place_id == place_id).order_by(Order.created_at.desc())
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.place_id == place_id)
+            .order_by(Order.created_at.desc())
         )
         return result.scalars().all()
 
     async def get_owner_orders(self, owner_id: int) -> List[Order]:
         """Return all orders across ALL places belonging to this owner — requires JOIN with Place."""
         from src.models.place import Place
+        from sqlalchemy.orm import selectinload
         result = await self.db.execute(
             select(Order)
             .join(Place, Order.place_id == Place.id)
+            .options(selectinload(Order.items))
             .where(Place.owner_id == owner_id)
             .order_by(Order.created_at.desc())
         )
