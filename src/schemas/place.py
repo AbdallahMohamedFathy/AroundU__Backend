@@ -19,6 +19,7 @@ class PlaceBase(BaseModel):
     whatsapp_number: Optional[str] = None
     tiktok_url: Optional[str] = None
     delivery_price: float = 0.0
+    is_free_delivery: bool = False
     working_hours: Optional[str] = None
 
 
@@ -45,6 +46,7 @@ class PlaceUpdate(BaseModel):
     whatsapp_number: Optional[str] = None
     tiktok_url: Optional[str] = None
     delivery_price: Optional[float] = None
+    is_free_delivery: Optional[bool] = None
     working_hours: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -72,6 +74,7 @@ class NearbyPlaceResponse(BaseModel):
     description: Optional[str] = None
     distance: float
     delivery_price: float = 0.0
+    is_free_delivery: bool = False
     working_hours: Optional[str] = None
     is_favorited: Optional[bool] = False
 

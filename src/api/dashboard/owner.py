@@ -842,6 +842,7 @@ from pydantic import BaseModel, Field
 
 class UpdateDeliveryPrice(BaseModel):
     delivery_price: float = Field(..., ge=0, description="The new delivery price (must be >= 0)")
+    is_free_delivery: bool = Field(False, description="Set to true if delivery is currently free")
 
 class UpdateWorkingHours(BaseModel):
     working_hours: str = Field(..., description="The new working hours string (e.g. '9:00 AM - 11:00 PM')")
@@ -859,7 +860,7 @@ def get_delivery_price(
     """Get the current delivery price for the owner's primary place."""
     place_id = get_owner_place_id(db, current_user.id)
     place = db.query(Place).filter(Place.id == place_id).first()
-    return {"delivery_price": place.delivery_price}
+    return {"delivery_price": place.delivery_price, "is_free_delivery": place.is_free_delivery}
 
 @router.put("/my-place/delivery-price")
 def update_delivery_price(
@@ -867,13 +868,18 @@ def update_delivery_price(
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Update the delivery price for the owner's primary place."""
+    """Update the fixed delivery price and free delivery status for the owner's primary place."""
     place_id = get_owner_place_id(db, current_user.id)
     place = db.query(Place).filter(Place.id == place_id).first()
     
     place.delivery_price = payload.delivery_price
+    place.is_free_delivery = payload.is_free_delivery
     db.commit()
-    return {"message": "Delivery price updated successfully", "delivery_price": place.delivery_price}
+    return {
+        "message": "Delivery settings updated successfully", 
+        "delivery_price": place.delivery_price,
+        "is_free_delivery": place.is_free_delivery
+    }
 
 @router.get("/my-place/working-hours")
 def get_working_hours(
