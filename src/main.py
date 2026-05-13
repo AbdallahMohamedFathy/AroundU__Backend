@@ -93,6 +93,17 @@ def on_startup():
                 conn.execute(text("ALTER TABLE notifications ADD COLUMN request_id INTEGER REFERENCES notification_requests(id) ON DELETE SET NULL;"))
                 conn.commit()
                 logger.info("Column 'request_id' added successfully.")
+                
+            # Check for is_free_delivery in places
+            check_free_delivery = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='places' AND column_name='is_free_delivery';"
+            )).fetchone()
+            if not check_free_delivery:
+                logger.warning("Column 'is_free_delivery' missing in 'places' table. Adding it...")
+                conn.execute(text("ALTER TABLE places ADD COLUMN is_free_delivery BOOLEAN DEFAULT FALSE NOT NULL;"))
+                conn.commit()
+                logger.info("Column 'is_free_delivery' added successfully.")
 
             # ── ai_interactions table ──────────────────────────────────────
             ai_table = conn.execute(text(
