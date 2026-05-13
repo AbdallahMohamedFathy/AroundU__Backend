@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, BackgroundTasks
 from typing import Optional, List
 from src.core.dependencies import get_place_repository, get_uow, get_place_image_repository, get_current_user_optional
+from src.core.database import get_db
 from src.schemas.place import PlaceResponse, PlaceListResponse, NearbyPlaceListResponse, NearbyPlaceResponse
 from src.models.user import User
 from src.services.place_service import (
@@ -142,6 +143,54 @@ def trending_places(
         result["items"] = [PlaceResponse.model_validate(item) for item in result["items"]]
         
     return result
+
+
+# ─── SEARCH BY ITEM  GET /places/search-by-item ────────────────────────────
+@router.get("/search-by-item", response_model=PlaceListResponse)
+def search_by_item(
+    item: str = Query(..., min_length=2),
+    limit: int = Query(20, ge=1, le=50),
+    repo = Depends(get_place_repository),
+    uow = Depends(get_uow),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """Search for places that have items matching the given query."""
+    places = repo.search_places_by_item(item, limit)
+    
+    if current_user:
+        with uow:
+            fav_place_ids = uow.favorite_repository.get_user_favorite_place_ids(current_user.id)
+        new_items = []
+        for p in places:
+            response_item = PlaceResponse.model_validate(p)
+            response_item.is_favorited = response_item.id in fav_place_ids
+            new_items.append(response_item)
+        items_res = new_items
+    else:
+        items_res = [PlaceResponse.model_validate(p) for p in places]
+        
+    return {
+        "total": len(items_res),
+        "page": 1,
+        "page_size": limit,
+        "total_pages": 1,
+        "items": items_res
+    }
+
+
+# ─── GET PLACE MENU  GET /places/{place_id}/menu ────────────────────────────
+@router.get("/{place_id}/menu", response_model=list)
+def get_place_menu(
+    place_id: int,
+    db = Depends(get_db)
+):
+    """Retrieve all items for a specific place, grouped or returned as a flat list."""
+    from src.repositories.item_repository import ItemRepository
+    from src.schemas.item import ItemResponse
+    
+    repo = ItemRepository(db)
+    items = repo.get_by_place(place_id)
+    return [ItemResponse.model_validate(i) for i in items]
 
 
 # ─── GET ONE  GET /places/{id} ──────────────────────────────────────────────

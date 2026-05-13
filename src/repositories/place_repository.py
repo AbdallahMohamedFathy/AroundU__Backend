@@ -304,7 +304,23 @@ class PlaceRepository(BaseRepository[Place]):
                 "images": images_data
             })
             
-        return formatted_results
+    def search_places_by_item(self, item_name: str, limit: int = 20) -> List[Place]:
+        """Search for places that have items matching the given query."""
+        from src.models.subcategory import SubCategory
+        from src.models.item import Item
+        
+        query = self.session.query(self.model).join(
+            SubCategory, SubCategory.place_id == self.model.id
+        ).join(
+            Item, Item.sub_category_id == SubCategory.id
+        ).filter(
+            self.model.is_active == True,
+            SubCategory.is_deleted == False,
+            Item.is_deleted == False,
+            (Item.name.ilike(f"%{item_name}%") | Item.description.ilike(f"%{item_name}%"))
+        ).limit(limit)
+        
+        return query.all()
 
     def get_popular_nearby(
         self, 
