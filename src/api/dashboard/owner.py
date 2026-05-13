@@ -987,17 +987,27 @@ def get_owner_review_list(
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    place_id = get_owner_place_id(db, current_user.id)
+    # 1. Get all places (branches) belonging to this owner
+    owner_places = db.query(Place.id, Place.name).filter(Place.owner_id == current_user.id).all()
+    place_ids = [p.id for p in owner_places]
+    
+    if not place_ids:
+        return []
+
+    # 2. Query reviews for all these places
     query = (
         db.query(
             Review.rating,
             Review.comment,
             Review.sentiment,
             Review.created_at,
+            Review.place_id,
             User.full_name,
+            Place.name.label("place_name")
         )
         .join(User, Review.user_id == User.id)
-        .filter(Review.place_id == place_id)
+        .join(Place, Review.place_id == Place.id)
+        .filter(Review.place_id.in_(place_ids))
     )
     if start_date:
         query = query.filter(func.date(Review.created_at) >= start_date)
@@ -1012,6 +1022,8 @@ def get_owner_review_list(
             "sentiment": r.sentiment,
             "date": r.created_at,
             "user_name": r.full_name,
+            "place_name": r.place_name,
+            "place_id": r.place_id,
             "stars": "⭐" * int(r.rating),
         }
         for r in reviews
