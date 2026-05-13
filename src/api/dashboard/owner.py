@@ -27,7 +27,7 @@ from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 
 from src.api.dashboard.dependencies import owner_guard
-from src.core.dependencies import get_db, get_uow, get_place_image_repository
+from src.core.dependencies import get_db, get_uow, get_place_image_repository, get_review_repository
 from src.core.exceptions import APIException
 from src.core.logger import logger
 from src.models.favorite import Favorite
@@ -36,9 +36,9 @@ from src.models.place import Place
 from src.models.review import Review
 from src.models.user import User
 from src.schemas.place import PlaceResponse, PlaceUpdate
+from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
 from src.schemas.review import ReviewListResponse
 from src.services import place_image_service, review_service
-from src.core.dependencies import get_db, get_uow, get_place_image_repository, get_review_repository
 from src.services.ai_service import ai_connector
 from src.services.anomaly_helpers import (
     prepare_district_data,
