@@ -254,7 +254,29 @@ def update_branch(
             )
             
         uow.commit()
-        return PlaceResponse.model_validate(updated_branch)
+@router.get("/customers")
+def get_owner_customers(
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Get a list of unique users who have placed orders at the owner's places."""
+    from app.orders.models.order_models import Order
+    from src.models.user import User
+    
+    # 1. Get all place IDs owned by this user
+    place_ids = [p.id for p in db.query(Place.id).filter(Place.owner_id == current_user.id).all()]
+    
+    # 2. Find unique user IDs from orders at these places
+    user_ids = db.query(Order.user_id).filter(Order.place_id.in_(place_ids)).distinct().all()
+    user_ids = [u[0] for u in user_ids]
+    
+    # 3. Fetch user details
+    customers = db.query(User).filter(User.id.in_(user_ids)).all()
+    
+    return [
+        {"id": c.id, "name": c.full_name or c.email, "email": c.email}
+        for c in customers
+    ]
 
 
 # ---------------------------------------------------------------------------
