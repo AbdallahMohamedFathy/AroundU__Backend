@@ -287,6 +287,10 @@ def get_owner_customers(
 @router.get("/{place_id}")
 def get_owner_dashboard(
     place_id: Optional[int] = None,
+    date_from: Optional[date] = Query(None, alias="date_from"),
+    date_to: Optional[date] = Query(None, alias="date_to"),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
