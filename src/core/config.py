@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: list[str] = ["jpg", "jpeg", "png", "webp"]
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000" # Allow common dev ports
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8501,http://127.0.0.1:8501" # Allow common dev ports
     CORS_ALLOW_CREDENTIALS: bool = True
 
     # Firebase

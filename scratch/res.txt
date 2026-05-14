@@ -1,0 +1,22 @@
+﻿2026-05-14 13:17:46,591 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-05-14 13:17:46,591 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-05-14 13:17:46,741 INFO sqlalchemy.engine.Engine select current_schema()
+2026-05-14 13:17:46,741 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-05-14 13:17:46,890 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-05-14 13:17:46,890 INFO sqlalchemy.engine.Engine [raw sql] {}
+2026-05-14 13:17:47,269 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-14 13:17:47,283 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.firebase_uid AS users_firebase_uid, users.provider AS users_provider, users.full_name AS users_full_name, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.owner_type AS users_owner_type, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.is_deleted AS users_is_deleted, users.deleted_at AS users_deleted_at, users.verification_token AS users_verification_token, users.reset_token AS users_reset_token, users.reset_token_expires AS users_reset_token_expires, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.email = %(email_1)s::VARCHAR 
+ LIMIT %(param_1)s::INTEGER
+2026-05-14 13:17:47,284 INFO sqlalchemy.engine.Engine [generated in 0.00071s] {'email_1': 'abdallahmohamed@gmail.com', 'param_1': 1}
+User: abdallahmohamed@gmail.com, Role: OWNER, Is Active: True, Is Verified: True, Type: COMMERCIAL
+2026-05-14 13:17:47,467 INFO sqlalchemy.engine.Engine ROLLBACK
+2026-05-14 13:17:47,625 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-05-14 13:17:47,627 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.firebase_uid AS users_firebase_uid, users.provider AS users_provider, users.full_name AS users_full_name, users.email AS users_email, users.password_hash AS users_password_hash, users.role AS users_role, users.owner_type AS users_owner_type, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.is_deleted AS users_is_deleted, users.deleted_at AS users_deleted_at, users.verification_token AS users_verification_token, users.reset_token AS users_reset_token, users.reset_token_expires AS users_reset_token_expires, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.email = %(email_1)s::VARCHAR 
+ LIMIT %(param_1)s::INTEGER
+2026-05-14 13:17:47,628 INFO sqlalchemy.engine.Engine [cached since 0.3447s ago] {'email_1': 'bolivar11@gmail.com', 'param_1': 1}
+User: bolivar11@gmail.com, Role: OWNER, Is Active: True, Is Verified: True, Type: COMMERCIAL
+2026-05-14 13:17:47,780 INFO sqlalchemy.engine.Engine ROLLBACK
