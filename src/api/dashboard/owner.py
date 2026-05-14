@@ -284,13 +284,9 @@ def get_owner_customers(
 # ---------------------------------------------------------------------------
 
 @router.get("/dashboard")
-@router.get("/{place_id}")
+@router.get("/{place_id:int}")
 def get_owner_dashboard(
     place_id: Optional[int] = None,
-    date_from: Optional[date] = Query(None, alias="date_from"),
-    date_to: Optional[date] = Query(None, alias="date_to"),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
@@ -386,10 +382,6 @@ def get_owner_place_items(
 @router.get("/analytics")
 def get_owner_analytics(
     place_id: Optional[int] = Query(None),
-    date_from: date = Query(None, alias="date_from"),
-    date_to: date = Query(None, alias="date_to"),
-    start_date: date = Query(None),
-    end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
@@ -397,13 +389,8 @@ def get_owner_analytics(
     try:
         target_place_id = resolve_target_place_id(db, current_user.id, place_id)
 
-        f_date = date_from or start_date
-        t_date = date_to or end_date
-
-        if not t_date:
-            t_date = datetime.now().date()
-        if not f_date:
-            f_date = (datetime.now() - timedelta(days=30)).date()
+        t_date = datetime.now().date()
+        f_date = (datetime.now() - timedelta(days=30)).date()
 
         results = (
             db.query(
