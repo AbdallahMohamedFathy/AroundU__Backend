@@ -34,6 +34,15 @@ def create_notification_request(
                 detail=f"Daily limit of {MAX_DAILY_OWNER_REQUESTS} notification requests exceeded."
             )
 
+        # Validate target user if SPECIFIC_USER
+        if request_data.target_type == TargetType.SPECIFIC_USER:
+            if not request_data.target_user_id:
+                raise HTTPException(status_code=400, detail="target_user_id is required for SPECIFIC_USER")
+            
+            target_user = uow.user_repository.get_by_id(request_data.target_user_id)
+            if not target_user:
+                raise HTTPException(status_code=404, detail=f"Target user with ID {request_data.target_user_id} not found")
+
         new_req = NotificationRequest(
             sender_id=sender_id,
             title=request_data.title,
