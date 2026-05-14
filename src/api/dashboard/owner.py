@@ -61,15 +61,17 @@ router = APIRouter(dependencies=[Depends(owner_guard)])
 
 def resolve_target_place_id(db: Session, owner_id: int, place_id: Optional[int] = None) -> int:
     """Helper to get the target place_id for dashboard operations with security check."""
+    # 1. Try provided ID
     if place_id:
         place = db.query(Place).filter(Place.id == place_id, Place.owner_id == owner_id).first()
-        if not place:
-            raise APIException("Place not found or access denied", code=status.HTTP_404_NOT_FOUND)
-        return place.id
+        if place:
+            return place.id
     
+    # 2. Try default (first) place
     place = db.query(Place).filter(Place.owner_id == owner_id).order_by(Place.id.asc()).first()
     if not place:
         raise APIException("No place found for this owner", code=status.HTTP_404_NOT_FOUND)
+    
     return place.id
 
 
