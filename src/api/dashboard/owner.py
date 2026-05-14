@@ -527,8 +527,8 @@ def get_owner_reviews(
 
 @router.get("/location-heatmap")
 async def get_location_heatmap(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     """AI heatmap from the owner's place visit data."""
@@ -556,8 +556,8 @@ async def get_location_heatmap(
 
 @router.get("/active-visitors")
 async def get_active_visitors(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     with uow:
@@ -580,8 +580,8 @@ async def get_active_visitors(
 
 @router.get("/peak-hour")
 async def get_peak_hour(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     with uow:
@@ -604,8 +604,8 @@ async def get_peak_hour(
 
 @router.get("/location-summary")
 async def get_location_summary(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     with uow:
@@ -633,8 +633,8 @@ async def get_location_summary(
 
 @router.get("/opportunities")
 async def get_opportunities(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     """AI business opportunities from the owner's visit data."""
@@ -680,8 +680,8 @@ async def get_opportunities(
 
 @router.get("/interactions-locations")
 async def get_interactions_locations(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     """All interactions with coordinates for the scatter map."""
@@ -719,8 +719,8 @@ async def get_ai_clusters(current_user=Depends(owner_guard)):
 
 @router.get("/anomalies")
 async def get_anomalies(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     # ...
@@ -743,8 +743,8 @@ async def get_anomalies(
 
 @router.get("/anomalies/summary")
 async def get_anomalies_summary(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     # ...
@@ -809,8 +809,8 @@ async def get_anomalies_summary(
 
 @router.get("/place-anomalies")
 async def get_place_anomalies(
+    uow: Annotated[Any, Depends(get_uow)],
     place_id: Optional[int] = Query(None),
-    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     # ...
