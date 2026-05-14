@@ -274,9 +274,12 @@ def get_owner_dashboard(
         # 1. Determine target place_id
         target_place_id = resolve_target_place_id(db, current_user.id, place_id)
 
-        # 2. Determine date range
+        # 2. Determine date range (support multiple alias names for compatibility)
         f_date = date_from or start_date
         t_date = date_to or end_date
+        
+        # If still no dates, we can default to total or a specific range if required
+        # But usually the frontend sends them.
 
         # 3. Query Interactions
         query = db.query(Interaction.type, func.count(Interaction.id)).filter(
