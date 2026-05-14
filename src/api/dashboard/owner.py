@@ -274,15 +274,14 @@ def get_owner_dashboard(
     try:
         # 1. Determine target place_id
         target_place_id = resolve_target_place_id(db, current_user.id, place_id)
-
-        # 2. Determine date range (support multiple alias names for compatibility)
+        
+        # 2. Determine date range
         f_date = date_from or start_date
         t_date = date_to or end_date
         
-        # If still no dates, we can default to total or a specific range if required
-        # But usually the frontend sends them.
+        logger.info(f"Dashboard Request - Place: {target_place_id}, From: {f_date}, To: {t_date}")
 
-        # 3. Query Interactions
+        # 3. Query Interactions (Visits, Calls, Directions)
         query = db.query(Interaction.type, func.count(Interaction.id)).filter(
             Interaction.place_id == target_place_id
         )
@@ -302,7 +301,7 @@ def get_owner_dashboard(
             fav_query = fav_query.filter(func.date(Favorite.created_at) <= t_date)
         favorite_count = fav_query.scalar() or 0
         
-        # 5. Query Actual Orders
+        # 5. Query Actual Orders (Match the logic that works in Chart)
         order_count = 0
         if Order:
             order_query = db.query(func.count(Order.id)).filter(
@@ -316,7 +315,7 @@ def get_owner_dashboard(
 
         stats = {
             "visits": 0,
-            "orders": order_count, # Use the real order count
+            "orders": order_count,
             "saves": favorite_count,
             "calls": 0,
             "directions": 0,
@@ -324,20 +323,20 @@ def get_owner_dashboard(
         for type_, count in results:
             if type_ == "visit":
                 stats["visits"] = count
-            elif type_ == "order" and not Order: # Fallback if Order model is missing
-                stats["orders"] = count
             elif type_ == "call":
                 stats["calls"] = count
             elif type_ == "direction":
                 stats["directions"] = count
+            elif type_ == "order" and order_count == 0: # Only fallback if real table is empty
+                stats["orders"] = count
 
         return stats
 
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         logger.error(f"Error in get_owner_dashboard: {traceback.format_exc()}")
-        raise APIException("Internal error fetching dashboard metrics", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise APIException(f"Dashboard failed: {str(e)}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @router.get("/places/{place_id}/reviews", response_model=ReviewListResponse)
 def get_owner_place_reviews(
