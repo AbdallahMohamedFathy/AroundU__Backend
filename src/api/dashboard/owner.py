@@ -35,6 +35,10 @@ from src.models.interaction import Interaction
 from src.models.place import Place
 from src.models.review import Review
 from src.models.user import User
+try:
+    from app.orders.models.order_models import Order
+except ImportError:
+    Order = None
 from src.schemas.item import ItemResponse
 from src.schemas.place import PlaceResponse, PlaceUpdate
 from src.schemas.place_image import PlaceImageCreate, PlaceImageResponse
@@ -293,10 +297,22 @@ def get_owner_dashboard(
         if t_date:
             fav_query = fav_query.filter(func.date(Favorite.created_at) <= t_date)
         favorite_count = fav_query.scalar() or 0
+        
+        # 5. Query Actual Orders
+        order_count = 0
+        if Order:
+            order_query = db.query(func.count(Order.id)).filter(
+                Order.place_id == target_place_id
+            )
+            if f_date:
+                order_query = order_query.filter(func.date(Order.created_at) >= f_date)
+            if t_date:
+                order_query = order_query.filter(func.date(Order.created_at) <= t_date)
+            order_count = order_query.scalar() or 0
 
         stats = {
             "visits": 0,
-            "orders": 0,
+            "orders": order_count, # Use the real order count
             "saves": favorite_count,
             "calls": 0,
             "directions": 0,
@@ -304,7 +320,7 @@ def get_owner_dashboard(
         for type_, count in results:
             if type_ == "visit":
                 stats["visits"] = count
-            elif type_ == "order":
+            elif type_ == "order" and not Order: # Fallback if Order model is missing
                 stats["orders"] = count
             elif type_ == "call":
                 stats["calls"] = count
@@ -438,6 +454,25 @@ def get_owner_analytics(
             d_str = day.strftime("%Y-%m-%d")
             if d_str in daily_data:
                 daily_data[d_str]["saves"] = count
+
+        if Order:
+            order_results = (
+                db.query(
+                    func.date(Order.created_at).label("day"),
+                    func.count(Order.id).label("count"),
+                )
+                .filter(
+                    Order.place_id == target_place_id,
+                    func.date(Order.created_at) >= f_date,
+                    func.date(Order.created_at) <= t_date,
+                )
+                .group_by(func.date(Order.created_at))
+                .all()
+            )
+            for day, count in order_results:
+                d_str = day.strftime("%Y-%m-%d")
+                if d_str in daily_data:
+                    daily_data[d_str]["orders"] = count
 
         return sorted(daily_data.values(), key=lambda x: x["date"])
 
