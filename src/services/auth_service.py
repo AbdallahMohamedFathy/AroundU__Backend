@@ -32,7 +32,10 @@ def register_user(uow: UnitOfWork, user_in: UserCreate):
         uow.user_repository.add(new_user)
         uow.session.flush()
 
-        access_token = create_access_token(subject=new_user.id)
+        access_token = create_access_token(
+            subject=new_user.id,
+            extra_data={"role": new_user.role, "email": new_user.email}
+        )
         refresh_token = create_refresh_token(subject=new_user.id)
 
         new_user.hashed_refresh_token = get_password_hash(refresh_token)
@@ -57,7 +60,10 @@ def authenticate_user(uow: UnitOfWork, user_in: UserLogin):
         if not user.is_active:
             raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
         
-        access_token = create_access_token(subject=user.id)
+        access_token = create_access_token(
+            subject=user.id,
+            extra_data={"role": user.role, "email": user.email}
+        )
         refresh_token = create_refresh_token(subject=user.id)
         
         user.hashed_refresh_token = get_password_hash(refresh_token)
@@ -226,7 +232,10 @@ def social_login(uow: UnitOfWork, data: Any):
             raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
                 
         # 4. Generate Backend JWT Tokens
-        access_token = create_access_token(subject=user.id)
+        access_token = create_access_token(
+            subject=user.id,
+            extra_data={"role": user.role, "email": user.email}
+        )
         refresh_token = create_refresh_token(subject=user.id)
         
         uow.commit()
