@@ -47,7 +47,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> DBUser:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
-        if user_id is None:
+        # Check for token type to match src auth
+        if user_id is None or payload.get("type") != "access":
             raise credentials_exception
     except JWTError:
         raise credentials_exception
@@ -59,7 +60,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> DBUser:
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=f"User with ID {user_id} not found in database",
+                    detail=f"User not found",
                 )
             if not user.is_active:
                 raise HTTPException(status_code=403, detail="User account is inactive")
@@ -67,7 +68,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> DBUser:
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database error during authentication: {str(e)}"
+                detail=f"Auth DB error"
             )
 
 def get_current_active_user(current_user: DBUser = Depends(get_current_user)):

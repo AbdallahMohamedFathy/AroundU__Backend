@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
+from src.api.dashboard.dependencies import owner_guard
 from app.dependencies import get_db
 from app.orders.services.order_service import OrderService
 from app.orders.schemas.order import OrderResponse
@@ -10,7 +11,7 @@ router = APIRouter(tags=["Dashboard - Owner"])
 
 
 @router.get(
-    "/orders",
+    "/",
     response_model=List[OrderResponse],
     summary="Get My Orders (All Branches)",
     description=(
@@ -20,7 +21,7 @@ router = APIRouter(tags=["Dashboard - Owner"])
 )
 async def get_owner_orders(
     db=Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(owner_guard),
 ):
     user_role = str(getattr(current_user, "role", "")).upper()
     if user_role != "OWNER":
@@ -65,7 +66,7 @@ async def get_owner_orders(
 
 
 @router.get(
-    "/orders/place/{place_id}",
+    "/place/{place_id}",
     response_model=List[OrderResponse],
     summary="Get Orders by Branch",
     description=(
@@ -76,7 +77,7 @@ async def get_owner_orders(
 async def get_place_orders(
     place_id: int,
     db=Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(owner_guard),
 ):
     user_role = str(getattr(current_user, "role", "")).upper()
     if user_role != "OWNER":
@@ -120,7 +121,7 @@ async def get_place_orders(
 
 
 @router.patch(
-    "/orders/{order_id}/status",
+    "/{order_id}/status",
     response_model=OrderResponse,
     summary="Update Order Status",
     description="Owner accepts, rejects, or advances the status of an order for their place.",
@@ -129,7 +130,7 @@ async def update_order_status(
     order_id: int,
     new_status: str,
     db=Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(owner_guard),
 ):
     user_role = str(getattr(current_user, "role", "")).upper()
     if user_role != "OWNER":

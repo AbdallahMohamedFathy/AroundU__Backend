@@ -10,7 +10,7 @@ router = APIRouter(tags=["Dashboard - Admin"])
 
 
 @router.get(
-    "/all-orders",
+    "/",
     response_model=List[OrderResponse],
     summary="Get All Orders",
     description="Admin can see ALL orders in the system across all places and all owners — **Admin only**.",
