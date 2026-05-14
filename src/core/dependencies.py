@@ -128,8 +128,8 @@ def get_current_user(
         user_id = payload.get("sub")
         if not user_id:
             raise APIException("Invalid token payload", code=status.HTTP_401_UNAUTHORIZED)
-    except jwt.PyJWTError as e:
-        raise APIException(f"Invalid credentials: {str(e)}", code=status.HTTP_401_UNAUTHORIZED)
+    except jwt.PyJWTError:
+        raise APIException("Invalid credentials", code=status.HTTP_401_UNAUTHORIZED)
 
     user = user_service.get_user_by_id(repo, int(user_id))
     if not user or not user.is_active:

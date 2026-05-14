@@ -72,7 +72,7 @@ class AILocationService(BaseAIService):
             logger.info("[AILocationService] get_heatmap: no valid points, skipping.")
             return []
 
-        payload = {"visits": valid_points}   # AI key is "visits", NOT "places"
+        payload = {"interactions": valid_points}   # Unified AI key
         logger.info(
             f"[AILocationService] POST /heatmap — "
             f"{len(valid_points)} points. Payload preview: {payload!r:.500}"
