@@ -1,22 +1,25 @@
 import os
 import json
 import logging
-import firebase_admin
-from firebase_admin import credentials
+try:
+    import firebase_admin
+    from firebase_admin import credentials
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
 from typing import Optional
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-def get_firebase_app() -> firebase_admin.App:
+def get_firebase_app():
     """
     Lazy singleton initialization for Firebase Admin SDK.
-    
-    Priority:
-    1. FIREBASE_SERVICE_ACCOUNT_JSON (env var - JSON string)
-    2. FIREBASE_SERVICE_ACCOUNT_PATH (env var - path to JSON file)
-    3. Auto-detect firebase-credentials.json in /app/ or current directory
     """
+    if not FIREBASE_AVAILABLE:
+        logger.warning("Firebase Admin SDK is not installed. Firebase functionality is disabled.")
+        return None
+
     if firebase_admin._apps:
         return firebase_admin.get_app()
 

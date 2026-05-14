@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional, Any
 from fastapi import BackgroundTasks
-from firebase_admin import messaging
+# from firebase_admin import messaging # Moved to lazy imports inside functions
 from src.core.unit_of_work import UnitOfWork
 from src.models.notification import Notification, NotificationType, NotificationPriority
 from src.models.user import User
@@ -161,6 +161,7 @@ async def _process_multicast_batches(
             string_data["type"] = notif_type.value
             android_priority = "high" if priority == NotificationPriority.HIGH else "normal"
 
+            from firebase_admin import messaging
             msg = messaging.MulticastMessage(
                 notification=messaging.Notification(title=title, body=message),
                 data=string_data,
@@ -217,6 +218,7 @@ async def send_push_notification(
     string_data = {k: str(v) for k, v in (data or {}).items()}
     android_priority = "high" if priority == NotificationPriority.HIGH else "normal"
     
+    from firebase_admin import messaging
     msg = messaging.Message(
         notification=messaging.Notification(title=title, body=body),
         data=string_data,
