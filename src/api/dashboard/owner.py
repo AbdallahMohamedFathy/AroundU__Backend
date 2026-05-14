@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import traceback
 from datetime import date, datetime, timedelta
-from typing import Annotated, Any, Dict, List
+from typing import Annotated, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text, func
@@ -55,13 +55,17 @@ router = APIRouter(dependencies=[Depends(owner_guard)])
 # Helpers
 # ---------------------------------------------------------------------------
 
-def get_owner_place_id(db: Session, owner_id: int) -> int:
-    place = db.query(Place).filter(Place.owner_id == owner_id).first()
+def resolve_target_place_id(db: Session, owner_id: int, place_id: Optional[int] = None) -> int:
+    """Helper to get the target place_id for dashboard operations with security check."""
+    if place_id:
+        place = db.query(Place).filter(Place.id == place_id, Place.owner_id == owner_id).first()
+        if not place:
+            raise APIException("Place not found or access denied", code=status.HTTP_404_NOT_FOUND)
+        return place.id
+    
+    place = db.query(Place).filter(Place.owner_id == owner_id).order_by(Place.id.asc()).first()
     if not place:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No place found for this owner",
-        )
+        raise APIException("No place found for this owner", code=status.HTTP_404_NOT_FOUND)
     return place.id
 
 
@@ -253,31 +257,41 @@ def update_branch(
 
 @router.get("/dashboard")
 def get_owner_dashboard(
-    start_date: date = Query(None),
-    end_date: date = Query(None),
+    place_id: Optional[int] = Query(None),
+    date_from: date = Query(None, alias="date_from"),
+    date_to: date = Query(None, alias="date_to"),
+    start_date: date = Query(None), # Backward compatibility
+    end_date: date = Query(None),   # Backward compatibility
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
     """Get high-level KPI metrics from real interactions."""
     try:
-        place_id = get_owner_place_id(db, current_user.id)
+        # 1. Determine target place_id
+        target_place_id = resolve_target_place_id(db, current_user.id, place_id)
 
+        # 2. Determine date range
+        f_date = date_from or start_date
+        t_date = date_to or end_date
+
+        # 3. Query Interactions
         query = db.query(Interaction.type, func.count(Interaction.id)).filter(
-            Interaction.place_id == place_id
+            Interaction.place_id == target_place_id
         )
-        if start_date:
-            query = query.filter(func.date(Interaction.created_at) >= start_date)
-        if end_date:
-            query = query.filter(func.date(Interaction.created_at) <= end_date)
+        if f_date:
+            query = query.filter(func.date(Interaction.created_at) >= f_date)
+        if t_date:
+            query = query.filter(func.date(Interaction.created_at) <= t_date)
         results = query.group_by(Interaction.type).all()
 
+        # 4. Query Favorites (Saves)
         fav_query = db.query(func.count(Favorite.id)).filter(
-            Favorite.place_id == place_id
+            Favorite.place_id == target_place_id
         )
-        if start_date:
-            fav_query = fav_query.filter(func.date(Favorite.created_at) >= start_date)
-        if end_date:
-            fav_query = fav_query.filter(func.date(Favorite.created_at) <= end_date)
+        if f_date:
+            fav_query = fav_query.filter(func.date(Favorite.created_at) >= f_date)
+        if t_date:
+            fav_query = fav_query.filter(func.date(Favorite.created_at) <= t_date)
         favorite_count = fav_query.scalar() or 0
 
         stats = {
@@ -344,6 +358,9 @@ def get_owner_place_items(
 
 @router.get("/analytics")
 def get_owner_analytics(
+    place_id: Optional[int] = Query(None),
+    date_from: date = Query(None, alias="date_from"),
+    date_to: date = Query(None, alias="date_to"),
     start_date: date = Query(None),
     end_date: date = Query(None),
     db: Session = Depends(get_db),
@@ -351,12 +368,15 @@ def get_owner_analytics(
 ):
     """Get real time-series analytics data grouped by day."""
     try:
-        place_id = get_owner_place_id(db, current_user.id)
+        target_place_id = resolve_target_place_id(db, current_user.id, place_id)
 
-        if not end_date:
-            end_date = datetime.now().date()
-        if not start_date:
-            start_date = (datetime.now() - timedelta(days=30)).date()
+        f_date = date_from or start_date
+        t_date = date_to or end_date
+
+        if not t_date:
+            t_date = datetime.now().date()
+        if not f_date:
+            f_date = (datetime.now() - timedelta(days=30)).date()
 
         results = (
             db.query(
@@ -365,9 +385,9 @@ def get_owner_analytics(
                 func.count(Interaction.id).label("count"),
             )
             .filter(
-                Interaction.place_id == place_id,
-                func.date(Interaction.created_at) >= start_date,
-                func.date(Interaction.created_at) <= end_date,
+                Interaction.place_id == target_place_id,
+                func.date(Interaction.created_at) >= f_date,
+                func.date(Interaction.created_at) <= t_date,
             )
             .group_by(func.date(Interaction.created_at), Interaction.type)
             .all()
@@ -393,9 +413,9 @@ def get_owner_analytics(
                 func.count(Favorite.id).label("count"),
             )
             .filter(
-                Favorite.place_id == place_id,
-                func.date(Favorite.created_at) >= start_date,
-                func.date(Favorite.created_at) <= end_date,
+                Favorite.place_id == target_place_id,
+                func.date(Favorite.created_at) >= f_date,
+                func.date(Favorite.created_at) <= t_date,
             )
             .group_by(func.date(Favorite.created_at))
             .all()
@@ -434,6 +454,9 @@ def get_owner_analytics(
 
 @router.get("/chatbot-stats")
 def get_chatbot_stats(
+    place_id: Optional[int] = Query(None),
+    date_from: date = Query(None, alias="date_from"),
+    date_to: date = Query(None, alias="date_to"),
     start_date: date = Query(None),
     end_date: date = Query(None),
     db: Session = Depends(get_db),
@@ -441,12 +464,18 @@ def get_chatbot_stats(
 ):
     """Chatbot stats derived from ChatMessage model."""
     from src.models.chat_message import ChatMessage
+    
+    # Note: ChatMessage doesn't currently link to place_id, 
+    # so we filter by owner's activity in general or user_id if needed.
+    # For now, we apply date filtering.
+    f_date = date_from or start_date
+    t_date = date_to or end_date
 
     query = db.query(func.count(ChatMessage.id))
-    if start_date:
-        query = query.filter(func.date(ChatMessage.created_at) >= start_date)
-    if end_date:
-        query = query.filter(func.date(ChatMessage.created_at) <= end_date)
+    if f_date:
+        query = query.filter(func.date(ChatMessage.created_at) >= f_date)
+    if t_date:
+        query = query.filter(func.date(ChatMessage.created_at) <= t_date)
     total_queries = query.scalar() or 0
     success_rate = 100.0 if total_queries > 0 else 0.0
     return {"queries": total_queries, "success_rate": success_rate}
@@ -458,20 +487,27 @@ def get_chatbot_stats(
 
 @router.get("/reviews")
 def get_owner_reviews(
+    place_id: Optional[int] = Query(None),
+    date_from: date = Query(None, alias="date_from"),
+    date_to: date = Query(None, alias="date_to"),
     start_date: date = Query(None),
     end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
     """Get aggregated review sentiment stats."""
-    place_id = get_owner_place_id(db, current_user.id)
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    
+    f_date = date_from or start_date
+    t_date = date_to or end_date
+
     query = db.query(Review.sentiment, func.count(Review.id)).filter(
-        Review.place_id == place_id
+        Review.place_id == target_place_id
     )
-    if start_date:
-        query = query.filter(func.date(Review.created_at) >= start_date)
-    if end_date:
-        query = query.filter(func.date(Review.created_at) <= end_date)
+    if f_date:
+        query = query.filter(func.date(Review.created_at) >= f_date)
+    if t_date:
+        query = query.filter(func.date(Review.created_at) <= t_date)
     results = query.group_by(Review.sentiment).all()
 
     stats = {"positive": 0, "negative": 0, "neutral": 0, "unknown": 0}
@@ -491,16 +527,14 @@ def get_owner_reviews(
 
 @router.get("/location-heatmap")
 async def get_location_heatmap(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     """AI heatmap from the owner's place visit data."""
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place:
-            return []
-
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        visits = uow.interaction_repository.get_visits_by_place(target_place_id)
         if not visits:
             return []
 
@@ -522,13 +556,13 @@ async def get_location_heatmap(
 
 @router.get("/active-visitors")
 async def get_active_visitors(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place: return []
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        visits = uow.interaction_repository.get_visits_by_place(target_place_id)
         if not visits: return []
         points = [
             {
@@ -546,13 +580,13 @@ async def get_active_visitors(
 
 @router.get("/peak-hour")
 async def get_peak_hour(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place: return {}
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        visits = uow.interaction_repository.get_visits_by_place(target_place_id)
         if not visits: return {}
         points = [
             {
@@ -570,13 +604,13 @@ async def get_peak_hour(
 
 @router.get("/location-summary")
 async def get_location_summary(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place: return {}
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        visits = uow.interaction_repository.get_visits_by_place(target_place_id)
         if not visits: return {}
         points = [
             {
@@ -599,16 +633,16 @@ async def get_location_summary(
 
 @router.get("/opportunities")
 async def get_opportunities(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     """AI business opportunities from the owner's visit data."""
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place:
-            return []
-
-        visits = uow.interaction_repository.get_visits_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        place = uow.place_repository.get_by_id(target_place_id)
+        
+        visits = uow.interaction_repository.get_visits_by_place(target_place_id)
         if not visits:
             return []
 
@@ -646,15 +680,14 @@ async def get_opportunities(
 
 @router.get("/interactions-locations")
 async def get_interactions_locations(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
     """All interactions with coordinates for the scatter map."""
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place:
-            return []
-        interactions = uow.interaction_repository.get_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        interactions = uow.interaction_repository.get_by_place(target_place_id)
         return [
             {
                 "lat": i.user_lat, 
@@ -686,28 +719,18 @@ async def get_ai_clusters(current_user=Depends(owner_guard)):
 
 @router.get("/anomalies")
 async def get_anomalies(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
-    """
-    GET /api/owner/anomalies
-
-    Batch anomaly detection for the current owner's place.
-    Detects Traffic Spike, Sudden Drop, Unusual Hours (PLACE)
-    and Bot Behavior, GPS Spoofing (USER) from visit history.
-
-    Only clean, fully-populated visit records are sent to the AI.
-    """
+    # ...
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place:
-            return []
-
-        interactions = uow.interaction_repository.get_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        interactions = uow.interaction_repository.get_by_place(target_place_id)
         cleaned_visits = prepare_user_visits(interactions)
 
     if not cleaned_visits:
-        logger.info(f"[get_anomalies] No valid visits for place_id={place.id}")
+        logger.info(f"[get_anomalies] No valid visits for place_id={target_place_id}")
         return []
 
     from src.services.anomaly_service import ai_anomaly_service
@@ -720,22 +743,14 @@ async def get_anomalies(
 
 @router.get("/anomalies/summary")
 async def get_anomalies_summary(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
-    """
-    GET /api/owner/anomalies/summary
-
-    Returns aggregated metric summary for the owner's place.
-    Payload shape for AI /summary endpoint:
-      [{"metric_name": str, "value": int}, ...]
-    """
+    # ...
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place:
-            return {"total_anomalies": 0, "urgent_anomalies": 0, "summary": "No place found.", "details": []}
-
-        interactions = uow.interaction_repository.get_by_place(place.id)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        interactions = uow.interaction_repository.get_by_place(target_place_id)
 
         if not interactions:
             return {
@@ -753,13 +768,13 @@ async def get_anomalies_summary(
     place_anomalies = []
     if place_visits:
         place_anomalies = await ai_anomaly_service.get_place_anomalies(
-            place.id, place_visits
+            target_place_id, place_visits
         )
 
     # --- Fallback: run detect_anomalies if no historical records found ---
     if not place_anomalies and place_visits:
         logger.info(
-            f"[anomalies/summary] No place anomalies from AI for place_id={place.id}, "
+            f"[anomalies/summary] No place anomalies from AI for place_id={target_place_id}, "
             "falling back to detect_anomalies"
         )
         place_anomalies = await ai_anomaly_service.detect_anomalies(place_visits)
@@ -794,22 +809,15 @@ async def get_anomalies_summary(
 
 @router.get("/place-anomalies")
 async def get_place_anomalies(
-    uow: Annotated[Any, Depends(get_uow)],
+    place_id: Optional[int] = Query(None),
+    uow: Annotated[Any, Depends(get_uow)] = Depends(get_uow),
     current_user=Depends(owner_guard),
 ):
-    """
-    GET /api/owner/place-anomalies
-
-    Calls the AI /place-anomalies endpoint with the correct payload:
-      {"place_id": int, "visits": [...]}
-    """
+    # ...
     with uow:
-        place = uow.place_repository.get_by_owner_id(current_user.id)
-        if not place:
-            return []
-
-        interactions = uow.interaction_repository.get_by_place(place.id)
-        payload = prepare_place_anomaly_payload(place.id, interactions)
+        target_place_id = resolve_target_place_id(uow.session, current_user.id, place_id)
+        interactions = uow.interaction_repository.get_by_place(target_place_id)
+        payload = prepare_place_anomaly_payload(target_place_id, interactions)
 
     if not payload["visits"]:
         return []
@@ -888,23 +896,25 @@ class UpdateWorkingHours(BaseModel):
 
 @router.get("/my-place/delivery-price")
 def get_delivery_price(
+    place_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Get the current delivery price for the owner's primary place."""
-    place_id = get_owner_place_id(db, current_user.id)
-    place = db.query(Place).filter(Place.id == place_id).first()
+    """Get the current delivery price for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
     return {"delivery_price": place.delivery_price, "is_free_delivery": place.is_free_delivery}
 
 @router.put("/my-place/delivery-price")
 def update_delivery_price(
     payload: UpdateDeliveryPrice,
+    place_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Update the fixed delivery price and free delivery status for the owner's primary place."""
-    place_id = get_owner_place_id(db, current_user.id)
-    place = db.query(Place).filter(Place.id == place_id).first()
+    """Update the fixed delivery price and free delivery status for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
     
     place.delivery_price = payload.delivery_price
     place.is_free_delivery = payload.is_free_delivery
@@ -917,23 +927,25 @@ def update_delivery_price(
 
 @router.get("/my-place/working-hours")
 def get_working_hours(
+    place_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Get the current working hours for the owner's primary place."""
-    place_id = get_owner_place_id(db, current_user.id)
-    place = db.query(Place).filter(Place.id == place_id).first()
+    """Get the current working hours for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
     return {"working_hours": place.working_hours}
 
 @router.put("/my-place/working-hours")
 def update_working_hours(
     payload: UpdateWorkingHours,
+    place_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Update the working hours for the owner's primary place."""
-    place_id = get_owner_place_id(db, current_user.id)
-    place = db.query(Place).filter(Place.id == place_id).first()
+    """Update the working hours for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
     
     place.working_hours = payload.working_hours
     db.commit()
@@ -948,12 +960,13 @@ class UpdateStatus(BaseModel):
 @router.put("/my-place/status")
 def update_place_status(
     payload: UpdateStatus,
+    place_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Toggle the active status (Open/Closed) for the owner's primary place."""
-    place_id = get_owner_place_id(db, current_user.id)
-    place = db.query(Place).filter(Place.id == place_id).first()
+    """Toggle the active status (Open/Closed) for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
     
     place.is_active = payload.is_active
     db.commit()
@@ -998,19 +1011,32 @@ def delete_place_image(
 
 @router.get("/reviews/list")
 def get_owner_review_list(
+    place_id: Optional[int] = Query(None),
+    date_from: date = Query(None, alias="date_from"),
+    date_to: date = Query(None, alias="date_to"),
     start_date: date = Query(None),
     end_date: date = Query(None),
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    # 1. Get all places (branches) belonging to this owner
-    owner_places = db.query(Place.id, Place.name).filter(Place.owner_id == current_user.id).all()
-    place_ids = [p.id for p in owner_places]
+    f_date = date_from or start_date
+    t_date = date_to or end_date
+
+    # 1. Get target place IDs
+    if place_id:
+        # Verify ownership
+        place = db.query(Place).filter(Place.id == place_id, Place.owner_id == current_user.id).first()
+        if not place:
+            raise APIException("Place not found or access denied", code=status.HTTP_404_NOT_FOUND)
+        place_ids = [place_id]
+    else:
+        owner_places = db.query(Place.id).filter(Place.owner_id == current_user.id).all()
+        place_ids = [p.id for p in owner_places]
     
     if not place_ids:
         return []
 
-    # 2. Query reviews for all these places
+    # 2. Query reviews
     query = (
         db.query(
             Review.rating,
@@ -1025,10 +1051,10 @@ def get_owner_review_list(
         .join(Place, Review.place_id == Place.id)
         .filter(Review.place_id.in_(place_ids))
     )
-    if start_date:
-        query = query.filter(func.date(Review.created_at) >= start_date)
-    if end_date:
-        query = query.filter(func.date(Review.created_at) <= end_date)
+    if f_date:
+        query = query.filter(func.date(Review.created_at) >= f_date)
+    if t_date:
+        query = query.filter(func.date(Review.created_at) <= t_date)
 
     reviews = query.order_by(Review.created_at.desc()).all()
     return [
