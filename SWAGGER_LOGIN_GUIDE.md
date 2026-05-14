@@ -36,14 +36,10 @@ Go to: `http://127.0.0.1:8000/docs`
 - Copy the `access_token` from response
 
 ### 4. Authorize in Swagger
-- Click the **"Authorize"** button 🔓 (top right of page)
-- In the popup, paste your token like this:
+- In the popup, paste your token in the "Value" field:
+- **Note:** Do NOT add the "Bearer " prefix; Swagger UI adds it automatically.
 ```
-Bearer YOUR_ACCESS_TOKEN_HERE
-```
-Example:
-```
-Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzM4MDY...
+YOUR_ACCESS_TOKEN_HERE
 ```
 - Click "Authorize"
 - Click "Close"
