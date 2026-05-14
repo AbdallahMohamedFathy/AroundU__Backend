@@ -541,8 +541,15 @@ app.include_router(dashboard_upload.router, prefix="/api/dashboard/upload", tags
 app.include_router(dashboard_categories.router, prefix="/api/dashboard/categories", tags=["Dashboard - Categories"])
 app.include_router(dashboard_admin.router, prefix="/api/dashboard/admin", tags=["Dashboard - Admin"])
 app.include_router(admin_notifications.router, prefix="/api/dashboard/admin/notifications", tags=["Dashboard - Admin Notifications"])
-app.include_router(dashboard_owner.router, prefix="/api/owner", tags=["Dashboard - Owner"])
+
+# Specific Owner Sub-paths first
 app.include_router(owner_notifications.router, prefix="/api/owner/notifications", tags=["Dashboard - Owner Notifications"])
+from app.api.owner import order_api as owner_orders
+app.include_router(owner_orders.router, prefix="/api/owner/orders", tags=["Dashboard - Owner"])
+app.include_router(owner_orders.router, prefix="/api/owner/orders/orders", tags=["Dashboard - Owner (Compatibility)"])
+
+# Generic Owner Dashboard last (because it has /{place_id} path param)
+app.include_router(dashboard_owner.router, prefix="/api/owner", tags=["Dashboard - Owner"])
 
 # ─── EXTERNAL API (AI GATEWAY) ──────────────────────────────────────────
 from src.api.external import ai_data
@@ -553,23 +560,16 @@ app.include_router(menu_categories.router, prefix="/api/v1")
 app.include_router(menu_subcategories.router, prefix="/api/v1")
 app.include_router(menu_items.router, prefix="/api/v1")
 
-# ─── ORDERS SYSTEM - REORGANIZED CONTAINERS ────────────────
+# ─── ORDERS SYSTEM ──────────────────────────────────────────
 from app.api.user import order_api as user_orders, cart_api as user_cart
-from app.api.owner import order_api as owner_orders
 from app.api.admin import order_api as admin_orders
 
-# User/Mobile Group
+# Mobile Orders
 app.include_router(user_orders.router, prefix="/api/user/orders", tags=["Mobile - Orders"])
 app.include_router(user_cart.router, prefix="/api/user/cart", tags=["Mobile - Cart"])
 
-# Owner/Dashboard Group
-app.include_router(owner_orders.router, prefix="/api/owner/orders", tags=["Dashboard - Owner"])
-
-# Admin/Dashboard Group
+# Admin Orders
 app.include_router(admin_orders.router, prefix="/api/admin/orders", tags=["Dashboard - Admin"])
-
-# Compatibility Redirects for frontend legacy paths
-app.include_router(owner_orders.router, prefix="/api/owner/orders/orders", tags=["Dashboard - Owner (Compatibility)"])
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK

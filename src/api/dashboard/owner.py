@@ -260,8 +260,9 @@ def update_branch(
 # ---------------------------------------------------------------------------
 
 @router.get("/dashboard")
+@router.get("/{place_id}")
 def get_owner_dashboard(
-    place_id: Optional[int] = Query(None),
+    place_id: Optional[int] = None,
     date_from: date = Query(None, alias="date_from"),
     date_to: date = Query(None, alias="date_to"),
     start_date: date = Query(None), # Backward compatibility
