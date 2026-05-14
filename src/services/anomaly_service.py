@@ -27,7 +27,7 @@ class AIAnomalyService(BaseAIService):
     def __init__(self) -> None:
         super().__init__(
             service_name="AI Anomaly Service",
-            base_url="https://mazenmaher26-arounduanomalydetectionnew.hf.space",
+            base_url="https://mazenmaher26-aroundu-anomaly-detection.hf.space",
             timeout=30.0,   # anomaly detection can be compute-intensive
             max_retries=3,
         )
@@ -68,7 +68,7 @@ class AIAnomalyService(BaseAIService):
             logger.info("[AIAnomalyService] detect_anomalies: empty visit list, skipping.")
             return []
 
-        payload = {"visits": visits}
+        payload = {"interactions": visits}
         logger.info(
             f"[AIAnomalyService] POST /detect — sending {len(visits)} visits. "
             f"Payload preview: {payload!r:.500}"
@@ -81,7 +81,7 @@ class AIAnomalyService(BaseAIService):
 
         # Unwrap: AI may return {"anomalies": [...]} or the list directly
         if isinstance(res, dict):
-            return res.get("anomalies", res.get("visits", []))
+            return res.get("anomalies", res.get("interactions", res.get("visits", [])))
         if isinstance(res, list):
             return res
 
@@ -215,7 +215,7 @@ class AIAnomalyService(BaseAIService):
     async def detect_bot_behavior(self, visits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """POST /detect/bot-behavior - Specifically checks for bot activity"""
         if not visits: return []
-        res = await self._request_with_retry("POST", "/detect/bot-behavior", json={"visits": visits})
+        res = await self._request_with_retry("POST", "/detect/bot-behavior", json={"interactions": visits})
         if not res: return []
         if isinstance(res, dict): return res.get("anomalies", res.get("visits", []))
         return res if isinstance(res, list) else []
@@ -223,7 +223,7 @@ class AIAnomalyService(BaseAIService):
     async def detect_sudden_drop(self, visits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """POST /detect/sudden-drop - Specifically checks for sudden drop in traffic"""
         if not visits: return []
-        res = await self._request_with_retry("POST", "/detect/sudden-drop", json={"visits": visits})
+        res = await self._request_with_retry("POST", "/detect/sudden-drop", json={"interactions": visits})
         if not res: return []
         if isinstance(res, dict): return res.get("anomalies", res.get("visits", []))
         return res if isinstance(res, list) else []
@@ -231,7 +231,7 @@ class AIAnomalyService(BaseAIService):
     async def detect_dead_zone(self, visits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """POST /detect/dead-zone - Specifically checks for dead zone anomalies"""
         if not visits: return []
-        res = await self._request_with_retry("POST", "/detect/dead-zone", json={"visits": visits})
+        res = await self._request_with_retry("POST", "/detect/dead-zone", json={"interactions": visits})
         if not res: return []
         if isinstance(res, dict): return res.get("anomalies", res.get("visits", []))
         return res if isinstance(res, list) else []

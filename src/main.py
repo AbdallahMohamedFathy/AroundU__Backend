@@ -568,6 +568,9 @@ app.include_router(owner_orders.router, prefix="/api/owner/orders", tags=["Dashb
 # Admin/Dashboard Group
 app.include_router(admin_orders.router, prefix="/api/admin/orders", tags=["Dashboard - Admin"])
 
+# Compatibility Redirects for frontend legacy paths
+app.include_router(owner_orders.router, prefix="/api/owner/orders/orders", tags=["Dashboard - Owner (Compatibility)"])
+
 # ─────────────────────────────────────────────
 # HEALTH CHECK
 # ─────────────────────────────────────────────

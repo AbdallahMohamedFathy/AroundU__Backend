@@ -122,10 +122,9 @@ class AILocationService(BaseAIService):
         if not valid_points:
             return []
 
-        # 🔥 Unified payload with both keys to satisfy schema requirements
+        # 🔥 Unified payload with 'interactions' key to satisfy updated AI schema
         payload = {
-            "places": valid_points,
-            "visits": valid_points
+            "interactions": valid_points
         }
 
         logger.info(f"[AILocationService] POST /opportunities — {len(valid_points)} points")
@@ -175,7 +174,7 @@ class AILocationService(BaseAIService):
     async def get_active_visitors(self, visits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """POST /active-visitors"""
         if not visits: return []
-        payload = {"visits": visits}
+        payload = {"interactions": visits}
         res = await self._request_with_retry("POST", "/active-visitors", json=payload)
         if isinstance(res, dict): return res.get("visitors", res.get("data", res.get("active_visitors", [])))
         return res if isinstance(res, list) else []
@@ -183,21 +182,21 @@ class AILocationService(BaseAIService):
     async def get_peak_hour(self, visits: List[Dict[str, Any]]) -> Dict[str, Any]:
         """POST /peak-hour"""
         if not visits: return {}
-        payload = {"visits": visits}
+        payload = {"interactions": visits}
         res = await self._request_with_retry("POST", "/peak-hour", json=payload)
         return res if isinstance(res, dict) else {}
 
     async def get_owner_summary(self, visits: List[Dict[str, Any]]) -> Dict[str, Any]:
         """POST /owner-summary"""
         if not visits: return {}
-        payload = {"visits": visits}
+        payload = {"interactions": visits}
         res = await self._request_with_retry("POST", "/owner-summary", json=payload)
         return res if isinstance(res, dict) else {}
 
     async def get_admin_summary(self, visits: List[Dict[str, Any]]) -> Dict[str, Any]:
         """POST /admin-summary"""
         if not visits: return {}
-        payload = {"visits": visits}
+        payload = {"interactions": visits}
         res = await self._request_with_retry("POST", "/admin-summary", json=payload)
         return res if isinstance(res, dict) else {}
 

@@ -394,8 +394,8 @@ def get_owner_analytics(
         )
 
         daily_data: Dict[str, Dict] = {}
-        curr = start_date
-        while curr <= end_date:
+        curr = f_date
+        while curr <= t_date:
             d_str = curr.strftime("%Y-%m-%d")
             daily_data[d_str] = {
                 "date": d_str,
