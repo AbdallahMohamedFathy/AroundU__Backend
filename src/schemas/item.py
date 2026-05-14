@@ -10,7 +10,8 @@ class ItemBase(BaseModel):
     price: Decimal = Field(..., gt=0)
     image_url: Optional[str] = None
     is_available: bool = True
-    sub_category_id: int
+    sub_category_id: Optional[int] = None
+    place_id: Optional[int] = None
 
 class ItemCreate(ItemBase):
     pass

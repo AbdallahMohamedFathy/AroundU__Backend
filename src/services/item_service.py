@@ -17,20 +17,49 @@ def get_items_by_place(repo: Any, place_id: int):
 
 def create_item(uow: UnitOfWork, item_in: ItemCreate, user_id: int, user_role: str = "OWNER"):
     with uow:
-        # Check if subcategory exists and belongs to owner
-        subcategory = uow.subcategory_repository.get_by_id(item_in.sub_category_id)
+        # 1. Determine sub_category_id
+        target_sub_id = item_in.sub_category_id
+        
+        if not target_sub_id:
+            if not item_in.place_id:
+                raise APIException("Either sub_category_id or place_id is required", code=status.HTTP_400_BAD_REQUEST)
+            
+            # Find first subcategory for this place
+            existing_subs = uow.subcategory_repository.get_by_place(item_in.place_id)
+            if existing_subs:
+                target_sub_id = existing_subs[0].id
+            else:
+                # Create a default subcategory
+                from src.models.subcategory import SubCategory
+                default_sub = SubCategory(
+                    name="General",
+                    place_id=item_in.place_id,
+                    owner_id=user_id
+                )
+                uow.subcategory_repository.create(default_sub)
+                uow.session.flush()
+                target_sub_id = default_sub.id
+
+        # 2. Check if subcategory exists and belongs to owner
+        subcategory = uow.subcategory_repository.get_by_id(target_sub_id)
         if not subcategory or subcategory.is_deleted:
             raise APIException("SubCategory not found", code=status.HTTP_404_NOT_FOUND)
         
         if user_role != "ADMIN" and subcategory.owner_id != user_id:
-            raise APIException("You don't have permission to add items to this subcategory", code=status.HTTP_403_FORBIDDEN)
+            raise APIException("You don't have permission to add items to this branch", code=status.HTTP_403_FORBIDDEN)
 
         # Prevent duplicate item names inside same subcategory
-        existing = uow.item_repository.get_by_name_and_subcategory(item_in.name, item_in.sub_category_id)
+        existing = uow.item_repository.get_by_name_and_subcategory(item_in.name, target_sub_id)
         if existing:
             raise APIException("Item with this name already exists in this subcategory", code=status.HTTP_400_BAD_REQUEST)
 
-        db_item = Item(**item_in.model_dump())
+        # 3. Create Item
+        # Remove place_id from dict as it's not a model field
+        item_data = item_in.model_dump()
+        item_data.pop("place_id", None)
+        item_data["sub_category_id"] = target_sub_id
+        
+        db_item = Item(**item_data)
         uow.item_repository.create(db_item)
         uow.commit()
         return uow.item_repository.get_by_id(db_item.id)

@@ -23,10 +23,10 @@ def create_subcategory(uow: UnitOfWork, subcategory_in: SubCategoryCreate, owner
         if place.owner_id != owner_id:
             raise APIException("You don't have permission to add subcategories to this place", code=status.HTTP_403_FORBIDDEN)
 
-        # Prevent duplicate subcategory names for same owner
-        existing = uow.subcategory_repository.get_by_name_and_owner(subcategory_in.name, owner_id)
+        # Prevent duplicate subcategory names for same branch
+        existing = uow.subcategory_repository.get_by_name_and_place(subcategory_in.name, subcategory_in.place_id)
         if existing:
-            raise APIException("SubCategory with this name already exists for this owner", code=status.HTTP_400_BAD_REQUEST)
+            raise APIException("SubCategory with this name already exists for this branch", code=status.HTTP_400_BAD_REQUEST)
 
         db_subcategory = SubCategory(
             **subcategory_in.model_dump(),
@@ -46,9 +46,9 @@ def update_subcategory(uow: UnitOfWork, subcategory_id: int, subcategory_in: Sub
             raise APIException("You don't have permission to update this subcategory", code=status.HTTP_403_FORBIDDEN)
 
         if subcategory_in.name and subcategory_in.name != subcategory.name:
-            existing = uow.subcategory_repository.get_by_name_and_owner(subcategory_in.name, owner_id)
+            existing = uow.subcategory_repository.get_by_name_and_place(subcategory_in.name, subcategory.place_id)
             if existing:
-                raise APIException("SubCategory with this name already exists for this owner", code=status.HTTP_400_BAD_REQUEST)
+                raise APIException("SubCategory with this name already exists for this branch", code=status.HTTP_400_BAD_REQUEST)
 
         update_data = subcategory_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():

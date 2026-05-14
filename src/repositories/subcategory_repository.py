@@ -25,3 +25,10 @@ class SubCategoryRepository(BaseRepository[SubCategory]):
             self.model.owner_id == owner_id,
             self.model.is_deleted == False
         ).first()
+
+    def get_by_name_and_place(self, name: str, place_id: int) -> Optional[SubCategory]:
+        return self.session.query(self.model).filter(
+            self.model.name == name,
+            self.model.place_id == place_id,
+            self.model.is_deleted == False
+        ).first()
