@@ -265,10 +265,6 @@ def update_branch(
 @router.get("/{place_id}")
 def get_owner_dashboard(
     place_id: Optional[int] = None,
-    date_from: date = Query(None, alias="date_from"),
-    date_to: date = Query(None, alias="date_to"),
-    start_date: date = Query(None), # Backward compatibility
-    end_date: date = Query(None),   # Backward compatibility
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
@@ -277,30 +273,18 @@ def get_owner_dashboard(
         # 1. Determine target place_id
         target_place_id = resolve_target_place_id(db, current_user.id, place_id)
         
-        # 2. Determine date range
-        f_date = date_from or start_date
-        t_date = date_to or end_date
-        
-        logger.info(f"Dashboard Request - Place: {target_place_id}, From: {f_date}, To: {t_date}")
+        logger.info(f"Dashboard Request - Place: {target_place_id}")
 
         # 3. Query Interactions (Visits, Calls, Directions)
         query = db.query(Interaction.type, func.count(Interaction.id)).filter(
             Interaction.place_id == target_place_id
         )
-        if f_date:
-            query = query.filter(func.date(Interaction.created_at) >= f_date)
-        if t_date:
-            query = query.filter(func.date(Interaction.created_at) <= t_date)
         results = query.group_by(Interaction.type).all()
 
         # 4. Query Favorites (Saves)
         fav_query = db.query(func.count(Favorite.id)).filter(
             Favorite.place_id == target_place_id
         )
-        if f_date:
-            fav_query = fav_query.filter(func.date(Favorite.created_at) >= f_date)
-        if t_date:
-            fav_query = fav_query.filter(func.date(Favorite.created_at) <= t_date)
         favorite_count = fav_query.scalar() or 0
         
         # 5. Query Actual Orders
@@ -309,10 +293,6 @@ def get_owner_dashboard(
             order_query = db.query(func.count(Order.id)).filter(
                 Order.place_id == target_place_id
             )
-            if f_date:
-                order_query = order_query.filter(func.date(Order.created_at) >= f_date)
-            if t_date:
-                order_query = order_query.filter(func.date(Order.created_at) <= t_date)
             order_count = order_query.scalar() or 0
 
         stats = {
@@ -434,9 +414,7 @@ def get_owner_analytics(
             Interaction.type,
             func.count(Interaction.id).label("count"),
         ).filter(
-            Interaction.place_id == target_place_id,
-            func.date(Interaction.created_at) >= f_date,
-            func.date(Interaction.created_at) <= t_date,
+            Interaction.place_id == target_place_id
         ).group_by(
             func.date(Interaction.created_at),
             Interaction.type
@@ -450,9 +428,7 @@ def get_owner_analytics(
                 func.count(Favorite.id).label("count"),
             )
             .filter(
-                Favorite.place_id == target_place_id,
-                func.date(Favorite.created_at) >= f_date,
-                func.date(Favorite.created_at) <= t_date,
+                Favorite.place_id == target_place_id
             )
             .group_by(func.date(Favorite.created_at))
             .all()
@@ -483,9 +459,7 @@ def get_owner_analytics(
                     func.count(Order.id).label("count"),
                 )
                 .filter(
-                    Order.place_id == target_place_id,
-                    func.date(Order.created_at) >= f_date,
-                    func.date(Order.created_at) <= t_date,
+                    Order.place_id == target_place_id
                 )
                 .group_by(func.date(Order.created_at))
                 .all()
