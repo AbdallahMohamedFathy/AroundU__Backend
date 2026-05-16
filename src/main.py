@@ -443,6 +443,30 @@ def on_startup():
                 logger.error(f"Error creating orders/carts tables: {order_mig_err}")
                 conn.rollback()
 
+            # ── refresh_tokens table ────────────────────────────────────
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS refresh_tokens (
+                        id           SERIAL PRIMARY KEY,
+                        user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        device_id    INTEGER,
+                        token_hash   VARCHAR NOT NULL UNIQUE,
+                        family_id    VARCHAR NOT NULL,
+                        is_revoked   BOOLEAN DEFAULT FALSE NOT NULL,
+                        expires_at   TIMESTAMPTZ NOT NULL,
+                        created_at   TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at   TIMESTAMPTZ
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id   ON refresh_tokens(user_id);
+                    CREATE INDEX IF NOT EXISTS ix_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+                    CREATE INDEX IF NOT EXISTS ix_refresh_tokens_family_id ON refresh_tokens(family_id);
+                """))
+                conn.commit()
+                logger.info("Table 'refresh_tokens' ensured.")
+            except Exception as rt_err:
+                logger.error(f"Error creating refresh_tokens table: {rt_err}")
+                conn.rollback()
+
         except Exception as e:
             logger.error(f"Startup migration failed: {e}")
 

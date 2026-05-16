@@ -2,15 +2,17 @@
 Service layer for authentication (Refactored for Phase D)
 """
 import secrets
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
+from fastapi import status, BackgroundTasks
+
 from src.core.unit_of_work import UnitOfWork
-from src.repositories.user_repository import UserRepository
-from src.schemas.user import UserCreate, UserLogin, UserResponse
 from src.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from src.core.exceptions import APIException
-from fastapi import status
-from datetime import datetime, timezone, timedelta
+from src.core.config import settings
+from src.schemas.user import UserCreate, UserLogin, UserResponse
+from src.models.token import RefreshToken
 
 
 def register_user(uow: UnitOfWork, user_in: UserCreate):
@@ -37,8 +39,17 @@ def register_user(uow: UnitOfWork, user_in: UserCreate):
             extra_data={"role": new_user.role, "email": new_user.email}
         )
         refresh_token = create_refresh_token(subject=new_user.id)
-
-        new_user.hashed_refresh_token = get_password_hash(refresh_token)
+        
+        # Store refresh token in the dedicated table
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        db_refresh_token = RefreshToken(
+            user_id=new_user.id,
+            token_hash=get_password_hash(refresh_token),
+            family_id=str(uuid.uuid4()),
+            expires_at=expires_at
+        )
+        uow.session.add(db_refresh_token)
+        
         uow.commit()
 
         user_response = UserResponse.model_validate(new_user)
@@ -66,7 +77,16 @@ def authenticate_user(uow: UnitOfWork, user_in: UserLogin):
         )
         refresh_token = create_refresh_token(subject=user.id)
         
-        user.hashed_refresh_token = get_password_hash(refresh_token)
+        # Store refresh token in the dedicated table (supports multiple sessions)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        db_refresh_token = RefreshToken(
+            user_id=user.id,
+            token_hash=get_password_hash(refresh_token),
+            family_id=str(uuid.uuid4()),
+            expires_at=expires_at
+        )
+        uow.session.add(db_refresh_token)
+        
         uow.commit()
         
         user_response = UserResponse.model_validate(user)
@@ -80,18 +100,53 @@ def authenticate_user(uow: UnitOfWork, user_in: UserLogin):
 
 def refresh_access_token(uow: UnitOfWork, user_id: str, refresh_token: str):
     with uow:
-        user = uow.user_repository.get_by_id(int(user_id))
-        if not user or not user.hashed_refresh_token:
-            raise APIException("Invalid refresh token", code=status.HTTP_401_UNAUTHORIZED)
+        # 1. Get all active refresh tokens for this user
+        db_tokens = uow.session.query(RefreshToken).filter(
+            RefreshToken.user_id == int(user_id),
+            RefreshToken.is_revoked == False,
+            RefreshToken.expires_at > datetime.now(timezone.utc)
+        ).all()
         
-        if not user.is_active:
-            raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
-            
-        if not verify_password(refresh_token, user.hashed_refresh_token):
+        # 2. Find the matching token
+        target_token = None
+        for t in db_tokens:
+            if verify_password(refresh_token, t.token_hash):
+                target_token = t
+                break
+        
+        if not target_token:
             raise APIException("Invalid or expired refresh token", code=status.HTTP_401_UNAUTHORIZED)
             
-        new_access_token = create_access_token(subject=user.id)
-        return {"access_token": new_access_token, "token_type": "bearer"}
+        # 3. Check if user is still active
+        user = uow.user_repository.get_by_id(int(user_id))
+        if not user or not user.is_active:
+            raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
+            
+        # 4. Generate new tokens (Rotation)
+        new_access_token = create_access_token(
+            subject=user.id,
+            extra_data={"role": user.role, "email": user.email}
+        )
+        new_refresh_token_str = create_refresh_token(subject=user.id)
+        
+        # 5. Update the DB: Revoke/Delete old, Add new (same family)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        rotated_token = RefreshToken(
+            user_id=user.id,
+            token_hash=get_password_hash(new_refresh_token_str),
+            family_id=target_token.family_id,
+            expires_at=expires_at
+        )
+        
+        uow.session.delete(target_token) # Or target_token.is_revoked = True
+        uow.session.add(rotated_token)
+        uow.commit()
+        
+        return {
+            "access_token": new_access_token, 
+            "refresh_token": new_refresh_token_str,
+            "token_type": "bearer"
+        }
 
 def verify_email(uow: UnitOfWork, token: str):
     with uow:
@@ -105,7 +160,6 @@ def verify_email(uow: UnitOfWork, token: str):
         return True
 
 import hashlib
-from fastapi import BackgroundTasks
 from src.utils.email import send_password_reset_email
 
 def _hash_token(token: str) -> str:
@@ -238,6 +292,16 @@ def social_login(uow: UnitOfWork, data: Any):
         )
         refresh_token = create_refresh_token(subject=user.id)
         
+        # Store refresh token in the dedicated table
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        db_refresh_token = RefreshToken(
+            user_id=user.id,
+            token_hash=get_password_hash(refresh_token),
+            family_id=str(uuid.uuid4()),
+            expires_at=expires_at
+        )
+        uow.session.add(db_refresh_token)
+        
         uow.commit()
         
         user_response = UserResponse.model_validate(user)
@@ -248,3 +312,4 @@ def social_login(uow: UnitOfWork, data: Any):
             "token_type": "bearer", 
             "user": user_response
         }
+
