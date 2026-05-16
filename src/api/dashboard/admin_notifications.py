@@ -19,13 +19,9 @@ def get_all_requests(
     """Paginated list of notification requests with status filtering."""
     items, total = uow.notification_request_repository.get_all_paginated(skip, limit, status)
     
-    # Map items to include sender_name from the sender relationship
-    enhanced_items = []
-    for i in items:
-        resp = NotificationRequestResponse.model_validate(i)
-        if i.sender:
-            resp.sender_name = i.sender.full_name
-        enhanced_items.append(resp)
+    # Mapping is now handled automatically by the sender_name property on the model
+    # and the eager loading in the repository.
+    enhanced_items = [NotificationRequestResponse.model_validate(i) for i in items]
         
     return {
         "items": enhanced_items,

@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from src.repositories.base_repository import BaseRepository
 from src.models.notification_request import NotificationRequest, RequestStatus
 from datetime import datetime, timezone
@@ -17,6 +17,12 @@ class NotificationRequestRepository(BaseRepository[NotificationRequest]):
             func.date(NotificationRequest.created_at) == today
         ).scalar() or 0
 
+    def get_by_id_with_details(self, request_id: int) -> Optional[NotificationRequest]:
+        """Fetch request with sender relationship loaded."""
+        return self.session.query(NotificationRequest)\
+            .options(joinedload(NotificationRequest.sender))\
+            .filter(NotificationRequest.id == request_id).first()
+
     def get_by_sender_id(self, sender_id: int, skip: int = 0, limit: int = 20) -> List[NotificationRequest]:
         return self.session.query(NotificationRequest).filter(
             NotificationRequest.sender_id == sender_id,
@@ -31,5 +37,6 @@ class NotificationRequestRepository(BaseRepository[NotificationRequest]):
             query = query.filter(NotificationRequest.status == status)
         
         total = query.count()
-        items = query.order_by(NotificationRequest.created_at.desc()).offset(skip).limit(limit).all()
+        items = query.options(joinedload(NotificationRequest.sender))\
+            .order_by(NotificationRequest.created_at.desc()).offset(skip).limit(limit).all()
         return items, total

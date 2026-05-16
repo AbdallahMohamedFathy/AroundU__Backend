@@ -89,9 +89,23 @@ async def upload_item_image(
     uow=Depends(get_uow),
     current_user=Depends(owner_only)
 ):
-    """Owner: Upload an image for an item."""
-    # Save the file
-    file_path = await save_upload_file(file, subfolder="items")
+    """Owner: Upload an image for an item to Cloudinary."""
+    from src.services.cloudinary_service import upload_image, delete_image
     
-    # Update item in database
+    # 1. Get old image URL to delete it from Cloudinary
+    with uow:
+        db_item = uow.item_repository.get_by_id(id)
+        if not db_item:
+            from src.core.exceptions import APIException
+            raise APIException("Item not found", code=status.HTTP_404_NOT_FOUND)
+        old_image_url = db_item.image_url
+
+    # 2. Upload to Cloudinary
+    file_path = upload_image(file, folder="items")
+    
+    # 3. Delete old image if it was on Cloudinary
+    if old_image_url and "cloudinary" in old_image_url:
+        delete_image(old_image_url)
+    
+    # 4. Update item in database
     return item_service.update_item_image(uow, id, file_path, current_user.id, current_user.role)

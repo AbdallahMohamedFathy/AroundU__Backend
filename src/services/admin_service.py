@@ -42,8 +42,13 @@ def get_table_data(uow: UnitOfWork, table_name: str, current_admin):
         if table_name not in inspector.get_table_names():
             raise APIException(f"Table '{table_name}' not found", code=status.HTTP_404_NOT_FOUND)
             
-        columns = [c["name"] for c in inspector.get_columns(table_name)]
-        query = text(f"SELECT * FROM {table_name}")
+        # Security: Skip sensitive columns even for admins in raw DB view
+        SENSITIVE_COLUMNS = {"password_hash", "hashed_refresh_token", "token_hash"}
+        columns = [c["name"] for c in inspector.get_columns(table_name) if c["name"] not in SENSITIVE_COLUMNS]
+        
+        # Explicitly select only non-sensitive columns
+        cols_str = ", ".join(columns)
+        query = text(f"SELECT {cols_str} FROM {table_name}")
         rows = uow.session.execute(query).mappings().all()
         
         # Convert rows to dicts, handling non-serializable types
@@ -141,6 +146,7 @@ def create_owner_account(uow: UnitOfWork, user_in, current_admin):
         )
         uow.user_repository.create(new_owner)
         uow.commit()
+        # Return validated schema to ensure sensitive data (like password_hash) is stripped
         return UserResponse.model_validate(new_owner)
 
 def create_place_with_owner(uow: UnitOfWork, place_in, current_admin):

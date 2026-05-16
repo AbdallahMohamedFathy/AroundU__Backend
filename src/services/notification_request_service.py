@@ -65,7 +65,7 @@ def approve_request(
     from datetime import datetime, timezone
 
     with uow:
-        req = uow.notification_request_repository.get_by_id(request_id)
+        req = uow.notification_request_repository.get_by_id_with_details(request_id)
         if not req:
             raise HTTPException(status_code=404, detail="Request not found")
         
@@ -106,7 +106,7 @@ def reject_request(
     from datetime import datetime, timezone
 
     with uow:
-        req = uow.notification_request_repository.get_by_id(request_id)
+        req = uow.notification_request_repository.get_by_id_with_details(request_id)
         if not req: raise HTTPException(status_code=404, detail="Request not found")
         if req.status != RequestStatus.PENDING:
             raise HTTPException(status_code=400, detail=f"Request is already {req.status.value}")

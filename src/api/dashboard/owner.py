@@ -254,6 +254,7 @@ def update_branch(
             )
             
         uow.commit()
+        return PlaceResponse.model_validate(updated_branch)
 @router.get("/customers")
 def get_owner_customers(
     db: Session = Depends(get_db),

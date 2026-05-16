@@ -34,3 +34,7 @@ class NotificationRequest(Base):
     sender = relationship("User", foreign_keys=[sender_id])
     target_user = relationship("User", foreign_keys=[target_user_id])
     approver = relationship("User", foreign_keys=[approved_by])
+
+    @property
+    def sender_name(self):
+        return self.sender.full_name if self.sender else None
