@@ -17,43 +17,43 @@ def create_notification_request(
     request_data: NotificationRequestCreate
 ) -> NotificationRequest:
     """Create a new request ensuring the owner has not exceeded the daily rate limit."""
-    with uow:
-        # Security: Owners can only target ALL_USERS or SPECIFIC_USER
-        user = uow.user_repository.get_by_id(sender_id)
-        if user and user.role == "OWNER":
-            if request_data.target_type not in [TargetType.ALL_USERS, TargetType.SPECIFIC_USER]:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Owners are restricted to targeting consumers only."
-                )
-
-        daily_count = uow.notification_request_repository.count_daily_by_sender(sender_id)
-        if daily_count >= MAX_DAILY_OWNER_REQUESTS:
+    # Security: Owners can only target ALL_USERS or SPECIFIC_USER
+    user = uow.user_repository.get_by_id(sender_id)
+    if user and user.role == "OWNER":
+        if request_data.target_type not in [TargetType.ALL_USERS, TargetType.SPECIFIC_USER]:
             raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily limit of {MAX_DAILY_OWNER_REQUESTS} notification requests exceeded."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Owners are restricted to targeting consumers only."
             )
 
-        # Validate target user if SPECIFIC_USER
-        if request_data.target_type == TargetType.SPECIFIC_USER:
-            if not request_data.target_user_id:
-                raise HTTPException(status_code=400, detail="target_user_id is required for SPECIFIC_USER")
-            
-            target_user = uow.user_repository.get_by_id(request_data.target_user_id)
-            if not target_user:
-                raise HTTPException(status_code=404, detail=f"Target user with ID {request_data.target_user_id} not found")
-
-        new_req = NotificationRequest(
-            sender_id=sender_id,
-            title=request_data.title,
-            message=request_data.message,
-            target_type=request_data.target_type,
-            target_user_id=request_data.target_user_id,
-            data=request_data.data
+    daily_count = uow.notification_request_repository.count_daily_by_sender(sender_id)
+    if daily_count >= MAX_DAILY_OWNER_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Daily limit of {MAX_DAILY_OWNER_REQUESTS} notification requests exceeded."
         )
-        uow.notification_request_repository.create(new_req)
-        uow.commit()
-        return new_req
+
+    # Validate target user if SPECIFIC_USER
+    if request_data.target_type == TargetType.SPECIFIC_USER:
+        if not request_data.target_user_id:
+            raise HTTPException(status_code=400, detail="target_user_id is required for SPECIFIC_USER")
+
+        target_user = uow.user_repository.get_by_id(request_data.target_user_id)
+        if not target_user:
+            raise HTTPException(status_code=404, detail=f"Target user with ID {request_data.target_user_id} not found")
+
+    new_req = NotificationRequest(
+        sender_id=sender_id,
+        title=request_data.title,
+        message=request_data.message,
+        target_type=request_data.target_type,
+        target_user_id=request_data.target_user_id,
+        data=request_data.data
+    )
+    uow.notification_request_repository.create(new_req)
+    uow.commit()
+    uow.session.refresh(new_req)
+    return new_req
 
 def approve_request(
     uow: UnitOfWork,
