@@ -10,6 +10,49 @@ from src.models.place import Place
 
 router = APIRouter(prefix="/ai/data", tags=["AI Gateway"])
 
+def _map_place(p: Place) -> AIPlaceResponse:
+    sub_category_names = [sc.name for sc in getattr(p, "subcategories", []) if not getattr(sc, "is_deleted", False)]
+    sub_category = "، ".join(sub_category_names) if sub_category_names else None
+
+    image_url = None
+    if getattr(p, "images", None):
+        main_img = next((img for img in p.images if getattr(img, "image_type", None) == "main"), None)
+        image_url = main_img.image_url if main_img else p.images[0].image_url
+
+    menu_items = []
+    for sc in getattr(p, "subcategories", []):
+        if not getattr(sc, "is_deleted", False):
+            for item in getattr(sc, "items", []):
+                if getattr(item, "is_active", True) and not getattr(item, "is_deleted", False):
+                    menu_items.append(item.name)
+                    
+    tags = []
+    if getattr(p, "category", None):
+        tags.append(p.category.name)
+    tags.extend(sub_category_names)
+    
+    phone = p.phone if p.phone else None
+    
+    return AIPlaceResponse(
+        place_id=str(p.id),
+        name=p.name,
+        category=p.category.name if getattr(p, "category", None) else "Unknown",
+        rating=p.rating or 0.0,
+        review_count=p.review_count or 0,
+        lat=p.latitude,
+        lng=p.longitude,
+        sub_category=sub_category,
+        address=p.address,
+        phone=phone,
+        opening_hours=getattr(p, "working_hours", None),
+        description=p.description,
+        price_range=None,
+        image_url=image_url,
+        menu_items=menu_items if menu_items else None,
+        tags=tags if tags else None,
+        is_open=bool(p.is_active and getattr(p, "is_accepting_orders", True))
+    )
+
 @router.get("/interactions", response_model=dict)
 @limiter.limit("20/minute")
 async def get_interactions(
@@ -51,8 +94,12 @@ async def get_places(
 ):
     """Fetch sanitized places metadata."""
     limit = min(limit, 100)
-    from sqlalchemy.orm import joinedload
-    query = db.query(Place).options(joinedload(Place.category))
+    from sqlalchemy.orm import selectinload
+    query = db.query(Place).options(
+        selectinload(Place.category),
+        selectinload(Place.images),
+        selectinload(Place.subcategories).selectinload("items")
+    )
     if category:
         # Assuming place has a category relationship or field. 
         # Using string matching or category ID based on the DB schema.
@@ -62,15 +109,7 @@ async def get_places(
     
     return {
         "data": [
-            AIPlaceResponse(
-                place_id=str(p.id),
-                name=p.name,
-                category=p.category.name if p.category else "Unknown",
-                rating=p.rating or 0.0,
-                review_count=p.review_count or 0,
-                lat=p.latitude,
-                lng=p.longitude
-            ) for p in places
+            _map_place(p) for p in places
         ],
         "meta": {"limit": limit, "skip": skip}
     }
@@ -84,25 +123,22 @@ async def get_analytics(
 ):
     """Pre-computed analytics for AI."""
     from sqlalchemy import func
-    from sqlalchemy.orm import joinedload
+    from sqlalchemy.orm import selectinload
     
     # 1. Top rated places
-    top_rated = db.query(Place).options(joinedload(Place.category)).filter(Place.is_active == True).order_by(Place.rating.desc()).limit(5).all()
+    top_rated = db.query(Place).options(
+        selectinload(Place.category),
+        selectinload(Place.images),
+        selectinload(Place.subcategories).selectinload("items")
+    ).filter(Place.is_active == True).order_by(Place.rating.desc()).limit(5).all()
     
     # 2. Most visited (places with most interactions)
     # Using review_count as a proxy for simplicity, or we can query interactions
-    most_visited = db.query(Place).options(joinedload(Place.category)).filter(Place.is_active == True).order_by(Place.review_count.desc()).limit(5).all()
-    
-    def map_place(p):
-        return AIPlaceResponse(
-            place_id=str(p.id),
-            name=p.name,
-            category=p.category.name if p.category else "Unknown",
-            rating=p.rating or 0.0,
-            review_count=p.review_count or 0,
-            lat=p.latitude,
-            lng=p.longitude
-        )
+    most_visited = db.query(Place).options(
+        selectinload(Place.category),
+        selectinload(Place.images),
+        selectinload(Place.subcategories).selectinload("items")
+    ).filter(Place.is_active == True).order_by(Place.review_count.desc()).limit(5).all()
 
     # 3. Trending categories
     # We find categories with the highest total review count across their places
@@ -122,7 +158,7 @@ async def get_analytics(
             trending_category_names = [cat_map[cid] for cid in cat_ids if cid in cat_map]
 
     return AIAnalyticsResponse(
-        top_rated_places=[map_place(p) for p in top_rated],
-        most_visited_places=[map_place(p) for p in most_visited],
+        top_rated_places=[_map_place(p) for p in top_rated],
+        most_visited_places=[_map_place(p) for p in most_visited],
         trending_categories=trending_category_names
     )

@@ -20,6 +20,16 @@ class AIPlaceResponse(BaseModel):
     review_count: int
     lat: Optional[float] = None
     lng: Optional[float] = None
+    sub_category: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[List[str]] = None
+    opening_hours: Optional[str] = None
+    description: Optional[str] = None
+    price_range: Optional[str] = None
+    image_url: Optional[str] = None
+    menu_items: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    is_open: Optional[bool] = None
 
     class Config:
         from_attributes = True
