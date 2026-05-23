@@ -7,6 +7,7 @@ from src.core.dependencies import verify_ai_service, limiter
 from src.schemas.ai_schemas import AIInteractionResponse, AIPlaceResponse, AIAnalyticsResponse
 from src.models.interaction import Interaction
 from src.models.place import Place
+from src.models.subcategory import SubCategory
 
 router = APIRouter(prefix="/ai/data", tags=["AI Gateway"])
 
@@ -98,7 +99,7 @@ async def get_places(
     query = db.query(Place).options(
         selectinload(Place.category),
         selectinload(Place.images),
-        selectinload(Place.subcategories).selectinload("items")
+        selectinload(Place.subcategories).selectinload(SubCategory.items)
     )
     if category:
         # Assuming place has a category relationship or field. 
@@ -129,7 +130,7 @@ async def get_analytics(
     top_rated = db.query(Place).options(
         selectinload(Place.category),
         selectinload(Place.images),
-        selectinload(Place.subcategories).selectinload("items")
+        selectinload(Place.subcategories).selectinload(SubCategory.items)
     ).filter(Place.is_active == True).order_by(Place.rating.desc()).limit(5).all()
     
     # 2. Most visited (places with most interactions)
@@ -137,7 +138,7 @@ async def get_analytics(
     most_visited = db.query(Place).options(
         selectinload(Place.category),
         selectinload(Place.images),
-        selectinload(Place.subcategories).selectinload("items")
+        selectinload(Place.subcategories).selectinload(SubCategory.items)
     ).filter(Place.is_active == True).order_by(Place.review_count.desc()).limit(5).all()
 
     # 3. Trending categories
