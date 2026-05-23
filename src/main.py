@@ -359,11 +359,27 @@ def on_startup():
                     logger.info("Adding 'delivery_price' column to places table...")
                     conn.execute(text("ALTER TABLE places ADD COLUMN delivery_price FLOAT DEFAULT 0.0;"))
                     conn.commit()
-                
+
                 if 'working_hours' not in existing_cols:
                     logger.info("Adding 'working_hours' column to places table...")
                     conn.execute(text("ALTER TABLE places ADD COLUMN working_hours VARCHAR;"))
                     conn.commit()
+
+                if 'is_accepting_orders' not in existing_cols:
+                    logger.info("Adding 'is_accepting_orders' column to places table...")
+                    conn.execute(text("ALTER TABLE places ADD COLUMN is_accepting_orders BOOLEAN DEFAULT TRUE NOT NULL;"))
+                    conn.commit()
+
+                if 'accepts_delivery' not in existing_cols:
+                    logger.info("Adding 'accepts_delivery' column to places table...")
+                    conn.execute(text("ALTER TABLE places ADD COLUMN accepts_delivery BOOLEAN DEFAULT TRUE NOT NULL;"))
+                    conn.commit()
+
+                if 'accepts_takeaway' not in existing_cols:
+                    logger.info("Adding 'accepts_takeaway' column to places table...")
+                    conn.execute(text("ALTER TABLE places ADD COLUMN accepts_takeaway BOOLEAN DEFAULT TRUE NOT NULL;"))
+                    conn.commit()
+
             except Exception as place_mig_err:
                 logger.error(f"Error migrating places table: {place_mig_err}")
                 conn.rollback()

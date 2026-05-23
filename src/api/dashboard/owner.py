@@ -998,6 +998,53 @@ def update_working_hours(
 
 from pydantic import BaseModel, Field
 
+class UpdateOrderSettings(BaseModel):
+    is_accepting_orders: Optional[bool] = None
+    accepts_delivery: Optional[bool] = None
+    accepts_takeaway: Optional[bool] = None
+
+@router.get("/my-place/order-settings")
+def get_order_settings(
+    place_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Get the current order settings (accepting orders, delivery, takeaway) for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
+    return {
+        "is_accepting_orders": getattr(place, "is_accepting_orders", True),
+        "accepts_delivery": getattr(place, "accepts_delivery", True),
+        "accepts_takeaway": getattr(place, "accepts_takeaway", True),
+    }
+
+@router.put("/my-place/order-settings")
+def update_order_settings(
+    payload: UpdateOrderSettings,
+    place_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Toggle accepting orders, delivery, and takeaway for the owner's place."""
+    target_place_id = resolve_target_place_id(db, current_user.id, place_id)
+    place = db.query(Place).filter(Place.id == target_place_id).first()
+
+    if payload.is_accepting_orders is not None:
+        place.is_accepting_orders = payload.is_accepting_orders
+    if payload.accepts_delivery is not None:
+        place.accepts_delivery = payload.accepts_delivery
+    if payload.accepts_takeaway is not None:
+        place.accepts_takeaway = payload.accepts_takeaway
+
+    db.commit()
+    return {
+        "message": "Order settings updated successfully",
+        "is_accepting_orders": place.is_accepting_orders,
+        "accepts_delivery": place.accepts_delivery,
+        "accepts_takeaway": place.accepts_takeaway,
+    }
+
+
 class UpdateStatus(BaseModel):
     is_active: bool = Field(..., description="Set to true to open the place, false to mark as closed")
 

@@ -20,6 +20,9 @@ class PlaceBase(BaseModel):
     tiktok_url: Optional[str] = None
     delivery_price: float = 0.0
     is_free_delivery: bool = False
+    is_accepting_orders: bool = True
+    accepts_delivery: bool = True
+    accepts_takeaway: bool = True
     working_hours: Optional[str] = None
 
 
@@ -47,6 +50,9 @@ class PlaceUpdate(BaseModel):
     tiktok_url: Optional[str] = None
     delivery_price: Optional[float] = None
     is_free_delivery: Optional[bool] = None
+    is_accepting_orders: Optional[bool] = None
+    accepts_delivery: Optional[bool] = None
+    accepts_takeaway: Optional[bool] = None
     working_hours: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -58,11 +64,14 @@ class PlaceResponse(PlaceBase):
     rating: float
     review_count: int
     is_active: bool
+    is_accepting_orders: bool = True
+    accepts_delivery: bool = True
+    accepts_takeaway: bool = True
     created_at: datetime
-    distance_km: Optional[float] = None  # Calculated field
+    distance_km: Optional[float] = None
     images: List[PlaceImageResponse] = []
     branches: List['PlaceResponse'] = []
-    is_favorited: Optional[bool] = False  # Calculated field based on current user
+    is_favorited: Optional[bool] = False
 
     model_config = {"from_attributes": True}
 

@@ -40,11 +40,20 @@ class OrderService:
             raise HTTPException(status_code=500, detail=str(error_details))
 
     async def _checkout_impl(self, user_id: int, order_data: OrderCreate) -> OrderResponse:
-        # 1️⃣ Validate that the Place exists
+        # 1️⃣ Validate that the Place exists and is accepting orders
         place_result = await self.db.execute(select(Place).where(Place.id == order_data.place_id))
         place = place_result.scalars().first()
         if not place:
             raise HTTPException(status_code=404, detail="Place not found")
+
+        if not getattr(place, "is_accepting_orders", True):
+            raise HTTPException(status_code=400, detail="This place is not accepting orders at the moment")
+
+        if order_data.order_type == OrderType.CASH_ON_DELIVERY and not getattr(place, "accepts_delivery", True):
+            raise HTTPException(status_code=400, detail="This place does not offer delivery")
+
+        if order_data.order_type == OrderType.TAKE_AWAY and not getattr(place, "accepts_takeaway", True):
+            raise HTTPException(status_code=400, detail="This place does not offer takeaway")
 
         # 2️⃣ Resolve items — from request body OR from DB cart for this place
         items_to_order: List[OrderItemCreate] = []
