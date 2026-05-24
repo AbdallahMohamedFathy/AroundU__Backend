@@ -1,11 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List, Optional
+from pydantic import BaseModel
 
 from src.api.dashboard.dependencies import owner_guard
 from app.dependencies import get_db
 from app.orders.services.order_service import OrderService
 from app.orders.schemas.order import OrderResponse
 from app.auth import get_current_user
+
+
+class TopItemResponse(BaseModel):
+    item_id: int
+    item_name: str
+    image_url: Optional[str] = None
+    unit_price: float
+    total_ordered: int
 
 router = APIRouter(tags=["Dashboard - Owner"])
 
@@ -188,3 +197,61 @@ async def delete_order(
 
     await service.order_repo.delete_order(order)
     await db.commit()
+
+
+@router.get(
+    "/place/{place_id}/top-items",
+    response_model=List[TopItemResponse],
+    summary="Top Ordered Items for a Place",
+    description=(
+        "Returns the most-ordered items for a specific place, "
+        "sorted from most to least ordered. "
+        "Shows item name, price (snapshot at order time), and total quantity ordered."
+    ),
+)
+async def get_top_ordered_items(
+    place_id: int,
+    limit: int = Query(10, ge=1, le=100, description="Max items to return"),
+    db=Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    from sqlalchemy import select, func
+    from app.orders.models.order_models import Order, OrderItem
+    from src.models.place import Place
+
+    # Verify ownership
+    place_result = await db.execute(
+        select(Place).where(Place.id == place_id, Place.owner_id == current_user.id)
+    )
+    if not place_result.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Place not found or access denied",
+        )
+
+    result = await db.execute(
+        select(
+            OrderItem.item_id,
+            OrderItem.item_name,
+            func.max(OrderItem.image_url).label("image_url"),
+            func.max(OrderItem.unit_price).label("unit_price"),
+            func.sum(OrderItem.quantity).label("total_ordered"),
+        )
+        .join(Order, OrderItem.order_id == Order.id)
+        .where(Order.place_id == place_id)
+        .group_by(OrderItem.item_id, OrderItem.item_name)
+        .order_by(func.sum(OrderItem.quantity).desc())
+        .limit(limit)
+    )
+
+    rows = result.all()
+    return [
+        TopItemResponse(
+            item_id=row.item_id,
+            item_name=row.item_name,
+            image_url=row.image_url,
+            unit_price=row.unit_price,
+            total_ordered=row.total_ordered,
+        )
+        for row in rows
+    ]

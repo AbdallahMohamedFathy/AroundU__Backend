@@ -348,6 +348,22 @@ def on_startup():
                 logger.error(f"Error migrating items table: {item_mig_err}")
                 conn.rollback()
 
+            # ── properties table migration ───────────────────────────────
+            try:
+                prop_cols = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='properties';"
+                )).fetchall()
+                existing_prop_cols = {row[0] for row in prop_cols}
+
+                if 'owner_name' not in existing_prop_cols:
+                    logger.info("Adding 'owner_name' column to properties table...")
+                    conn.execute(text("ALTER TABLE properties ADD COLUMN owner_name VARCHAR;"))
+                    conn.commit()
+                    logger.info("Column 'owner_name' added to properties.")
+            except Exception as prop_mig_err:
+                logger.error(f"Error migrating properties table: {prop_mig_err}")
+                conn.rollback()
+
             # ── places table migration ───────────────────────────────────
             try:
                 cols = conn.execute(text(

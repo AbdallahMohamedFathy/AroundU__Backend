@@ -17,6 +17,7 @@ class Property(Base):
     contact_number = Column(ARRAY(String), nullable=True)
     whatsapp_number = Column(String, nullable=True)
     is_available = Column(Boolean, default=True, nullable=False)
+    owner_name = Column(String, nullable=True)
     owner_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),

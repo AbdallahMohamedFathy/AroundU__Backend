@@ -11,6 +11,7 @@ class PropertyBase(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     contact_number: Optional[List[str]] = Field(default_factory=list)
     whatsapp_number: Optional[str] = Field(None, max_length=20)
+    owner_name: Optional[str] = Field(None, max_length=200)
 
 
 class PropertyCreate(PropertyBase):
@@ -28,6 +29,7 @@ class PropertyUpdate(BaseModel):
     is_available: Optional[bool] = None
     main_image_url: Optional[str] = None
     image_ids_to_delete: Optional[List[int]] = Field(default_factory=list)
+    owner_name: Optional[str] = Field(None, max_length=200)
 
 
 class PropertyImageResponse(BaseModel):

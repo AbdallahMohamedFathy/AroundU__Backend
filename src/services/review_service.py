@@ -195,7 +195,7 @@ def delete_review(uow: UnitOfWork, review_id: int, current_user: Any):
 
         place_id = review.place_id
 
-        uow.review_repository.delete(review_id)
+        uow.review_repository.delete(review)
 
         _update_place_rating_internal(uow, place_id)
 

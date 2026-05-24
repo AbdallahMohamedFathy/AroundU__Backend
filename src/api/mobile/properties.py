@@ -89,6 +89,7 @@ def create_property(
     lng: float = Form(...),
     contact_number: List[str] = Form([]),
     whatsapp_number: Optional[str] = Form(None),
+    owner_name: Optional[str] = Form(None),
     images: List[UploadFile] = File([]),
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)
@@ -100,7 +101,8 @@ def create_property(
         latitude=lat,
         longitude=lng,
         contact_number=contact_number,
-        whatsapp_number=whatsapp_number
+        whatsapp_number=whatsapp_number,
+        owner_name=owner_name,
     )
     repo = PropertyRepository(uow.session)
     return property_service.create_property(repo, property_data, images, current_user)
@@ -119,6 +121,7 @@ def update_property(
     image_ids_to_delete: Optional[List[int]] = Form(None),
     contact_number: List[str] = Form([]),
     whatsapp_number: Optional[str] = Form(None),
+    owner_name: Optional[str] = Form(None),
     images: List[UploadFile] = File([]),
     current_user=Depends(get_current_user),
     uow=Depends(get_uow)
@@ -133,6 +136,7 @@ def update_property(
     if main_image_url is not None: update_data["main_image_url"] = main_image_url
     if contact_number is not None: update_data["contact_number"] = contact_number
     if whatsapp_number is not None: update_data["whatsapp_number"] = whatsapp_number
+    if owner_name is not None: update_data["owner_name"] = owner_name
     update_data["image_ids_to_delete"] = image_ids_to_delete or []
 
     property_data = PropertyUpdate(**update_data)
