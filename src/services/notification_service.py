@@ -17,12 +17,20 @@ async def create_notification(
     notif_type: NotificationType,
     data: Optional[dict] = None,
     priority: NotificationPriority = NotificationPriority.NORMAL,
-    background_tasks: Optional[BackgroundTasks] = None
+    background_tasks: Optional[BackgroundTasks] = None,
+    sender_id: Optional[int] = None,
+    sender_name: Optional[str] = None,
 ):
     """
     Saves a notification to the database and sends a push notification via FCM.
     Failsafe: Database save persists even if FCM fails.
     """
+    merged_data = dict(data or {})
+    if sender_id is not None:
+        merged_data["sender_id"] = sender_id
+    if sender_name is not None:
+        merged_data["sender_name"] = sender_name
+
     with uow:
         # 1. Create DB record
         new_notif = Notification(
@@ -31,7 +39,7 @@ async def create_notification(
             message=message,
             type=notif_type,
             priority=priority,
-            data=data or {}
+            data=merged_data,
         )
         uow.notification_repository.create(new_notif)
         

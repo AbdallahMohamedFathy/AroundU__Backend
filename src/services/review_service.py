@@ -85,14 +85,18 @@ async def create_review(
         # Notify Place Owner
         # -----------------------------
         if place.owner_id:
-             await create_notification(
+            reviewer = uow.user_repository.get_by_id(user_id)
+            reviewer_name = reviewer.full_name if reviewer else "Someone"
+            await create_notification(
                 uow=uow,
                 user_id=place.owner_id,
                 title="New Review!",
-                message=f"Someone just left a {new_review.rating}-star review on {place.name}.",
+                message=f"{reviewer_name} left a {new_review.rating}-star review on {place.name}.",
                 notif_type=NotificationType.NEW_REVIEW,
                 data={"place_id": place.id, "review_id": new_review.id},
-                background_tasks=background_tasks
+                sender_id=user_id,
+                sender_name=reviewer_name,
+                background_tasks=background_tasks,
             )
 
         # Fetch fully hydrated object with user relationship loaded

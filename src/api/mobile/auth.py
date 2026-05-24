@@ -1,6 +1,7 @@
 import jwt
 from fastapi import APIRouter, Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from src.core.dependencies import get_user_repository, get_uow, get_current_user, RoleChecker, limiter
 from src.core.config import settings
 from src.schemas.user import (
@@ -11,6 +12,9 @@ from src.services import auth_service, user_service
 from src.core.exceptions import APIException
 
 router = APIRouter()
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 # ─── REGISTER  POST /auth/register ──────────────────────────────────────────
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=AuthResponse)
@@ -40,18 +44,18 @@ def social_login(request: Request, data: SocialLogin, uow=Depends(get_uow)):
 
 # ─── REFRESH  POST /auth/refresh-token ──────────────────────────────────────
 @router.post("/refresh-token")
-def refresh_token(refresh_token: str, uow=Depends(get_uow)):
-    """Issuer a new access token using a valid refresh token."""
+def refresh_token(body: RefreshTokenRequest, uow=Depends(get_uow)):
+    """Issue a new access token using a valid refresh token (pass token in request body)."""
+    token = body.refresh_token
     try:
-        payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         if payload.get("type") != "refresh":
             raise APIException("Invalid token type", code=status.HTTP_401_UNAUTHORIZED)
         user_id = payload.get("sub")
     except jwt.PyJWTError:
         raise APIException("Invalid refresh token", code=status.HTTP_401_UNAUTHORIZED)
-    
-    # Must use service to check the refresh token hash against DB
-    return auth_service.refresh_access_token(uow, user_id, refresh_token)
+
+    return auth_service.refresh_access_token(uow, user_id, token)
 
 
 # ─── GET PROFILE  GET /auth/profile ─────────────────────────────────────────
