@@ -52,7 +52,7 @@ def get_recommendations(
         description="Optional category filter",
     ),
     limit: int = Query(
-        20,
+        4,
         ge=1,
         le=100,
         description="Max number of recommendations to return",

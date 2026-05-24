@@ -77,6 +77,10 @@ class OrderRepository:
         await self.db.flush()
         return order
 
+    async def delete_order(self, order: Order) -> None:
+        await self.db.delete(order)
+        await self.db.flush()
+
     async def count_orders(self) -> int:
         result = await self.db.execute(select(func.count(Order.id)))
         return result.scalar_one() or 0

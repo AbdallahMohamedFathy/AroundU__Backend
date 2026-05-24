@@ -54,3 +54,26 @@ async def get_all_orders(
             created_at=o.created_at,
         ))
     return result
+
+
+@router.delete(
+    "/{order_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Order",
+    description="Admin permanently deletes any order from the system.",
+)
+async def delete_order(
+    order_id: int,
+    db=Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    if getattr(current_user, "role", "").upper() != "ADMIN":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    service = OrderService(db)
+    order = await service.order_repo.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    await service.order_repo.delete_order(order)
+    await db.commit()

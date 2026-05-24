@@ -51,10 +51,27 @@ class ItemRepository(BaseRepository[Item]):
     def get_by_place(self, place_id: int) -> List[Item]:
         from src.models.subcategory import SubCategory
         return self.session.query(self.model).options(joinedload(self.model.subcategory)).join(
-            SubCategory, 
+            SubCategory,
             self.model.sub_category_id == SubCategory.id
         ).filter(
             SubCategory.place_id == place_id,
             SubCategory.is_deleted == False,
             self.model.is_deleted == False
         ).all()
+
+    def get_top_by_place(self, place_id: int, limit: int = 4) -> List[Item]:
+        from src.models.subcategory import SubCategory
+        return (
+            self.session.query(self.model)
+            .options(joinedload(self.model.subcategory))
+            .join(SubCategory, self.model.sub_category_id == SubCategory.id)
+            .filter(
+                SubCategory.place_id == place_id,
+                SubCategory.is_deleted == False,
+                self.model.is_deleted == False,
+                self.model.is_available == True,
+            )
+            .order_by(self.model.created_at.desc())
+            .limit(limit)
+            .all()
+        )

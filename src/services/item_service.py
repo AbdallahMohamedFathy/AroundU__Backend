@@ -15,6 +15,9 @@ def get_items_by_subcategory(repo: Any, sub_category_id: int):
 def get_items_by_place(repo: Any, place_id: int):
     return repo.get_by_place(place_id)
 
+def get_top_items_by_place(repo: Any, place_id: int, limit: int = 4):
+    return repo.get_top_by_place(place_id=place_id, limit=limit)
+
 def create_item(uow: UnitOfWork, item_in: ItemCreate, user_id: int, user_role: str = "OWNER"):
     with uow:
         # 1. Determine sub_category_id

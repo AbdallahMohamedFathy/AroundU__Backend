@@ -357,8 +357,19 @@ def get_owner_place_reviews(
     place = db.query(Place).filter(Place.id == place_id, Place.owner_id == current_user.id).first()
     if not place:
         raise APIException("Place not found or access denied", code=status.HTTP_404_NOT_FOUND)
-        
+
     return review_service.get_place_reviews(repo, place_id, page, page_size)
+
+
+@router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_owner_review(
+    review_id: int,
+    uow=Depends(get_uow),
+    current_user=Depends(owner_guard),
+):
+    """Owner: Delete a review left on any of their places."""
+    review_service.delete_review(uow, review_id, current_user)
+    return None
 
 @router.get("/places/{place_id}/items", response_model=List[ItemResponse])
 def get_owner_place_items(

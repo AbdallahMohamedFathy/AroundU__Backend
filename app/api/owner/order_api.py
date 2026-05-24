@@ -142,3 +142,49 @@ async def update_order_status(
     from app.orders.enums.enums import OrderStatus
     service = OrderService(db)
     return await service.change_status(order_id=order_id, new_status=OrderStatus(new_status), actor="owner")
+
+
+@router.delete(
+    "/{order_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete Order",
+    description=(
+        "Owner deletes an order from their place. "
+        "Only orders with a final status (COMPLETED, CANCELLED, REJECTED) can be deleted."
+    ),
+)
+async def delete_order(
+    order_id: int,
+    db=Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    from app.orders.enums.enums import OrderStatus
+    from src.models.place import Place
+    from sqlalchemy import select as sa_select
+
+    user_role = str(getattr(current_user, "role", "")).upper()
+    if user_role != "OWNER":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required")
+
+    service = OrderService(db)
+    order = await service.order_repo.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    # Verify the order belongs to one of the owner's places
+    if order.place_id:
+        place_result = await db.execute(
+            sa_select(Place).where(Place.id == order.place_id, Place.owner_id == current_user.id)
+        )
+        if not place_result.scalars().first():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this order")
+
+    final_statuses = {OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REJECTED}
+    if order.status not in final_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Only completed, cancelled, or rejected orders can be deleted (current status: {order.status})",
+        )
+
+    await service.order_repo.delete_order(order)
+    await db.commit()
