@@ -83,7 +83,9 @@ async def create_bulk_notifications(
     data: Optional[dict] = None,
     priority: NotificationPriority = NotificationPriority.NORMAL,
     request_id: Optional[int] = None,
-    background_tasks: Optional[BackgroundTasks] = None
+    background_tasks: Optional[BackgroundTasks] = None,
+    sender_id: Optional[int] = None,
+    sender_name: Optional[str] = None,
 ):
     """
     Optimized bulk notification creation for multiple users in chunks.
@@ -91,7 +93,13 @@ async def create_bulk_notifications(
     Uses FCM multicast messaging array in batches of 500.
     """
     BATCH_SIZE = 500
-    
+
+    merged_data = dict(data or {})
+    if sender_id is not None:
+        merged_data["sender_id"] = sender_id
+    if sender_name is not None:
+        merged_data["sender_name"] = sender_name
+
     with uow:
         # DB limits: bulk insert in chunks to avoid memory errors
         for i in range(0, len(user_ids), BATCH_SIZE):
@@ -99,12 +107,12 @@ async def create_bulk_notifications(
             notifications_data = [
                 {
                     "user_id": uid,
-                    "request_id": request_id, # Link to the blast request
+                    "request_id": request_id,
                     "title": title,
                     "message": message,
                     "type": notif_type,
                     "priority": priority,
-                    "data": data or {}
+                    "data": merged_data,
                 }
                 for uid in chunk_ids
             ]

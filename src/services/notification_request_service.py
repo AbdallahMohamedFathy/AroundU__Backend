@@ -92,7 +92,9 @@ def approve_request(
             title=req.title,
             message=req.message,
             data=req.data,
-            request_id=req.id
+            request_id=req.id,
+            sender_id=req.sender_id,
+            sender_name=req.sender_name,
         )
 
     return req
@@ -148,7 +150,15 @@ def resolve_targets(uow: UnitOfWork, target_type: TargetType, specific_id: Optio
         return [row[0]] if row else []
     return []
 
-async def _trigger_bulk_system_alert(user_ids: List[int], title: str, message: str, data: Optional[dict], request_id: Optional[int] = None):
+async def _trigger_bulk_system_alert(
+    user_ids: List[int],
+    title: str,
+    message: str,
+    data: Optional[dict],
+    request_id: Optional[int] = None,
+    sender_id: Optional[int] = None,
+    sender_name: Optional[str] = None,
+):
     """Helper used to jumpstart background async from sync approve context."""
     from src.core.database import SessionLocal
     uow = UnitOfWork(SessionLocal)
@@ -159,16 +169,19 @@ async def _trigger_bulk_system_alert(user_ids: List[int], title: str, message: s
         message=message,
         notif_type=NotificationType.SYSTEM_ALERT,
         data=data,
-        priority=NotificationPriority.HIGH, # Owner blasts/Admin blasts are high priority
+        priority=NotificationPriority.HIGH,
         request_id=request_id,
-        background_tasks=BackgroundTasks() # Passing dummy to execute the subtask
+        sender_id=sender_id,
+        sender_name=sender_name,
+        background_tasks=BackgroundTasks(),
     )
 
 
 def send_admin_notification(
     uow: UnitOfWork,
     payload: AdminNotificationSend,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    sender_name: str = "7waleek",
 ):
     """Direct blast bypassing Request-Approval flow."""
     target_ids = resolve_targets(uow, payload.target_type, payload.target_user_id)
@@ -178,6 +191,7 @@ def send_admin_notification(
             user_ids=target_ids,
             title=payload.title,
             message=payload.message,
-            data=payload.data
+            data=payload.data,
+            sender_name=sender_name,
         )
     return {"status": "success", "targeted_users": len(target_ids)}

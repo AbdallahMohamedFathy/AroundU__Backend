@@ -623,6 +623,7 @@ async def _send_recommendation_notification(
             notif_type=NotificationType.SYSTEM_ALERT,
             priority=NotificationPriority.NORMAL,
             data={"place_id": str(place_id), "source": "chatbot"},
+            sender_name="7waleek",
         )
         logger.info(
             f"[chatbot] Recommendation notification sent → user={user_id}, place={place_id}"

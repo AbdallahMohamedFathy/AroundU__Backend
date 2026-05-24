@@ -685,7 +685,8 @@ async def verify_owner(uow: UnitOfWork, owner_id: int, verified: bool, backgroun
             message=message,
             notif_type=notif_type,
             priority=priority,
-            background_tasks=background_tasks
+            sender_name="7waleek",
+            background_tasks=background_tasks,
         )
 
         status_text = "approved" if verified else "rejected/suspended"
