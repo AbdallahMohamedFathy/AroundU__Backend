@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -37,7 +37,7 @@ class PropertyImageResponse(BaseModel):
     image_url: str
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class PropertyReviewCreate(BaseModel):
@@ -52,23 +52,7 @@ class PropertyReviewResponse(BaseModel):
     comment: Optional[str]
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PropertyResponse(PropertyBase):
-    id: int
-    main_image_url: Optional[str] = None
-    is_available: bool
-    owner_id: int
-    created_at: datetime
-    updated_at: datetime
-    images: List[PropertyImageResponse] = []
-    reviews: List[PropertyReviewResponse] = []
-    review_count: int = 0
-    favorite_count: int = 0
-    is_favorited: Optional[bool] = False
-
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class PropertyMyResponse(PropertyBase):
@@ -83,7 +67,7 @@ class PropertyMyResponse(PropertyBase):
     review_count: int = 0
     favorite_count: int = 0
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class PropertyResponse(PropertyBase):
@@ -100,7 +84,7 @@ class PropertyResponse(PropertyBase):
     favorite_count: int = 0
     is_favorited: Optional[bool] = False
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 
 class PropertyShortResponse(BaseModel):
@@ -112,7 +96,19 @@ class PropertyShortResponse(BaseModel):
     favorite_count: int = 0
     is_favorited: Optional[bool] = False
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
+
+
+class PropertyReviewUpdate(BaseModel):
+    rating: Optional[float] = Field(None, ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=1000)
+
+
+class PropertyReviewListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[PropertyReviewResponse]
 
 
 class PropertyListResponse(BaseModel):

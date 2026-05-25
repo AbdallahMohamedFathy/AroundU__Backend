@@ -396,6 +396,11 @@ def on_startup():
                     conn.execute(text("ALTER TABLE places ADD COLUMN accepts_takeaway BOOLEAN DEFAULT TRUE NOT NULL;"))
                     conn.commit()
 
+                if 'delivery_zones' not in existing_cols:
+                    logger.info("Adding 'delivery_zones' column to places table...")
+                    conn.execute(text("ALTER TABLE places ADD COLUMN delivery_zones JSONB;"))
+                    conn.commit()
+
             except Exception as place_mig_err:
                 logger.error(f"Error migrating places table: {place_mig_err}")
                 conn.rollback()

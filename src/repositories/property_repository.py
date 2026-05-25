@@ -27,6 +27,29 @@ class PropertyRepository(BaseRepository[Property]):
             .filter(Property.owner_id == owner_id)\
             .order_by(desc(Property.created_at)).all()
 
+    def get_reviews_by_property(self, property_id: int, page: int = 1, page_size: int = 10) -> Tuple[List[PropertyReview], int]:
+        query = self.session.query(PropertyReview)\
+            .options(selectinload(PropertyReview.user))\
+            .filter(PropertyReview.property_id == property_id)\
+            .order_by(desc(PropertyReview.created_at))
+        total = query.count()
+        items = query.offset((page - 1) * page_size).limit(page_size).all()
+        return items, total
+
+    def get_reviews_by_user(self, user_id: int, page: int = 1, page_size: int = 10) -> Tuple[List[PropertyReview], int]:
+        query = self.session.query(PropertyReview)\
+            .options(selectinload(PropertyReview.user))\
+            .filter(PropertyReview.user_id == user_id)\
+            .order_by(desc(PropertyReview.created_at))
+        total = query.count()
+        items = query.offset((page - 1) * page_size).limit(page_size).all()
+        return items, total
+
+    def get_review_by_id(self, review_id: int) -> Optional[PropertyReview]:
+        return self.session.query(PropertyReview)\
+            .options(selectinload(PropertyReview.user))\
+            .filter(PropertyReview.id == review_id).first()
+
     def get_paginated_filtered(
         self,
         page: int = 1,

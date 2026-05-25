@@ -1,7 +1,11 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Query, status, UploadFile, File, Form
 from src.core.dependencies import get_current_user, get_uow
-from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, PropertyMyResponse, PropertyListResponse, PropertyReviewCreate, PropertyReviewResponse
+from src.schemas.property import (
+    PropertyCreate, PropertyUpdate, PropertyResponse, PropertyMyResponse,
+    PropertyListResponse, PropertyReviewCreate, PropertyReviewUpdate,
+    PropertyReviewResponse, PropertyReviewListResponse,
+)
 from src.services import property_service
 from src.repositories.property_repository import PropertyRepository
 
@@ -18,6 +22,54 @@ def add_property_review(
     """Add a review to a property listing."""
     repo = PropertyRepository(uow.session)
     return property_service.create_property_review(repo, id, data, current_user)
+
+# ─── GET REVIEWS  GET /properties/{id}/reviews ───────────────────────────────
+@router.get("/{id}/reviews", response_model=PropertyReviewListResponse)
+def get_property_reviews(
+    id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    uow=Depends(get_uow)
+):
+    """Get paginated reviews for a property."""
+    repo = PropertyRepository(uow.session)
+    return property_service.get_property_reviews(repo, id, page, page_size)
+
+# ─── MY REVIEWS  GET /properties/my-reviews ──────────────────────────────────
+@router.get("/my-reviews", response_model=PropertyReviewListResponse)
+def get_my_property_reviews(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    """Get all property reviews written by the current user."""
+    repo = PropertyRepository(uow.session)
+    return property_service.get_my_property_reviews(repo, current_user.id, page, page_size)
+
+# ─── UPDATE REVIEW  PUT /properties/reviews/{review_id} ─────────────────────
+@router.put("/reviews/{review_id}", response_model=PropertyReviewResponse)
+def update_property_review(
+    review_id: int,
+    data: PropertyReviewUpdate,
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    """Update your own property review."""
+    repo = PropertyRepository(uow.session)
+    return property_service.update_property_review(repo, review_id, data, current_user)
+
+# ─── DELETE REVIEW  DELETE /properties/reviews/{review_id} ──────────────────
+@router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_property_review(
+    review_id: int,
+    current_user=Depends(get_current_user),
+    uow=Depends(get_uow)
+):
+    """Delete a property review. Authorized for reviewer or property owner."""
+    repo = PropertyRepository(uow.session)
+    property_service.delete_property_review(repo, review_id, current_user)
+    return None
 
 # ─── FAVORITES ───────────────────────────────────────────────────────────────
 @router.post("/{id}/favorites", status_code=status.HTTP_201_CREATED)

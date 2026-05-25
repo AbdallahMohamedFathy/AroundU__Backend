@@ -371,6 +371,42 @@ def delete_owner_review(
     review_service.delete_review(uow, review_id, current_user)
     return None
 
+# ─── PROPERTY REVIEWS (Owner Dashboard) ─────────────────────────────────────
+@router.get("/properties/{property_id}/reviews")
+def get_owner_property_reviews(
+    property_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Owner: Get reviews for one of their property listings."""
+    from src.models.property import Property
+    from src.repositories.property_repository import PropertyRepository
+    from src.services import property_service as prop_svc
+
+    prop = db.query(Property).filter(Property.id == property_id, Property.owner_id == current_user.id).first()
+    if not prop:
+        raise APIException("Property not found or access denied", code=status.HTTP_404_NOT_FOUND)
+
+    repo = PropertyRepository(db)
+    return prop_svc.get_property_reviews(repo, property_id, page, page_size)
+
+
+@router.delete("/properties/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_owner_property_review(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(owner_guard),
+):
+    """Owner: Delete a review left on any of their property listings."""
+    from src.repositories.property_repository import PropertyRepository
+    from src.services import property_service as prop_svc
+
+    repo = PropertyRepository(db)
+    prop_svc.delete_property_review(repo, review_id, current_user)
+    return None
+
 @router.get("/places/{place_id}/items", response_model=List[ItemResponse])
 def get_owner_place_items(
     place_id: int,
@@ -937,9 +973,14 @@ async def get_admin_anomaly_summary(
 
 from pydantic import BaseModel, Field
 
+class DeliveryZone(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    price: float = Field(..., ge=0)
+
 class UpdateDeliveryPrice(BaseModel):
     delivery_price: float = Field(..., ge=0, description="The new delivery price (must be >= 0)")
     is_free_delivery: bool = Field(False, description="Set to true if delivery is currently free")
+    delivery_zones: Optional[List[DeliveryZone]] = Field(default_factory=list)
 
 class UpdateWorkingHours(BaseModel):
     working_hours: str = Field(..., description="The new working hours string (e.g. '9:00 AM - 11:00 PM')")
@@ -955,10 +996,14 @@ def get_delivery_price(
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Get the current delivery price for the owner's place."""
+    """Get the current delivery price and zones for the owner's place."""
     target_place_id = resolve_target_place_id(db, current_user.id, place_id)
     place = db.query(Place).filter(Place.id == target_place_id).first()
-    return {"delivery_price": place.delivery_price, "is_free_delivery": place.is_free_delivery}
+    return {
+        "delivery_price": place.delivery_price,
+        "is_free_delivery": place.is_free_delivery,
+        "delivery_zones": place.delivery_zones or [],
+    }
 
 @router.put("/my-place/delivery-price")
 def update_delivery_price(
@@ -967,17 +1012,19 @@ def update_delivery_price(
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Update the fixed delivery price and free delivery status for the owner's place."""
+    """Update delivery price, free delivery status, and delivery zones for the owner's place."""
     target_place_id = resolve_target_place_id(db, current_user.id, place_id)
     place = db.query(Place).filter(Place.id == target_place_id).first()
-    
+
     place.delivery_price = payload.delivery_price
     place.is_free_delivery = payload.is_free_delivery
+    place.delivery_zones = [z.model_dump() for z in payload.delivery_zones] if payload.delivery_zones else []
     db.commit()
     return {
-        "message": "Delivery settings updated successfully", 
+        "message": "Delivery settings updated successfully",
         "delivery_price": place.delivery_price,
-        "is_free_delivery": place.is_free_delivery
+        "is_free_delivery": place.is_free_delivery,
+        "delivery_zones": place.delivery_zones,
     }
 
 @router.get("/my-place/working-hours")

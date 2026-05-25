@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, DateTime, Boolean, CheckConstraint
-from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from geoalchemy2 import Geography
@@ -43,6 +43,7 @@ class Place(Base):
     
     delivery_price = Column(Float, default=0.0, nullable=False, server_default='0.0')
     is_free_delivery = Column(Boolean, default=False, nullable=False, server_default='false')
+    delivery_zones = Column(JSONB, nullable=True)
 
     is_accepting_orders = Column(Boolean, default=True, nullable=False, server_default='true')
     accepts_delivery = Column(Boolean, default=True, nullable=False, server_default='true')

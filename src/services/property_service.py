@@ -3,7 +3,7 @@ from fastapi import UploadFile, HTTPException, status
 from src.models.property import Property
 from src.models.property_image import PropertyImage
 from src.models.property_review import PropertyReview
-from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyReviewCreate
+from src.schemas.property import PropertyCreate, PropertyUpdate, PropertyReviewCreate, PropertyReviewUpdate
 from src.services.cloudinary_service import upload_image, delete_image
 from src.core.exceptions import APIException
 from src.core.logger import logger
@@ -187,6 +187,46 @@ def update_property(repo: Any, property_id: int, property_data: PropertyUpdate, 
     repo.session.commit()
     repo.session.refresh(db_prop)
     return db_prop
+
+def get_property_reviews(repo: Any, property_id: int, page: int = 1, page_size: int = 10):
+    db_prop = repo.get_by_id(property_id)
+    if not db_prop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+    items, total = repo.get_reviews_by_property(property_id, page, page_size)
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
+
+
+def get_my_property_reviews(repo: Any, user_id: int, page: int = 1, page_size: int = 10):
+    items, total = repo.get_reviews_by_user(user_id, page, page_size)
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
+
+
+def update_property_review(repo: Any, review_id: int, review_data: PropertyReviewUpdate, current_user: Any):
+    review = repo.get_review_by_id(review_id)
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    if review_data.rating is not None:
+        review.rating = review_data.rating
+    if review_data.comment is not None:
+        review.comment = review_data.comment
+    repo.session.commit()
+    repo.session.refresh(review)
+    return review
+
+
+def delete_property_review(repo: Any, review_id: int, current_user: Any):
+    review = repo.get_review_by_id(review_id)
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    if review.user_id != current_user.id and not getattr(current_user, "is_admin", False):
+        prop = repo.get_by_id(review.property_id)
+        if not prop or prop.owner_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    repo.session.delete(review)
+    repo.session.commit()
+
 
 def delete_property(repo: Any, property_id: int, current_user: Any):
     db_prop = repo.get_by_id_with_images(property_id)
