@@ -2,8 +2,7 @@
 Service layer for advanced searching (Refactored for Production Performance)
 """
 import time
-import logging
-from typing import List, Optional, Dict
+from typing import Optional, Dict
 from src.core.unit_of_work import UnitOfWork
 from src.core.logger import logger
 
@@ -26,10 +25,13 @@ def search_places(
     
     # ─── 0. Handle Empty Query ─────────────────────────────────────
     if not query or not query.strip():
-        # Fallback to trending queries if empty
         with uow:
             trending = uow.search_repository.get_trending(limit=10)
-            return {"results": [], "fallback": "empty_query", "context": trending}
+            return {
+                "results": [],
+                "metadata": {"execution_time": 0.0, "count": 0, "fallback": True},
+                "context": trending,
+            }
 
     query = query.strip()
     

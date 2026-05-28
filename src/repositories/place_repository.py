@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, text
@@ -181,10 +182,10 @@ class PlaceRepository(BaseRepository[Place]):
             text_score_sql = "1.0" # Binary match for prefix
         else:
             # FTS logic
-            match_sql = "p.search_vector @@ plainto_tsquery('english', :q)"
+            match_sql = "p.search_vector @@ plainto_tsquery('simple', :q)"
             params = {"q": q}
             # Normalized ts_rank
-            text_score_sql = "COALESCE(ts_rank(p.search_vector, plainto_tsquery('english', :q)), 0.0) / (COALESCE(ts_rank(p.search_vector, plainto_tsquery('english', :q)), 0.0) + 1.0)"
+            text_score_sql = "COALESCE(ts_rank(p.search_vector, plainto_tsquery('simple', :q)), 0.0) / (COALESCE(ts_rank(p.search_vector, plainto_tsquery('simple', :q)), 0.0) + 1.0)"
 
         if has_location:
             params.update({"lat": lat, "lng": lng})
@@ -280,7 +281,6 @@ class PlaceRepository(BaseRepository[Place]):
             results = self.session.execute(text(fuzzy_sql), {"q": q, "limit": limit, "lat": lat, "lng": lng} if has_location else {"q": q, "limit": limit}).fetchall()
 
 
-        import json
         formatted_results = []
         for r in results:
             images_data = getattr(r, 'images', [])
@@ -301,9 +301,12 @@ class PlaceRepository(BaseRepository[Place]):
                 "review_count": int(r.review_count or 0),
                 "favorite_count": int(r.favorite_count or 0),
                 "score": float(r.score or 0),
+                "distance_meters": float(r.distance_meters) if getattr(r, 'distance_meters', None) is not None else None,
                 "images": images_data
             })
-            
+
+        return formatted_results
+
     def search_places_by_item(self, item_name: str, limit: int = 20) -> List[Place]:
         """Search for places that have items matching the given query."""
         from src.models.subcategory import SubCategory
@@ -373,7 +376,6 @@ class PlaceRepository(BaseRepository[Place]):
 
         results = self.session.execute(text(query_str), params).fetchall()
 
-        import json
         formatted_results = []
         for r in results:
             images_data = getattr(r, 'images', [])
@@ -394,10 +396,12 @@ class PlaceRepository(BaseRepository[Place]):
                 "review_count": int(r.review_count or 0),
                 "favorite_count": int(r.favorite_count or 0),
                 "score": 0.0,
+                "distance_meters": None,
                 "images": images_data
             })
-            
+
         return formatted_results
+
     def get_recommendation_candidates(
         self,
         latitude: float,
