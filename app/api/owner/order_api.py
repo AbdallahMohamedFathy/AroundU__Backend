@@ -6,7 +6,7 @@ from src.api.dashboard.dependencies import owner_guard
 from app.dependencies import get_db
 from app.orders.services.order_service import OrderService
 from app.orders.schemas.order import OrderResponse
-from app.auth import get_current_user
+
 
 
 class TopItemResponse(BaseModel):
@@ -150,7 +150,7 @@ async def update_order_status(
 
     from app.orders.enums.enums import OrderStatus
     service = OrderService(db)
-    return await service.change_status(order_id=order_id, new_status=OrderStatus(new_status), actor="owner")
+    return await service.change_status(order_id=order_id, new_status=OrderStatus(new_status))
 
 
 @router.delete(

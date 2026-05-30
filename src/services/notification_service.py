@@ -1,10 +1,10 @@
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional
 from fastapi import BackgroundTasks
-# from firebase_admin import messaging # Moved to lazy imports inside functions
+from sqlalchemy import select
 from src.core.unit_of_work import UnitOfWork
 from src.models.notification import Notification, NotificationType, NotificationPriority
-from src.models.user import User
+from src.models.device import DeviceToken
 from src.utils.firebase import get_firebase_app
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,6 @@ async def create_notification(
         merged_data["sender_name"] = sender_name
 
     with uow:
-        # 1. Create DB record
         new_notif = Notification(
             user_id=user_id,
             title=title,
@@ -42,34 +41,32 @@ async def create_notification(
             data=merged_data,
         )
         uow.notification_repository.create(new_notif)
-        
-        # 2. Get user's FCM token
-        user = uow.user_repository.get_by_id(user_id)
-        fcm_token = user.fcm_token if user else None
-        
+
+        # Fetch all active FCM tokens for this user from DeviceToken table
+        fcm_tokens = uow.session.execute(
+            select(DeviceToken.fcm_token).filter(
+                DeviceToken.user_id == user_id,
+                DeviceToken.is_active == True
+            )
+        ).scalars().all()
+
         uow.commit()
 
-    # 3. Send Push Notification (if token exists)
-    if fcm_token:
+    # Send push notification to every active device
+    if fcm_tokens:
         payload = {
             "notif_id": str(new_notif.id),
             "type": notif_type.value,
             **(data or {})
         }
-        
-        if background_tasks:
-            background_tasks.add_task(
-                send_push_notification, 
-                user_id, 
-                fcm_token, 
-                title, 
-                message, 
-                payload, 
-                priority
-            )
-        else:
-            # Fallback for non-request contexts or if worker is preferred
-            await send_push_notification(user_id, fcm_token, title, message, payload, priority)
+        for token in fcm_tokens:
+            if background_tasks:
+                background_tasks.add_task(
+                    send_push_notification,
+                    token, title, message, payload, priority
+                )
+            else:
+                await send_push_notification(token, title, message, payload, priority)
 
     return new_notif
 
@@ -89,8 +86,7 @@ async def create_bulk_notifications(
 ):
     """
     Optimized bulk notification creation for multiple users in chunks.
-    NEVER loads full User objects into memory.
-    Uses FCM multicast messaging array in batches of 500.
+    Uses FCM multicast messaging in batches of 500.
     """
     BATCH_SIZE = 500
 
@@ -101,7 +97,6 @@ async def create_bulk_notifications(
         merged_data["sender_name"] = sender_name
 
     with uow:
-        # DB limits: bulk insert in chunks to avoid memory errors
         for i in range(0, len(user_ids), BATCH_SIZE):
             chunk_ids = user_ids[i:i + BATCH_SIZE]
             notifications_data = [
@@ -119,7 +114,6 @@ async def create_bulk_notifications(
             uow.notification_repository.bulk_create(notifications_data)
         uow.commit()
 
-    # Deferred push logic out of the DB transaction lock
     if background_tasks:
         background_tasks.add_task(
             _process_multicast_batches,
@@ -129,15 +123,14 @@ async def create_bulk_notifications(
 
 
 async def _process_multicast_batches(
-    user_ids: List[int], title: str, message: str, 
+    user_ids: List[int], title: str, message: str,
     notif_type: NotificationType, data: Optional[dict], priority: NotificationPriority
 ):
     """
-    Fetches tokens efficiently and dispatches FCM Multicast messaging securely.
-    Identifies invalid tokens and removes them from the DB in bulk.
+    Fetches FCM tokens from DeviceToken table and dispatches multicast messages.
+    Removes dead tokens on failure.
     """
     from src.core.database import SessionLocal
-    from sqlalchemy import select
     BATCH_SIZE = 500
 
     try:
@@ -149,17 +142,16 @@ async def _process_multicast_batches(
     if not app:
         return
 
-    # Efficient fetch without loading models
     db = SessionLocal()
     try:
-        # Process in chunks of 500
         for i in range(0, len(user_ids), BATCH_SIZE):
             chunk_ids = user_ids[i:i + BATCH_SIZE]
-            
-            # Fetch token map {fcm_token: user_id}
+
             records = db.execute(
-                select(User.id, User.fcm_token)
-                .filter(User.id.in_(chunk_ids), User.fcm_token.isnot(None))
+                select(DeviceToken.user_id, DeviceToken.fcm_token).filter(
+                    DeviceToken.user_id.in_(chunk_ids),
+                    DeviceToken.is_active == True
+                )
             ).all()
 
             if not records:
@@ -172,7 +164,6 @@ async def _process_multicast_batches(
                 target_tokens.append(tk)
                 token_to_uid_map[tk] = uid
 
-            # Payload
             string_data = {k: str(v) for k, v in (data or {}).items()}
             string_data["type"] = notif_type.value
             android_priority = "high" if priority == NotificationPriority.HIGH else "normal"
@@ -190,23 +181,21 @@ async def _process_multicast_batches(
                 )
             )
 
-            # Multicast Send
             try:
                 response = messaging.send_each_for_multicast(msg)
-                
-                # Check for dead tokens
-                invalid_uids = []
+
+                dead_tokens = []
                 for idx, resp in enumerate(response.responses):
                     if not resp.success:
                         err_code = resp.exception.code if resp.exception else None
                         if err_code in ["invalid-registration-token", "registration-token-not-registered"]:
-                            dead_token = target_tokens[idx]
-                            invalid_uids.append(token_to_uid_map[dead_token])
-                
-                # Bulk remove dead tokens
-                if invalid_uids:
-                    logger.warning(f"Removing {len(invalid_uids)} dead FCM tokens.")
-                    db.query(User).filter(User.id.in_(invalid_uids)).update({"fcm_token": None}, synchronize_session=False)
+                            dead_tokens.append(target_tokens[idx])
+
+                if dead_tokens:
+                    logger.warning(f"Removing {len(dead_tokens)} dead FCM tokens.")
+                    db.query(DeviceToken).filter(
+                        DeviceToken.fcm_token.in_(dead_tokens)
+                    ).delete(synchronize_session=False)
                     db.commit()
 
             except Exception as e:
@@ -217,23 +206,22 @@ async def _process_multicast_batches(
 
 
 async def send_push_notification(
-    user_id: int, token: str, title: str, body: str, 
+    token: str, title: str, body: str,
     data: Optional[dict] = None, priority: NotificationPriority = NotificationPriority.NORMAL
 ):
-    """
-    Fallback method for sending a single push notification.
-    """
+    """Send a single push notification and clean up dead token on failure."""
     try:
         app = get_firebase_app()
     except Exception as e:
         logger.error(f"FCM skipped: Firebase not initialized: {e}")
         return False
-        
-    if not app: return False
-    
+
+    if not app:
+        return False
+
     string_data = {k: str(v) for k, v in (data or {}).items()}
     android_priority = "high" if priority == NotificationPriority.HIGH else "normal"
-    
+
     from firebase_admin import messaging
     msg = messaging.Message(
         notification=messaging.Notification(title=title, body=body),
@@ -248,43 +236,41 @@ async def send_push_notification(
     )
 
     try:
-        response = messaging.send(msg)
+        messaging.send(msg)
         return True
     except messaging.ApiCallError as e:
         if e.code in ["invalid-registration-token", "registration-token-not-registered"]:
-            _cleanup_user_token(user_id)
+            _cleanup_dead_token(token)
         return False
     except Exception:
         return False
 
 
-def _cleanup_user_token(user_id: int):
-    """Fallback single cleanup"""
+def _cleanup_dead_token(token: str):
+    """Delete a single dead FCM token from DeviceToken table."""
     from src.core.database import SessionLocal
     db = SessionLocal()
     try:
-        db.query(User).filter(User.id == user_id).update({"fcm_token": None})
+        db.query(DeviceToken).filter(DeviceToken.fcm_token == token).delete()
         db.commit()
     except Exception as e:
-        logger.error(f"Error cleaning up token: {e}")
+        logger.error(f"Error cleaning up FCM token: {e}")
     finally:
         db.close()
 
 
 def mark_notification_as_read(uow: UnitOfWork, notification_id: int, user_id: int):
-    """
-    Marks a specific notification as read after validating ownership.
-    """
+    """Marks a specific notification as read after validating ownership."""
     with uow:
         notif = uow.notification_repository.get_by_id(notification_id)
         if not notif:
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Notification not found")
-            
+
         if notif.user_id != user_id:
             from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
-            
+
         notif.is_read = True
         uow.commit()
         return True

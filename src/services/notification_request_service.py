@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Any
+from typing import List, Optional
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 from src.core.unit_of_work import UnitOfWork
@@ -195,3 +195,63 @@ def send_admin_notification(
             sender_name=sender_name,
         )
     return {"status": "success", "targeted_users": len(target_ids)}
+
+
+def send_owner_notification(
+    uow: UnitOfWork,
+    sender_id: int,
+    request_data: NotificationRequestCreate,
+    background_tasks: BackgroundTasks,
+    sender_name: str,
+) -> NotificationRequest:
+    """Owner sends notification directly without admin approval. Rate limited to 5/day."""
+    from datetime import datetime, timezone
+
+    if request_data.target_type not in [TargetType.ALL_USERS, TargetType.SPECIFIC_USER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owners are restricted to targeting consumers only."
+        )
+
+    daily_count = uow.notification_request_repository.count_daily_by_sender(sender_id)
+    if daily_count >= MAX_DAILY_OWNER_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Daily limit of {MAX_DAILY_OWNER_REQUESTS} notification requests exceeded."
+        )
+
+    if request_data.target_type == TargetType.SPECIFIC_USER:
+        if not request_data.target_user_id:
+            raise HTTPException(status_code=400, detail="target_user_id is required for SPECIFIC_USER")
+        if not uow.user_repository.get_by_id(request_data.target_user_id):
+            raise HTTPException(status_code=404, detail=f"Target user {request_data.target_user_id} not found")
+
+    new_req = NotificationRequest(
+        sender_id=sender_id,
+        title=request_data.title,
+        message=request_data.message,
+        target_type=request_data.target_type,
+        target_user_id=request_data.target_user_id,
+        data=request_data.data,
+        status=RequestStatus.APPROVED,
+        approved_at=datetime.now(timezone.utc),
+    )
+    uow.notification_request_repository.create(new_req)
+    uow.commit()
+    uow.session.refresh(new_req)
+
+    target_ids = resolve_targets(uow, request_data.target_type, request_data.target_user_id)
+
+    if target_ids:
+        background_tasks.add_task(
+            _trigger_bulk_system_alert,
+            user_ids=target_ids,
+            title=request_data.title,
+            message=request_data.message,
+            data=request_data.data,
+            request_id=new_req.id,
+            sender_id=sender_id,
+            sender_name=sender_name,
+        )
+
+    return new_req

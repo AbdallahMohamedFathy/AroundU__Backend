@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, BackgroundTasks
 from typing import List
 from src.core.dependencies import get_uow
 from src.schemas.notification_request import NotificationRequestCreate, NotificationRequestResponse
@@ -8,16 +8,19 @@ from src.api.dashboard.dependencies import owner_guard
 router = APIRouter(dependencies=[Depends(owner_guard)])
 
 @router.post("/request", response_model=NotificationRequestResponse)
-def create_request(
+def send_notification(
     payload: NotificationRequestCreate,
+    background_tasks: BackgroundTasks,
     uow = Depends(get_uow),
     current_owner = Depends(owner_guard)
 ):
     """
-    Request an admin approval to blast a push notification.
-    Rate limited to 5 per owner per day.
+    Send a push notification directly to users.
+    Rate limited to 5 per day. Targets: ALL_USERS or SPECIFIC_USER only.
     """
-    return notification_request_service.create_notification_request(uow, current_owner.id, payload)
+    return notification_request_service.send_owner_notification(
+        uow, current_owner.id, payload, background_tasks, current_owner.full_name
+    )
 
 @router.get("/requests", response_model=List[NotificationRequestResponse])
 def get_owner_requests(
@@ -26,16 +29,15 @@ def get_owner_requests(
     uow = Depends(get_uow),
     current_owner = Depends(owner_guard)
 ):
-    """List pending and resolved notification requests belonging to the current owner."""
+    """List sent notifications for the current owner."""
     items = uow.notification_request_repository.get_by_sender_id(current_owner.id, skip, limit)
-    
+
     responses = []
     for i in items:
         resp = NotificationRequestResponse.model_validate(i)
-        if i.status == "APPROVED":
-            stats = uow.notification_repository.get_request_stats(i.id)
-            resp.total_sent = stats["total_sent"]
-            resp.read_count = stats["read_count"]
+        stats = uow.notification_repository.get_request_stats(i.id)
+        resp.total_sent = stats["total_sent"]
+        resp.read_count = stats["read_count"]
         responses.append(resp)
-        
+
     return responses

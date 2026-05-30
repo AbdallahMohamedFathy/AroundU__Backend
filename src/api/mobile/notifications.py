@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 import math
 
 from src.core.unit_of_work import UnitOfWork
@@ -23,11 +22,24 @@ async def update_fcm_token(
     """
     Update or save the current user's FCM token for push notifications.
     """
-    with uow:
-        user = uow.user_repository.get_by_id(current_user.id)
-        user.fcm_token = data.fcm_token
-        uow.commit()
-    
+    from src.models.device import DeviceToken
+    from datetime import datetime, timezone
+
+    existing = uow.session.query(DeviceToken).filter(
+        DeviceToken.fcm_token == data.fcm_token
+    ).first()
+
+    if existing:
+        existing.user_id = current_user.id
+        existing.is_active = True
+        existing.last_active_at = datetime.now(timezone.utc)
+    else:
+        uow.session.add(DeviceToken(
+            user_id=current_user.id,
+            fcm_token=data.fcm_token,
+        ))
+
+    uow.commit()
     return {"status": "success", "message": "FCM token updated successfully"}
 
 

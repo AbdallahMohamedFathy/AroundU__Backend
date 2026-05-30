@@ -6,8 +6,6 @@ from sqlalchemy import select
 from fastapi import HTTPException, status
 
 from app.orders.models.order_models import Order, OrderItem
-from app.orders.models.cart import Cart
-from app.orders.models.cart_item import CartItem
 from app.orders.enums.enums import OrderType, OrderStatus
 from app.orders.repositories.order_repository import OrderRepository
 from app.orders.repositories.cart_repository import CartRepository
@@ -164,21 +162,18 @@ class OrderService:
     # Status Transition Rules
     # ------------------------------------------------------------------
     _valid_transitions = {
-        OrderStatus.PENDING:          {OrderStatus.ACCEPTED, OrderStatus.CANCELLED, OrderStatus.REJECTED},
-        OrderStatus.ACCEPTED:         {OrderStatus.PREPARING, OrderStatus.CANCELLED, OrderStatus.REJECTED},
-        OrderStatus.PREPARING:        {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.READY_FOR_PICKUP,
-                                       OrderStatus.CANCELLED, OrderStatus.REJECTED},
-        OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.REJECTED},
-        OrderStatus.DELIVERED:        {OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REJECTED},
-        OrderStatus.READY_FOR_PICKUP: {OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REJECTED},
+        OrderStatus.PENDING:          {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+        OrderStatus.CONFIRMED:        {OrderStatus.PREPARING, OrderStatus.CANCELLED},
+        OrderStatus.PREPARING:        {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.READY_FOR_PICKUP, OrderStatus.CANCELLED},
+        OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.COMPLETED, OrderStatus.CANCELLED},
+        OrderStatus.READY_FOR_PICKUP: {OrderStatus.COMPLETED, OrderStatus.CANCELLED},
         OrderStatus.COMPLETED:        set(),
         OrderStatus.CANCELLED:        set(),
-        OrderStatus.REJECTED:         set(),
     }
 
     _type_restrictions = {
-        OrderType.TAKE_AWAY:        {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED},
-        OrderType.CASH_ON_DELIVERY: {OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED},
+        OrderType.TAKE_AWAY:        {OrderStatus.OUT_FOR_DELIVERY},
+        OrderType.CASH_ON_DELIVERY: {OrderStatus.READY_FOR_PICKUP},
     }
 
     def _is_transition_allowed(self, current: OrderStatus, target: OrderStatus, order_type: OrderType) -> bool:
@@ -189,7 +184,7 @@ class OrderService:
             return False
         return True
 
-    async def change_status(self, order_id: int, new_status: OrderStatus, actor: str) -> OrderResponse:
+    async def change_status(self, order_id: int, new_status: OrderStatus) -> OrderResponse:
         order = await self.order_repo.get_order(order_id)
         if not order:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
