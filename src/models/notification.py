@@ -10,6 +10,7 @@ class NotificationType(str, Enum):
     PROPERTY_APPROVED = "PROPERTY_APPROVED"
     PROPERTY_REJECTED = "PROPERTY_REJECTED"
     SYSTEM_ALERT = "SYSTEM_ALERT"
+    ORDER_STATUS = "ORDER_STATUS"
 
 class NotificationPriority(str, Enum):
     HIGH = "HIGH"

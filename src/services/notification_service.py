@@ -259,6 +259,125 @@ def _cleanup_dead_token(token: str):
         db.close()
 
 
+_ORDER_STATUS_MAP = {
+    "PENDING":           ("طلبك وصلنا ✅",          "استلمنا طلبك وبنراجعه"),
+    "CONFIRMED":         ("تم قبول طلبك ✅",         "المطعم قبل طلبك وبيبدأ التحضير"),
+    "PREPARING":         ("جاري تجهيز طلبك 👨‍🍳",     "طلبك بيتجهز دلوقتي"),
+    "READY_FOR_PICKUP":  ("طلبك جاهز 🎉",           "الطلب جاهز للاستلام"),
+    "OUT_FOR_DELIVERY":  ("الدليفري في الطريق 🛵",    "طلبك جاي هيوصل قريبًا"),
+    "COMPLETED":         ("تم توصيل طلبك 🎉",        "وصل طلبك! استمتع بوجبتك"),
+    "CANCELLED":         ("تم إلغاء طلبك",           "تم إلغاء الطلب. في أي مشكلة تواصل معنا"),
+}
+
+
+async def send_order_status_notification(
+    db,
+    user_id: int,
+    order_id: int,
+    status: str,
+    place_name: str = "",
+):
+    """
+    Saves an order status notification to DB and sends FCM push.
+    Uses the exact payload format expected by the Flutter app:
+    - channel_id: 7waleek_orders
+    - android.priority: high / notification.priority: max
+    - APNS badge: 1, sound: default
+    """
+    from sqlalchemy import select as sa_select
+    from src.models.notification import Notification, NotificationType, NotificationPriority
+    from src.models.device import DeviceToken
+
+    title, body = _ORDER_STATUS_MAP.get(status, ("تحديث في طلبك", ""))
+    full_body = f"{place_name} — {body}" if place_name else body
+
+    notif_data = {
+        "type": "order_status",
+        "order_id": str(order_id),
+        "status": status,
+        "place_name": place_name or "",
+        "route": "orders",
+    }
+
+    # Save to notifications table (non-blocking on failure)
+    try:
+        new_notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=full_body,
+            type=NotificationType.ORDER_STATUS,
+            priority=NotificationPriority.HIGH,
+            data=notif_data,
+        )
+        db.add(new_notif)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to save order notification to DB: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    # Fetch active FCM tokens for the user
+    try:
+        tokens_result = await db.execute(
+            sa_select(DeviceToken.fcm_token).where(
+                DeviceToken.user_id == user_id,
+                DeviceToken.is_active == True,
+            )
+        )
+        fcm_tokens = tokens_result.scalars().all()
+    except Exception as e:
+        logger.error(f"Failed to fetch FCM tokens for order notification: {e}")
+        return
+
+    for token in fcm_tokens:
+        await _send_order_fcm(token, title, full_body, notif_data)
+
+
+async def _send_order_fcm(token: str, title: str, body: str, data: dict):
+    """Send a single FCM message with order-specific channel and max priority."""
+    try:
+        app = get_firebase_app()
+    except Exception as e:
+        logger.error(f"FCM skipped: Firebase not initialized: {e}")
+        return
+
+    if not app:
+        return
+
+    string_data = {k: str(v) for k, v in data.items()}
+
+    from firebase_admin import messaging
+    msg = messaging.Message(
+        token=token,
+        notification=messaging.Notification(title=title, body=body),
+        data=string_data,
+        android=messaging.AndroidConfig(
+            priority="high",
+            notification=messaging.AndroidNotification(
+                channel_id="7waleek_orders",
+                sound="default",
+                priority="max",
+            ),
+        ),
+        apns=messaging.APNSConfig(
+            payload=messaging.APNSPayload(
+                aps=messaging.Aps(sound="default", badge=1)
+            ),
+            headers={"apns-priority": "10"},
+        ),
+    )
+
+    try:
+        messaging.send(msg)
+    except Exception as e:
+        logger.error(f"FCM order notification send failed: {e}")
+        err_code = getattr(e, "code", None)
+        if err_code in ["invalid-registration-token", "registration-token-not-registered"]:
+            _cleanup_dead_token(token)
+
+
 def mark_notification_as_read(uow: UnitOfWork, notification_id: int, user_id: int):
     """Marks a specific notification as read after validating ownership."""
     with uow:

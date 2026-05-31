@@ -1,4 +1,5 @@
-from typing import List
+import logging
+from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -13,6 +14,9 @@ from app.orders.schemas.order import OrderCreate, OrderItemCreate, OrderResponse
 
 from src.models.place import Place
 from src.models.item import Item
+from src.services.notification_service import send_order_status_notification
+
+logger = logging.getLogger(__name__)
 
 class InvalidStatusTransition(Exception):
     pass
@@ -176,6 +180,16 @@ class OrderService:
         OrderType.CASH_ON_DELIVERY: {OrderStatus.READY_FOR_PICKUP},
     }
 
+    async def _get_place_name(self, place_id: Optional[int]) -> str:
+        if not place_id:
+            return ""
+        try:
+            result = await self.db.execute(select(Place).where(Place.id == place_id))
+            place = result.scalars().first()
+            return place.name if place else ""
+        except Exception:
+            return ""
+
     def _is_transition_allowed(self, current: OrderStatus, target: OrderStatus, order_type: OrderType) -> bool:
         if target not in self._valid_transitions.get(current, set()):
             return False
@@ -202,7 +216,7 @@ class OrderService:
         items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
         items = items_result.scalars().all()
 
-        return OrderResponse(
+        response = OrderResponse(
             id=order.id,
             user_id=order.user_id,
             place_id=order.place_id,
@@ -228,6 +242,16 @@ class OrderService:
             created_at=order.created_at,
         )
 
+        place_name = await self._get_place_name(order.place_id)
+        try:
+            await send_order_status_notification(
+                self.db, order.user_id, order.id, new_status.value, place_name
+            )
+        except Exception as e:
+            logger.warning(f"FCM notification failed for order {order_id}: {e}")
+
+        return response
+
     async def cancel_by_user(self, order_id: int, user_id: int) -> OrderResponse:
         order = await self.order_repo.get_order(order_id)
         if not order or order.user_id != user_id:
@@ -242,7 +266,8 @@ class OrderService:
         await self.db.refresh(order)
         items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
         items = items_result.scalars().all()
-        return OrderResponse(
+
+        response = OrderResponse(
             id=order.id,
             user_id=order.user_id,
             place_id=order.place_id,
@@ -260,3 +285,13 @@ class OrderService:
             ],
             created_at=order.created_at,
         )
+
+        place_name = await self._get_place_name(order.place_id)
+        try:
+            await send_order_status_notification(
+                self.db, order.user_id, order.id, OrderStatus.CANCELLED.value, place_name
+            )
+        except Exception as e:
+            logger.warning(f"FCM notification failed for cancelled order {order_id}: {e}")
+
+        return response

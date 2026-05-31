@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes.cart_routes import router as cart_router
-from app.routes.order_routes import router as order_router
-from app.routes.owner_routes import router as owner_router
+from app.api.user.cart_api import router as cart_router
+from app.api.user.order_api import router as order_router
+from app.api.owner.order_api import router as owner_router
 from app.middleware import ExceptionMiddleware, ValidationMiddleware
 from app.dependencies import get_db
 
