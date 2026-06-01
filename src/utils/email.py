@@ -189,7 +189,7 @@ def send_password_reset_email(email: str, token: str, user_name: str) -> bool:
             <p>Or copy and paste this link into your browser:</p>
             <p style="word-break: break-all;">{reset_link}</p>
             <div class="warning">
-                <strong>Security Notice:</strong> This link will expire in 1 hour for security reasons.
+                <strong>Security Notice:</strong> This link will expire in 30 minutes for security reasons.
             </div>
             <div class="footer">
                 <p>If you didn't request a password reset, please ignore this email and your password will remain unchanged.</p>
@@ -209,7 +209,7 @@ def send_password_reset_email(email: str, token: str, user_name: str) -> bool:
 
     {reset_link}
 
-    This link will expire in 1 hour for security reasons.
+    This link will expire in 30 minutes for security reasons.
 
     If you didn't request a password reset, please ignore this email and your password will remain unchanged.
     """

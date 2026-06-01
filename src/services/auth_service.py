@@ -191,22 +191,31 @@ def request_password_reset(uow: UnitOfWork, email: str, background_tasks: Backgr
         )
         uow.session.add(reset_entry)
         uow.commit()
-        
-        # Send email directly (synchronous) for debugging
-        try:
-            logger.info(f"[RESET] About to send email to {user.email}")
-            send_password_reset_email(
-                email=user.email,
-                token=raw_token,
-                user_name=user.full_name
-            )
-            logger.info(f"[RESET] Email function completed for {user.email}")
-        except Exception as e:
-            logger.error(f"[RESET] Email sending CRASHED: {str(e)}")
+
+        background_tasks.add_task(
+            send_password_reset_email,
+            email=user.email,
+            token=raw_token,
+            user_name=user.full_name
+        )
+        logger.info(f"[RESET] Password reset email queued for {user.email}")
         
         logger.info(f"PASSWORD RESET REQUESTED FOR {email}.")
         
         return raw_token
+
+def verify_reset_token(uow: UnitOfWork, raw_token: str) -> bool:
+    from src.models.password_reset_token import PasswordResetToken
+    with uow:
+        token_hash = _hash_token(raw_token)
+        reset_entry = uow.session.query(PasswordResetToken).filter(
+            PasswordResetToken.token_hash == token_hash
+        ).first()
+
+        if not reset_entry or reset_entry.is_used or reset_entry.expires_at < datetime.now(timezone.utc):
+            raise APIException("Invalid or expired reset token", code=status.HTTP_400_BAD_REQUEST)
+
+        return True
 
 def reset_password(uow: UnitOfWork, raw_token: str, new_password: str):
     from src.models.password_reset_token import PasswordResetToken
@@ -222,13 +231,18 @@ def reset_password(uow: UnitOfWork, raw_token: str, new_password: str):
         user = uow.user_repository.get_by_id(reset_entry.user_id)
         if not user:
             raise APIException("User not found", code=status.HTTP_404_NOT_FOUND)
-        
+
         # Update user password
         user.password_hash = get_password_hash(new_password)
-        
+
         # Mark token as used
         reset_entry.is_used = True
-        
+
+        # Revoke all existing refresh tokens to kick out any active sessions
+        uow.session.query(RefreshToken).filter(
+            RefreshToken.user_id == user.id
+        ).delete()
+
         uow.commit()
         return True
 

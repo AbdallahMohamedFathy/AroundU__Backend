@@ -6,7 +6,7 @@ from src.core.dependencies import get_user_repository, get_uow, get_current_user
 from src.core.config import settings
 from src.schemas.user import (
     UserCreate, UserLogin, UserResponse, UserUpdate,
-    PasswordChange, PasswordResetRequest, PasswordReset, AuthResponse
+    PasswordChange, PasswordResetRequest, PasswordReset, VerifyTokenRequest, AuthResponse
 )
 from src.services import auth_service, user_service
 from src.core.exceptions import APIException
@@ -105,6 +105,14 @@ def forgot_password(request: Request, data: PasswordResetRequest, background_tas
     """Send a password-reset link to the provided email (if it exists)."""
     auth_service.request_password_reset(uow, data.email, background_tasks)
     return {"message": "If that email is registered, a reset link has been sent"}
+
+
+# ─── VERIFY RESET TOKEN  POST /auth/verify-reset-token ──────────────────────
+@router.post("/verify-reset-token")
+def verify_reset_token(data: VerifyTokenRequest, uow=Depends(get_uow)):
+    """Check if a password reset token is still valid before showing the new password form."""
+    auth_service.verify_reset_token(uow, data.token)
+    return {"message": "Token is valid"}
 
 
 # ─── RESET PASSWORD  POST /auth/reset-password ──────────────────────────────

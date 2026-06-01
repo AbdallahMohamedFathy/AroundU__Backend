@@ -50,6 +50,10 @@ class PasswordReset(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=100)
 
 
+class VerifyTokenRequest(BaseModel):
+    token: str
+
+
 class UserResponse(UserBase):
     id: int
     full_name: str
