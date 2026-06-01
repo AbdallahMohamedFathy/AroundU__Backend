@@ -162,6 +162,9 @@ async def _trigger_bulk_system_alert(
     """Helper used to jumpstart background async from sync approve context."""
     from src.core.database import SessionLocal
     uow = UnitOfWork(SessionLocal)
+    # Pass background_tasks=None so create_bulk_notifications awaits FCM directly
+    # (we are already running in a background task — a fake BackgroundTasks() would
+    #  silently swallow the FCM call and never execute it)
     await create_bulk_notifications(
         uow=uow,
         user_ids=user_ids,
@@ -173,7 +176,7 @@ async def _trigger_bulk_system_alert(
         request_id=request_id,
         sender_id=sender_id,
         sender_name=sender_name,
-        background_tasks=BackgroundTasks(),
+        background_tasks=None,
     )
 
 

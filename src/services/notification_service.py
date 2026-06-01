@@ -119,6 +119,8 @@ async def create_bulk_notifications(
             _process_multicast_batches,
             user_ids, title, message, notif_type, data, priority
         )
+    else:
+        await _process_multicast_batches(user_ids, title, message, notif_type, data, priority)
     return True
 
 
