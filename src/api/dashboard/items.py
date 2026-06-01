@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
+from typing import List
 from src.core.dependencies import get_uow, get_current_user
 from src.schemas.item import ItemCreate, ItemUpdate, ItemResponse
 from src.services import item_service
@@ -56,6 +57,21 @@ def remove_item(
         user_role=current_user.role
     )
     return None
+
+@router.get("/place/{place_id}/top", response_model=List[ItemResponse])
+def get_top_place_items(
+    place_id: int,
+    limit: int = Query(10, ge=1, le=50),
+    uow: UnitOfWork = Depends(get_uow),
+):
+    """Dashboard: Get best-selling items for a place ordered by most ordered."""
+    with uow:
+        return item_service.get_top_items_by_place(
+            repo=uow.item_repository,
+            place_id=place_id,
+            limit=limit,
+        )
+
 
 from fastapi import UploadFile, File
 from src.services.cloudinary_service import upload_image, delete_image
