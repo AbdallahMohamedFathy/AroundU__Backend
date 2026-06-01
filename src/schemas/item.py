@@ -1,8 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
+from src.schemas.sub_item import SubItemResponse
 
 class ItemBase(BaseModel):
     name: str = Field(..., max_length=255)
@@ -27,6 +28,7 @@ class ItemUpdate(BaseModel):
 class ItemResponse(ItemBase):
     id: int
     subcategory_name: Optional[str] = None
+    sub_items: List[SubItemResponse] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
 

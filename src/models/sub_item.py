@@ -3,27 +3,21 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.core.database import Base
 
-class Item(Base):
-    __tablename__ = "items"
+
+class SubItem(Base):
+    __tablename__ = "sub_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Numeric(10, 2), nullable=False)
-    image_url = Column(String, nullable=True)
     is_available = Column(Boolean, nullable=False, default=True)
-    sub_category_id = Column(Integer, ForeignKey("subcategories.id", ondelete="CASCADE"), nullable=False)
-    
-    # Soft deletes
+    item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=False)
+
     is_deleted = Column(Boolean, default=False, nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    subcategory = relationship("SubCategory", back_populates="items")
-    sub_items = relationship("SubItem", back_populates="item", primaryjoin="and_(SubItem.item_id == Item.id, SubItem.is_deleted == False)", lazy="joined")
-
-    @property
-    def subcategory_name(self):
-        return self.subcategory.name if self.subcategory else None
+    item = relationship("Item", back_populates="sub_items")

@@ -17,6 +17,7 @@ from src.repositories.notification_repository import NotificationRepository
 from src.repositories.notification_request_repository import NotificationRequestRepository
 from src.repositories.notification_audit_repository import NotificationAuditRepository
 from src.repositories.subcategory_repository import SubCategoryRepository
+from src.repositories.sub_item_repository import SubItemRepository
 
 class UnitOfWork:
     """
@@ -48,6 +49,7 @@ class UnitOfWork:
         self.notification_request_repository = NotificationRequestRepository(self.session)
         self.notification_audit_repository = NotificationAuditRepository(self.session)
         self.subcategory_repository = SubCategoryRepository(self.session)
+        self.sub_item_repository = SubItemRepository(self.session)
         return self
 
     def commit(self):

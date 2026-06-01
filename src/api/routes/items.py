@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, status, UploadFile, File, Query
 from typing import List, Optional
 from src.core.dependencies import get_uow, get_current_user, RoleChecker
 from src.schemas.item import ItemCreate, ItemUpdate, ItemResponse, ItemPaginationResponse
-from src.services import item_service
+from src.schemas.sub_item import SubItemCreate, SubItemUpdate, SubItemResponse
+from src.services import item_service, sub_item_service
 from src.utils.file_upload import save_upload_file
 from src.core.database import get_db
 from src.repositories.item_repository import ItemRepository
@@ -81,6 +82,51 @@ def toggle_item_availability(
 ):
     """Owner: Toggle item availability."""
     return item_service.toggle_availability(uow, id, current_user.id, current_user.role)
+
+# ─── Sub-Items ──────────────────────────────────────────────────────────────
+
+@router.post("/{id}/sub-items", response_model=SubItemResponse, status_code=status.HTTP_201_CREATED)
+def create_sub_item(
+    id: int,
+    sub_item_in: SubItemCreate,
+    uow=Depends(get_uow),
+    current_user=Depends(owner_only)
+):
+    """Owner: Add a sub-item (variant) to an item."""
+    return sub_item_service.create_sub_item(uow, id, sub_item_in, current_user.id, current_user.role)
+
+
+@router.put("/sub-items/{sub_item_id}", response_model=SubItemResponse)
+def update_sub_item(
+    sub_item_id: int,
+    sub_item_in: SubItemUpdate,
+    uow=Depends(get_uow),
+    current_user=Depends(owner_only)
+):
+    """Owner: Update a sub-item."""
+    return sub_item_service.update_sub_item(uow, sub_item_id, sub_item_in, current_user.id, current_user.role)
+
+
+@router.delete("/sub-items/{sub_item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sub_item(
+    sub_item_id: int,
+    uow=Depends(get_uow),
+    current_user=Depends(owner_only)
+):
+    """Owner: Delete a sub-item (soft delete)."""
+    sub_item_service.delete_sub_item(uow, sub_item_id, current_user.id, current_user.role)
+    return None
+
+
+@router.patch("/sub-items/{sub_item_id}/availability", response_model=SubItemResponse)
+def toggle_sub_item_availability(
+    sub_item_id: int,
+    uow=Depends(get_uow),
+    current_user=Depends(owner_only)
+):
+    """Owner: Toggle sub-item availability."""
+    return sub_item_service.toggle_sub_item_availability(uow, sub_item_id, current_user.id, current_user.role)
+
 
 @router.post("/{id}/image", response_model=ItemResponse)
 async def upload_item_image(
