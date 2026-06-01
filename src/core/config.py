@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     BREVO_API_KEY: Optional[str] = None
     EMAILS_FROM_NAME: str = "7waleek"
     EMAILS_FROM_EMAIL: str = "7waleekteam@gmail.com"
-    FRONTEND_URL: str = "https://7waleek.com"
+    FRONTEND_URL: str = "https://7waleek.site"
 
     def get_cors_origins(self) -> list:
         if self.CORS_ORIGINS == "*":
