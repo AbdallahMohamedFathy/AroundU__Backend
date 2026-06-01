@@ -100,7 +100,7 @@ def send_verification_email(email: str, token: str, user_name: str) -> bool:
         <div class="container">
             <!-- App Logo -->
             <div style="text-align: center; margin-bottom: 20px;">
-                <img src="https://7waleek.com/logo.jpeg" alt="7waleek Logo" style="max-width: 150px; height: auto;" />
+                <img src="https://res.cloudinary.com/dvecsfbmu/image/upload/v1780290372/WhatsApp_Image_2026-05-01_at_11.32.59_PM_j3jmea.jpg" alt="7waleek Logo" style="max-width: 150px; height: auto;" />
             </div>
             <h2>Welcome to 7waleek, {user_name}!</h2>
             <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
@@ -180,7 +180,7 @@ def send_password_reset_email(email: str, token: str, user_name: str) -> bool:
         <div class="container">
             <!-- App Logo -->
             <div style="text-align: center; margin-bottom: 20px;">
-                <img src="https://res.cloudinary.com/dvecsfbmu/image/upload/v1777668197/WhatsApp_Image_2026-05-01_at_11.32.59_PM_rti73a.jpg" alt="7waleek Logo" style="max-width: 150px; height: auto;" />
+                <img src="https://res.cloudinary.com/dvecsfbmu/image/upload/v1780290372/WhatsApp_Image_2026-05-01_at_11.32.59_PM_j3jmea.jpg" alt="7waleek Logo" style="max-width: 150px; height: auto;" />
             </div>
             <h2>Password Reset Request</h2>
             <p>Hello {user_name},</p>
