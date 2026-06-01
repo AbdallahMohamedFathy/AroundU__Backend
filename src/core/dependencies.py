@@ -128,6 +128,8 @@ def get_current_user(
         user_id = payload.get("sub")
         if not user_id:
             raise APIException("Invalid token payload", code=status.HTTP_401_UNAUTHORIZED)
+    except jwt.ExpiredSignatureError:
+        raise APIException("Token expired", code=status.HTTP_401_UNAUTHORIZED)
     except jwt.PyJWTError:
         raise APIException("Invalid credentials", code=status.HTTP_401_UNAUTHORIZED)
 

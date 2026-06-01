@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # In production, this MUST be set via environment variable
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60   # 1 hour — enough for normal use without constant re-login
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours — prevents constant re-login for dashboard sessions
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30    # 30 days rolling window
 
     # Database
