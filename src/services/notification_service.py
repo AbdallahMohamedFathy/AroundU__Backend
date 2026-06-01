@@ -175,12 +175,24 @@ async def _process_multicast_batches(
                 notification=messaging.Notification(title=title, body=message),
                 data=string_data,
                 tokens=target_tokens,
-                android=messaging.AndroidConfig(priority=android_priority),
+                android=messaging.AndroidConfig(
+                    priority=android_priority,
+                    notification=messaging.AndroidNotification(
+                        channel_id="7waleek_general",
+                        sound="default",
+                        priority="max" if priority == NotificationPriority.HIGH else "default",
+                    ),
+                ),
                 apns=messaging.APNSConfig(
                     payload=messaging.APNSPayload(
-                        aps=messaging.Aps(content_available=True) if priority == NotificationPriority.HIGH else messaging.Aps()
-                    )
-                )
+                        aps=messaging.Aps(
+                            sound="default",
+                            badge=1,
+                            content_available=True if priority == NotificationPriority.HIGH else False,
+                        )
+                    ),
+                    headers={"apns-priority": "10" if priority == NotificationPriority.HIGH else "5"},
+                ),
             )
 
             try:
@@ -229,12 +241,24 @@ async def send_push_notification(
         notification=messaging.Notification(title=title, body=body),
         data=string_data,
         token=token,
-        android=messaging.AndroidConfig(priority=android_priority),
+        android=messaging.AndroidConfig(
+            priority=android_priority,
+            notification=messaging.AndroidNotification(
+                channel_id="7waleek_general",
+                sound="default",
+                priority="max" if priority == NotificationPriority.HIGH else "default",
+            ),
+        ),
         apns=messaging.APNSConfig(
             payload=messaging.APNSPayload(
-                aps=messaging.Aps(content_available=True) if priority == NotificationPriority.HIGH else messaging.Aps()
-            )
-        )
+                aps=messaging.Aps(
+                    sound="default",
+                    badge=1,
+                    content_available=True if priority == NotificationPriority.HIGH else False,
+                )
+            ),
+            headers={"apns-priority": "10" if priority == NotificationPriority.HIGH else "5"},
+        ),
     )
 
     try:
