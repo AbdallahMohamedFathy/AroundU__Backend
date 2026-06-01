@@ -348,6 +348,30 @@ def on_startup():
                 logger.error(f"Error migrating items table: {item_mig_err}")
                 conn.rollback()
 
+            # ── sub_items table ──────────────────────────────────────────
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sub_items (
+                        id          SERIAL PRIMARY KEY,
+                        name        VARCHAR NOT NULL,
+                        description TEXT,
+                        price       NUMERIC(10, 2) NOT NULL,
+                        is_available BOOLEAN NOT NULL DEFAULT TRUE,
+                        item_id     INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+                        is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
+                        deleted_at  TIMESTAMPTZ,
+                        created_at  TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at  TIMESTAMPTZ
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_sub_items_id      ON sub_items(id);
+                    CREATE INDEX IF NOT EXISTS ix_sub_items_item_id ON sub_items(item_id);
+                """))
+                conn.commit()
+                logger.info("Table 'sub_items' ensured.")
+            except Exception as sub_item_err:
+                logger.error(f"Error creating sub_items table: {sub_item_err}")
+                conn.rollback()
+
             # ── properties table migration ───────────────────────────────
             try:
                 prop_cols = conn.execute(text(
