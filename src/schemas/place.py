@@ -81,7 +81,7 @@ class NearbyPlaceResponse(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     category: str
     description: Optional[str] = None
-    distance: float
+    distance_km: float
     delivery_price: float = 0.0
     is_free_delivery: bool = False
     working_hours: Optional[str] = None

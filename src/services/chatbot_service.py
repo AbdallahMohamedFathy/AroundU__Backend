@@ -423,9 +423,9 @@ def _build_knowledge_block(
         for p in results:
             # Include name and category for the AI to refer to
             info = f"- {p['name']} (تصنيف: {p.get('category', 'غير محدد')})"
-            if p.get('distance'):
-                dist = p['distance']
-                info += f" - يبعد عنك حوالي {int(dist)} متر"
+            if p.get('distance_km') is not None:
+                dist_km = p['distance_km']
+                info += f" - يبعد عنك حوالي {dist_km:.1f} كم"
             lines.append(info)
         
         return "\n".join(lines)

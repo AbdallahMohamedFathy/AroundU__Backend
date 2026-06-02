@@ -12,6 +12,7 @@ from src.services import place_image_service
 from src.schemas.place_image import PlaceImageResponse
 from src.core.logger import logger
 from src.services.ai_location_service import ai_location_service
+from src.utils.distance import calculate_distance
 
 router = APIRouter()
 
@@ -216,7 +217,10 @@ def get_place(
     )
     
     response_data = PlaceResponse.model_validate(place)
-    
+
+    if user_lat is not None and user_lon is not None:
+        response_data.distance_km = calculate_distance(user_lat, user_lon, place.latitude, place.longitude)
+
     # Populate related branches (Siblings + Parent if child, or all Children if parent)
     related_branches = repo.get_related_branches(place)
     response_data.branches = [PlaceResponse.model_validate(b) for b in related_branches]
@@ -225,7 +229,7 @@ def get_place(
         with uow:
             fav = uow.favorite_repository.get_by_user_and_place(current_user.id, place_id)
             response_data.is_favorited = fav is not None
-            
+
     return response_data
 
 @router.get("/{place_id}/images", response_model=List[PlaceImageResponse])

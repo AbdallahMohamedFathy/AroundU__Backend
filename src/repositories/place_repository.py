@@ -79,7 +79,7 @@ class PlaceRepository(BaseRepository[Place]):
                 c.name as category_name,
                 p.delivery_price,
                 p.working_hours,
-                ST_Distance(p.location, ref_point.pt) as distance_meters
+                ST_Distance(p.location, ref_point.pt) / 1000.0 as distance_km
             FROM places p
             JOIN categories c ON p.category_id = c.id
             CROSS JOIN (
@@ -105,15 +105,14 @@ class PlaceRepository(BaseRepository[Place]):
         query_str += " ORDER BY p.location <-> ref_point.pt LIMIT :limit OFFSET :offset"
 
         results = self.session.execute(text(query_str), params).fetchall()
-        
-        # Format results into dictionaries
+
         return [
             {
                 "id": r.id,
                 "name": r.name,
                 "category": r.category_name,
                 "description": r.description,
-                "distance": r.distance_meters,
+                "distance_km": round(float(r.distance_km), 2),
                 "delivery_price": r.delivery_price,
                 "working_hours": r.working_hours
             }
