@@ -67,6 +67,7 @@ async def chat(
     session_id: Optional[str] = None,
     user_lat: Optional[float] = None,
     user_lon: Optional[float] = None,
+    message_source: str = "text",
     background_tasks: Optional[BackgroundTasks] = None,
 ) -> dict:
     """
@@ -112,6 +113,7 @@ async def chat(
                 user_id=user_id,
                 session_id=session_id,
                 message=message,
+                message_source=message_source,
                 user_lat=user_lat,
                 user_lon=user_lon,
                 ai_data=ai_data,
@@ -129,6 +131,7 @@ async def chat(
                 user_id=user_id,
                 session_id=session_id,
                 message=message,
+                message_source=message_source,
                 user_lat=user_lat,
                 user_lon=user_lon,
                 ai_data=ai_data,
@@ -305,6 +308,7 @@ async def _log_interaction(
     user_id: int,
     session_id: str,
     message: str,
+    message_source: str,
     user_lat: Optional[float],
     user_lon: Optional[float],
     ai_data: dict,
@@ -317,11 +321,12 @@ async def _log_interaction(
     async_db = SessionLocal()
     try:
         record = AIInteraction(
-            user_id    = user_id,
-            session_id = session_id,
-            message    = message,
-            user_lat   = user_lat,
-            user_lon   = user_lon,
+            user_id        = user_id,
+            session_id     = session_id,
+            message        = message,
+            message_source = message_source,
+            user_lat       = user_lat,
+            user_lon       = user_lon,
             reply      = ai_data.get("reply"),
             intent     = ai_data.get("intent"),
             confidence = ai_data.get("confidence"),

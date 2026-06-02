@@ -11,10 +11,10 @@ GET  /api/mobile/ai/health  – proxy the AI service health check
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.core.database import get_db
 from src.core.dependencies import get_current_user
@@ -30,10 +30,20 @@ router = APIRouter()
 # ──────────────────────────────────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
-    message:    str            = Field(..., min_length=1, max_length=2000)
-    session_id: Optional[str]  = Field(None, description="Omit to auto-generate")
-    user_lat:   Optional[float] = None
-    user_lon:   Optional[float] = None
+    message:        str            = Field(..., min_length=1, max_length=2000)
+    session_id:     Optional[str]  = Field(None, description="Omit to auto-generate")
+    user_lat:       Optional[float] = None
+    user_lon:       Optional[float] = None
+    message_source: Literal["text", "voice"] = Field("text", description="Origin of the message")
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def strip_and_validate(cls, v: str) -> str:
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            raise ValueError("message must not be empty or whitespace")
+        return v
 
 
 class ChatResponse(BaseModel):
@@ -97,6 +107,7 @@ async def chat_with_ai(
     """
     logger.info(
         f"[AI chat] user_id={current_user.id} | "
+        f"source={body.message_source} | "
         f"intent_preview={body.message[:60]!r}"
     )
 
@@ -108,6 +119,7 @@ async def chat_with_ai(
         session_id=body.session_id,
         user_lat=body.user_lat,
         user_lon=body.user_lon,
+        message_source=body.message_source,
         background_tasks=background_tasks,
     )
 

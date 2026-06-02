@@ -14,9 +14,10 @@ class AIInteraction(Base):
     session_id    = Column(String(64), nullable=False, index=True)
 
     # Request
-    message       = Column(Text, nullable=False)
-    user_lat      = Column(Float, nullable=True)
-    user_lon      = Column(Float, nullable=True)
+    message        = Column(Text, nullable=False)
+    message_source = Column(String(10), nullable=True, default="text")  # "text" | "voice"
+    user_lat       = Column(Float, nullable=True)
+    user_lon       = Column(Float, nullable=True)
 
     # Response
     reply         = Column(Text, nullable=True)
