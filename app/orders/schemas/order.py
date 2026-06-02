@@ -7,6 +7,7 @@ from app.orders.enums.enums import OrderType, OrderStatus
 
 class OrderItemCreate(BaseModel):
     item_id: int = Field(..., gt=0)
+    sub_item_id: Optional[int] = Field(None, gt=0)
     quantity: int = Field(..., gt=0)
 
 
@@ -29,6 +30,7 @@ class OrderCreate(BaseModel):
 class OrderItemResponse(BaseModel):
     id: int
     item_id: int
+    sub_item_id: Optional[int] = None
     item_name: str
     image_url: Optional[str] = None
     unit_price: float

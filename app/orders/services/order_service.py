@@ -14,6 +14,7 @@ from app.orders.schemas.order import OrderCreate, OrderItemCreate, OrderResponse
 
 from src.models.place import Place
 from src.models.item import Item
+from src.models.sub_item import SubItem
 from src.services.notification_service import send_order_status_notification
 
 logger = logging.getLogger(__name__)
@@ -111,9 +112,29 @@ class OrderService:
             price = float(db_item.price)
             name = db_item.name
 
+            # If sub_item_id is provided, use the sub-item's price instead of the parent item price
+            if item.sub_item_id:
+                sub_item_result = await self.db.execute(
+                    select(SubItem).where(
+                        SubItem.id == item.sub_item_id,
+                        SubItem.item_id == item.item_id,
+                        SubItem.is_deleted == False,
+                        SubItem.is_available == True,
+                    )
+                )
+                db_sub_item = sub_item_result.scalars().first()
+                if not db_sub_item:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Sub-item with id {item.sub_item_id} is unavailable or does not belong to item {item.item_id}"
+                    )
+                price = float(db_sub_item.price)
+                name = f"{db_item.name} - {db_sub_item.name}"
+
             item_snapshot = OrderItem(
                 order_id=order.id,
                 item_id=item.item_id,
+                sub_item_id=item.sub_item_id,
                 item_name=name,
                 image_url=db_item.image_url,
                 unit_price=price,

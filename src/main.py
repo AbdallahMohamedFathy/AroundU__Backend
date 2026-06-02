@@ -466,11 +466,21 @@ def on_startup():
                         id SERIAL PRIMARY KEY,
                         order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
                         item_id INTEGER NOT NULL,
+                        sub_item_id INTEGER,
                         item_name VARCHAR NOT NULL,
                         unit_price FLOAT NOT NULL,
                         quantity INTEGER NOT NULL,
                         total_price FLOAT NOT NULL
                     );
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='order_items' AND column_name='sub_item_id') THEN
+                            ALTER TABLE order_items ADD COLUMN sub_item_id INTEGER;
+                        END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='order_items' AND column_name='image_url') THEN
+                            ALTER TABLE order_items ADD COLUMN image_url VARCHAR;
+                        END IF;
+                    END $$;
 
                     CREATE TABLE IF NOT EXISTS carts (
                         id SERIAL PRIMARY KEY,

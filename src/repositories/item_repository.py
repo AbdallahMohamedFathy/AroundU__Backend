@@ -61,17 +61,19 @@ class ItemRepository(BaseRepository[Item]):
 
     def get_top_by_place(self, place_id: int, limit: int = 4) -> List[Item]:
         from src.models.subcategory import SubCategory
-        from app.orders.models.order_models import OrderItem, Order
-        from sqlalchemy import func
+        from sqlalchemy import func, Integer, column, table
+
+        order_items_t = table("order_items", column("item_id"), column("quantity"), column("order_id"))
+        orders_t = table("orders", column("id"), column("place_id"))
 
         order_counts = (
             self.session.query(
-                OrderItem.item_id,
-                func.sum(OrderItem.quantity).label("total_ordered"),
+                order_items_t.c.item_id.label("item_id"),
+                func.sum(order_items_t.c.quantity).label("total_ordered"),
             )
-            .join(Order, OrderItem.order_id == Order.id)
-            .filter(Order.place_id == place_id)
-            .group_by(OrderItem.item_id)
+            .join(orders_t, order_items_t.c.order_id == orders_t.c.id)
+            .filter(orders_t.c.place_id == place_id)
+            .group_by(order_items_t.c.item_id)
             .subquery()
         )
 
