@@ -81,7 +81,13 @@ class OrderService:
                     detail="Invalid quantity — must be greater than 0"
                 )
 
-        # 4️⃣ Create Order + OrderItems
+        # 4️⃣ Calculate delivery fee
+        delivery_fee = 0.0
+        if order_data.order_type == OrderType.CASH_ON_DELIVERY:
+            if not getattr(place, 'is_free_delivery', False):
+                delivery_fee = float(getattr(place, 'delivery_price', 0.0))
+
+        # 5️⃣ Create Order + OrderItems
         order = Order(
             user_id=user_id,
             place_id=order_data.place_id,
@@ -91,6 +97,7 @@ class OrderService:
             phone_number=order_data.phone_number,
             address=order_data.address,
             notes=order_data.notes,
+            delivery_fee=delivery_fee,
             total_price=0.0,
         )
         self.db.add(order)
@@ -145,7 +152,7 @@ class OrderService:
             order_items.append(item_snapshot)
             total_price += item_snapshot.total_price
 
-        order.total_price = total_price
+        order.total_price = total_price + delivery_fee
         await self.db.flush()
 
         # 5️⃣ Clear cart after checkout (only if we used the saved cart)
@@ -167,6 +174,7 @@ class OrderService:
             phone_number=order.phone_number,
             address=order.address,
             notes=order.notes,
+            delivery_fee=order.delivery_fee,
             total_price=order.total_price,
             items=[
                 OrderItemResponse(
@@ -247,6 +255,7 @@ class OrderService:
             phone_number=order.phone_number,
             address=order.address,
             notes=order.notes,
+            delivery_fee=order.delivery_fee,
             total_price=order.total_price,
             items=[
                 OrderItemResponse(
@@ -298,6 +307,7 @@ class OrderService:
             phone_number=order.phone_number,
             address=order.address,
             notes=order.notes,
+            delivery_fee=order.delivery_fee,
             total_price=order.total_price,
             items=[
                 OrderItemResponse(id=i.id, item_id=i.item_id, item_name=i.item_name, image_url=i.image_url,

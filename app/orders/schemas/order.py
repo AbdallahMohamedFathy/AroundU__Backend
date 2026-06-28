@@ -51,6 +51,7 @@ class OrderResponse(BaseModel):
     phone_number: str
     address: Optional[str]
     notes: Optional[str]
+    delivery_fee: float = 0.0
     total_price: float
     items: List[OrderItemResponse] = []
     created_at: Optional[datetime]
