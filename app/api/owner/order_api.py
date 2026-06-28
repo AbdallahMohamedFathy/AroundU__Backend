@@ -218,7 +218,6 @@ async def get_top_ordered_items(
     current_user=Depends(owner_guard),
 ):
     from sqlalchemy import select, func
-    from sqlalchemy.sql.expression import coalesce
     from app.orders.models.order_models import Order, OrderItem
     from app.orders.enums.enums import OrderStatus
     from src.models.place import Place
@@ -234,16 +233,16 @@ async def get_top_ordered_items(
             detail="Place not found or access denied",
         )
 
-    result = await db.execute(
+    # Step 1: get top item_ids by total quantity ordered (excluding cancelled)
+    agg_result = await db.execute(
         select(
             OrderItem.item_id,
-            coalesce(func.max(Item.name), func.max(OrderItem.item_name)).label("item_name"),
-            coalesce(func.max(Item.image_url), func.max(OrderItem.image_url)).label("image_url"),
-            coalesce(func.max(Item.price), func.max(OrderItem.unit_price)).label("unit_price"),
+            func.max(OrderItem.item_name).label("item_name"),
+            func.max(OrderItem.image_url).label("image_url"),
+            func.max(OrderItem.unit_price).label("unit_price"),
             func.sum(OrderItem.quantity).label("total_ordered"),
         )
         .join(Order, OrderItem.order_id == Order.id)
-        .outerjoin(Item, OrderItem.item_id == Item.id)
         .where(
             Order.place_id == place_id,
             Order.status != OrderStatus.CANCELLED,
@@ -252,14 +251,25 @@ async def get_top_ordered_items(
         .order_by(func.sum(OrderItem.quantity).desc())
         .limit(limit)
     )
+    rows = agg_result.all()
 
-    rows = result.all()
+    if not rows:
+        return []
+
+    # Step 2: fetch current item details to get up-to-date name/price/image
+    item_ids = [row.item_id for row in rows]
+    items_result = await db.execute(
+        select(Item.id, Item.name, Item.price, Item.image_url)
+        .where(Item.id.in_(item_ids))
+    )
+    current_items = {row.id: row for row in items_result.all()}
+
     return [
         TopItemResponse(
             item_id=row.item_id,
-            item_name=row.item_name,
-            image_url=row.image_url,
-            unit_price=float(row.unit_price) if row.unit_price else 0.0,
+            item_name=current_items[row.item_id].name if row.item_id in current_items else row.item_name,
+            image_url=current_items[row.item_id].image_url if row.item_id in current_items else row.image_url,
+            unit_price=float(current_items[row.item_id].price) if row.item_id in current_items else float(row.unit_price or 0),
             total_ordered=row.total_ordered,
         )
         for row in rows
