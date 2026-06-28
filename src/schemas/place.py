@@ -24,6 +24,7 @@ class PlaceBase(BaseModel):
     accepts_delivery: bool = True
     accepts_takeaway: bool = True
     working_hours: Optional[str] = None
+    is_open: bool = True
 
 
 class PlaceCreate(PlaceBase):
@@ -55,6 +56,7 @@ class PlaceUpdate(BaseModel):
     accepts_takeaway: Optional[bool] = None
     working_hours: Optional[str] = None
     is_active: Optional[bool] = None
+    is_open: Optional[bool] = None
 
 
 
@@ -64,6 +66,7 @@ class PlaceResponse(PlaceBase):
     rating: float
     review_count: int
     is_active: bool
+    is_open: bool = True
     is_accepting_orders: bool = True
     accepts_delivery: bool = True
     accepts_takeaway: bool = True
@@ -85,6 +88,7 @@ class NearbyPlaceResponse(BaseModel):
     delivery_price: float = 0.0
     is_free_delivery: bool = False
     working_hours: Optional[str] = None
+    is_open: bool = True
     is_favorited: Optional[bool] = False
 
     model_config = {"from_attributes": True}

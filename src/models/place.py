@@ -40,6 +40,7 @@ class Place(Base):
         index=True
     )
     is_active = Column(Boolean, default=True, nullable=False)
+    is_open = Column(Boolean, default=True, nullable=False, server_default='true')
     
     delivery_price = Column(Float, default=0.0, nullable=False, server_default='0.0')
     is_free_delivery = Column(Boolean, default=False, nullable=False, server_default='false')

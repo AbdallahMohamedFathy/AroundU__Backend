@@ -1104,7 +1104,7 @@ def update_order_settings(
 
 
 class UpdateStatus(BaseModel):
-    is_active: bool = Field(..., description="Set to true to open the place, false to mark as closed")
+    is_open: bool = Field(..., description="Set to true to open the place, false to mark as closed")
 
 @router.put("/my-place/status")
 def update_place_status(
@@ -1113,15 +1113,15 @@ def update_place_status(
     db: Session = Depends(get_db),
     current_user=Depends(owner_guard),
 ):
-    """Toggle the active status (Open/Closed) for the owner's place."""
+    """Toggle the open/closed status for the owner's place. Does not hide the place from the app."""
     target_place_id = resolve_target_place_id(db, current_user.id, place_id)
     place = db.query(Place).filter(Place.id == target_place_id).first()
-    
-    place.is_active = payload.is_active
+
+    place.is_open = payload.is_open
     db.commit()
-    
-    status_text = "Open" if place.is_active else "Closed"
-    return {"message": f"Place status updated to {status_text}", "is_active": place.is_active}
+
+    status_text = "Open" if place.is_open else "Closed"
+    return {"message": f"Place status updated to {status_text}", "is_open": place.is_open}
 
 
 # ---------------------------------------------------------------------------
