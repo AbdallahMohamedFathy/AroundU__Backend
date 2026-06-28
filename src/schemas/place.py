@@ -57,6 +57,7 @@ class PlaceUpdate(BaseModel):
     working_hours: Optional[str] = None
     is_active: Optional[bool] = None
     is_open: Optional[bool] = None
+    delivery_zones: Optional[List[dict]] = None
 
 
 
@@ -70,6 +71,7 @@ class PlaceResponse(PlaceBase):
     is_accepting_orders: bool = True
     accepts_delivery: bool = True
     accepts_takeaway: bool = True
+    delivery_zones: Optional[List[dict]] = []
     created_at: datetime
     distance_km: Optional[float] = None
     images: List[PlaceImageResponse] = []
