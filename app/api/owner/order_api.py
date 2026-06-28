@@ -67,6 +67,7 @@ async def get_owner_orders(
             phone_number=o.phone_number,
             address=o.address,
             notes=o.notes,
+            delivery_fee=getattr(o, 'delivery_fee', 0.0),
             total_price=o.total_price,
             items=items_res,
             created_at=o.created_at,
@@ -122,6 +123,7 @@ async def get_place_orders(
             phone_number=o.phone_number,
             address=o.address,
             notes=o.notes,
+            delivery_fee=getattr(o, 'delivery_fee', 0.0),
             total_price=o.total_price,
             items=items_res,
             created_at=o.created_at,
@@ -216,8 +218,11 @@ async def get_top_ordered_items(
     current_user=Depends(owner_guard),
 ):
     from sqlalchemy import select, func
+    from sqlalchemy.sql.expression import coalesce
     from app.orders.models.order_models import Order, OrderItem
+    from app.orders.enums.enums import OrderStatus
     from src.models.place import Place
+    from src.models.item import Item
 
     # Verify ownership
     place_result = await db.execute(
@@ -232,14 +237,18 @@ async def get_top_ordered_items(
     result = await db.execute(
         select(
             OrderItem.item_id,
-            OrderItem.item_name,
-            func.max(OrderItem.image_url).label("image_url"),
-            func.max(OrderItem.unit_price).label("unit_price"),
+            coalesce(func.max(Item.name), func.max(OrderItem.item_name)).label("item_name"),
+            coalesce(func.max(Item.image_url), func.max(OrderItem.image_url)).label("image_url"),
+            coalesce(func.max(Item.price), func.max(OrderItem.unit_price)).label("unit_price"),
             func.sum(OrderItem.quantity).label("total_ordered"),
         )
         .join(Order, OrderItem.order_id == Order.id)
-        .where(Order.place_id == place_id)
-        .group_by(OrderItem.item_id, OrderItem.item_name)
+        .outerjoin(Item, OrderItem.item_id == Item.id)
+        .where(
+            Order.place_id == place_id,
+            Order.status != OrderStatus.CANCELLED,
+        )
+        .group_by(OrderItem.item_id)
         .order_by(func.sum(OrderItem.quantity).desc())
         .limit(limit)
     )
@@ -250,7 +259,7 @@ async def get_top_ordered_items(
             item_id=row.item_id,
             item_name=row.item_name,
             image_url=row.image_url,
-            unit_price=row.unit_price,
+            unit_price=float(row.unit_price) if row.unit_price else 0.0,
             total_ordered=row.total_ordered,
         )
         for row in rows

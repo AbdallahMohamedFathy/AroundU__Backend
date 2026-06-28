@@ -64,7 +64,7 @@ class ItemRepository(BaseRepository[Item]):
         from sqlalchemy import func, Integer, column, table
 
         order_items_t = table("order_items", column("item_id"), column("quantity"), column("order_id"))
-        orders_t = table("orders", column("id"), column("place_id"))
+        orders_t = table("orders", column("id"), column("place_id"), column("status"))
 
         order_counts = (
             self.session.query(
@@ -72,7 +72,10 @@ class ItemRepository(BaseRepository[Item]):
                 func.sum(order_items_t.c.quantity).label("total_ordered"),
             )
             .join(orders_t, order_items_t.c.order_id == orders_t.c.id)
-            .filter(orders_t.c.place_id == place_id)
+            .filter(
+                orders_t.c.place_id == place_id,
+                orders_t.c.status != "CANCELLED",
+            )
             .group_by(order_items_t.c.item_id)
             .subquery()
         )
