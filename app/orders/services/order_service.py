@@ -82,10 +82,14 @@ class OrderService:
                 )
 
         # 4️⃣ Calculate delivery fee
-        delivery_fee = 0.0
-        if order_data.order_type == OrderType.CASH_ON_DELIVERY:
+        # Use client-provided fee (zone-based) if sent, otherwise fall back to place flat fee
+        if order_data.delivery_fee is not None:
+            delivery_fee = float(order_data.delivery_fee)
+        elif order_data.order_type == OrderType.CASH_ON_DELIVERY:
             if not getattr(place, 'is_free_delivery', False):
                 delivery_fee = float(getattr(place, 'delivery_price', 0.0))
+        else:
+            delivery_fee = 0.0
 
         # 5️⃣ Create Order + OrderItems
         order = Order(

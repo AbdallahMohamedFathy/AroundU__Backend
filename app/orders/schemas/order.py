@@ -18,6 +18,7 @@ class OrderCreate(BaseModel):
     phone_number: str = Field(..., min_length=1)
     address: Optional[str] = None
     notes: Optional[str] = None
+    delivery_fee: Optional[float] = Field(None, ge=0, description="Delivery fee selected by user (zone-based). If not provided, backend calculates from place settings.")
     items: List[OrderItemCreate]
 
     @validator('address')
