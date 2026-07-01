@@ -15,7 +15,10 @@ class UserRepository(BaseRepository[User]):
 
     def get_by_email(self, email: str) -> Optional[User]:
         from sqlalchemy import func
-        return self.session.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+        return self.session.query(User).filter(
+            func.lower(User.email) == func.lower(email),
+            User.is_deleted == False
+        ).first()
 
     def get_by_verification_token(self, token: str) -> Optional[User]:
         return self.session.query(User).filter(User.verification_token == token).first()

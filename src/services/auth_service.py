@@ -170,9 +170,9 @@ def request_password_reset(uow: UnitOfWork, email: str, background_tasks: Backgr
     from src.models.password_reset_token import PasswordResetToken
     with uow:
         user = uow.user_repository.get_by_email(email)
-        if not user:
+        if not user or not user.is_active:
             return ""   # Avoid email enumeration
-        
+
         # Invalidate old tokens
         uow.session.query(PasswordResetToken).filter(
             PasswordResetToken.user_id == user.id,
@@ -199,9 +199,6 @@ def request_password_reset(uow: UnitOfWork, email: str, background_tasks: Backgr
             user_name=user.full_name
         )
         logger.info(f"[RESET] Password reset email queued for {user.email}")
-        
-        logger.info(f"PASSWORD RESET REQUESTED FOR {email}.")
-        
         return raw_token
 
 def verify_reset_token(uow: UnitOfWork, raw_token: str) -> bool:
@@ -231,6 +228,8 @@ def reset_password(uow: UnitOfWork, raw_token: str, new_password: str):
         user = uow.user_repository.get_by_id(reset_entry.user_id)
         if not user:
             raise APIException("User not found", code=status.HTTP_404_NOT_FOUND)
+        if not user.is_active:
+            raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
 
         # Update user password
         user.password_hash = get_password_hash(new_password)
