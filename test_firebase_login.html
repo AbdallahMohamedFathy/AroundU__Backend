@@ -6,18 +6,25 @@
     <title>Firebase Auth Test</title>
 </head>
 <body style="font-family: Arial, sans-serif; padding: 20px;">
-    <h2>Test Google Sign-In (Firebase)</h2>
+    <h2>Test Social Sign-In (Firebase)</h2>
     <p>Use this tool to generate a real Firebase ID Token for testing your Swagger API.</p>
-    
-    <button id="loginBtn" style="padding: 10px 20px; font-size: 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer;">
-        Sign in with Google
-    </button>
-    
-    <button id="logoutBtn" style="padding: 10px 20px; font-size: 16px; background-color: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; display: none;">
-        Sign out
-    </button>
+
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button id="googleBtn" style="padding: 10px 20px; font-size: 16px; background-color: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Sign in with Google
+        </button>
+
+        <button id="facebookBtn" style="padding: 10px 20px; font-size: 16px; background-color: #1877F2; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Sign in with Facebook
+        </button>
+
+        <button id="logoutBtn" style="padding: 10px 20px; font-size: 16px; background-color: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; display: none;">
+            Sign out
+        </button>
+    </div>
 
     <div style="margin-top: 20px;">
+        <h3>Provider: <span id="providerLabel" style="color: #555;">—</span></h3>
         <h3>Your ID Token:</h3>
         <textarea id="tokenBox" rows="8" style="width: 100%; max-width: 600px; padding: 10px;" readonly placeholder="Your token will appear here..."></textarea>
         <br>
@@ -27,11 +34,8 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
-        // ⚠️ REPLACE THIS CONFIG WITH YOUR FIREBASE WEB CONFIG ⚠️
-        // You can find this in Firebase Console -> Project Settings -> General -> Web Apps
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyBv7F1RNGJJP281R93zHezxX_wc3VMe73I",
             authDomain: "aroundufast.firebaseapp.com",
@@ -42,36 +46,54 @@
             measurementId: "G-T5R1C9N2ES"
         };
 
-
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
 
-        const loginBtn = document.getElementById('loginBtn');
+        const googleBtn = document.getElementById('googleBtn');
+        const facebookBtn = document.getElementById('facebookBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const tokenBox = document.getElementById('tokenBox');
+        const providerLabel = document.getElementById('providerLabel');
 
-        loginBtn.addEventListener('click', () => {
-            signInWithPopup(auth, provider).then((result) => {
-                return result.user.getIdToken();
-            }).then((token) => {
+        function onLoginSuccess(result) {
+            return result.user.getIdToken().then((token) => {
                 tokenBox.value = token;
-                loginBtn.style.display = 'none';
+                const provider = result.user.providerData[0]?.providerId || 'unknown';
+                providerLabel.textContent = provider;
+                googleBtn.style.display = 'none';
+                facebookBtn.style.display = 'none';
                 logoutBtn.style.display = 'inline-block';
-            }).catch((error) => {
-                console.error("Login failed:", error);
-                alert("Login Failed: " + error.message);
             });
+        }
+
+        googleBtn.addEventListener('click', () => {
+            signInWithPopup(auth, new GoogleAuthProvider())
+                .then(onLoginSuccess)
+                .catch((error) => {
+                    console.error("Google login failed:", error);
+                    alert("Google Login Failed: " + error.message);
+                });
+        });
+
+        facebookBtn.addEventListener('click', () => {
+            signInWithPopup(auth, new FacebookAuthProvider())
+                .then(onLoginSuccess)
+                .catch((error) => {
+                    console.error("Facebook login failed:", error);
+                    alert("Facebook Login Failed: " + error.message);
+                });
         });
 
         logoutBtn.addEventListener('click', () => {
             signOut(auth).then(() => {
                 tokenBox.value = '';
-                loginBtn.style.display = 'inline-block';
+                providerLabel.textContent = '—';
+                googleBtn.style.display = 'inline-block';
+                facebookBtn.style.display = 'inline-block';
                 logoutBtn.style.display = 'none';
             });
         });
-        
+
         window.copyToken = function() {
             tokenBox.select();
             document.execCommand('copy');

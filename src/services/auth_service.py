@@ -245,6 +245,31 @@ def reset_password(uow: UnitOfWork, raw_token: str, new_password: str):
         uow.commit()
         return True
 
+def delete_account(uow: UnitOfWork, user_id: int, password: Optional[str] = None):
+    from src.models.token import RefreshToken
+    with uow:
+        user = uow.user_repository.get_by_id(user_id)
+        if not user or not user.is_active:
+            raise APIException("Account not found", code=status.HTTP_404_NOT_FOUND)
+
+        # Local users must confirm password; social users skip this
+        if not user.firebase_uid:
+            if not password:
+                raise APIException("Password is required to delete a local account", code=status.HTTP_400_BAD_REQUEST)
+            if not verify_password(password, user.password_hash):
+                raise APIException("Incorrect password", code=status.HTTP_401_UNAUTHORIZED)
+
+        # Revoke all sessions
+        uow.session.query(RefreshToken).filter(RefreshToken.user_id == user_id).delete()
+
+        # Soft delete
+        user.is_active = False
+        user.is_deleted = True
+        user.deleted_at = datetime.now(timezone.utc)
+
+        uow.commit()
+
+
 def social_login(uow: UnitOfWork, data: Any):
     from firebase_admin import auth
     from src.utils.firebase import get_firebase_app

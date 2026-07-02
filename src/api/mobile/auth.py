@@ -122,3 +122,21 @@ def do_reset_password(data: PasswordReset, uow=Depends(get_uow)):
     auth_service.reset_password(uow, data.token, data.new_password)
     return {"message": "Password reset successfully. Please log in."}
 
+
+# ─── DELETE ACCOUNT  DELETE /auth/account ───────────────────────────────────
+class DeleteAccountRequest(BaseModel):
+    password: str | None = None
+
+@router.delete("/account", status_code=status.HTTP_200_OK)
+def delete_account(
+    data: DeleteAccountRequest = DeleteAccountRequest(),
+    uow=Depends(get_uow),
+    current_user=Depends(get_current_user),
+):
+    """Permanently deactivate the current user's account.
+    - Local accounts: password required.
+    - Social accounts (Google/Facebook): no password needed.
+    """
+    auth_service.delete_account(uow, current_user.id, data.password)
+    return {"message": "Account deleted successfully"}
+
