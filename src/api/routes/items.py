@@ -8,7 +8,7 @@ from src.utils.file_upload import save_upload_file
 from src.core.database import get_db
 from src.repositories.item_repository import ItemRepository
 
-router = APIRouter(prefix="/items", tags=["Items"])
+router = APIRouter(prefix="/items", tags=["AI - Menu Data"])
 
 # Owner or Admin can manage items
 owner_only = RoleChecker(["OWNER", "ADMIN"])

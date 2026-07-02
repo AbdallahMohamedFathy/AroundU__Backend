@@ -69,7 +69,7 @@ class HealthResponse(BaseModel):
     "/health",
     response_model=HealthResponse,
     summary="AI Chatbot Service Health",
-    tags=["Mobile - AI"],
+
 )
 async def ai_health():
     """
@@ -89,7 +89,7 @@ async def ai_health():
     response_model=ChatResponse,
     status_code=status.HTTP_200_OK,
     summary="Chat with AI assistant",
-    tags=["Mobile - AI"],
+
 )
 async def chat_with_ai(
     body:             ChatRequest,
@@ -130,7 +130,7 @@ async def chat_with_ai(
     "/history",
     status_code=status.HTTP_200_OK,
     summary="Clear chat history",
-    tags=["Mobile - AI"],
+
 )
 async def clear_history(
     current_user: User = Depends(get_current_user),

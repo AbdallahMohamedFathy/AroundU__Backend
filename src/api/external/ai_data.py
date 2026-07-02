@@ -9,7 +9,7 @@ from src.models.interaction import Interaction
 from src.models.place import Place
 from src.models.subcategory import SubCategory
 
-router = APIRouter(prefix="/ai/data", tags=["AI Gateway"])
+router = APIRouter(prefix="/ai/data", tags=["AI - Gateway"])
 
 def _map_place(p: Place) -> AIPlaceResponse:
     sub_category_names = [sc.name for sc in getattr(p, "subcategories", []) if not getattr(sc, "is_deleted", False)]

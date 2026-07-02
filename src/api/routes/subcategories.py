@@ -7,7 +7,7 @@ from src.utils.file_upload import save_upload_file
 from src.core.database import get_db
 from src.repositories.subcategory_repository import SubCategoryRepository
 
-router = APIRouter(prefix="/subcategories", tags=["SubCategories"])
+router = APIRouter(prefix="/subcategories", tags=["AI - Menu Data"])
 
 # Owner or Admin can manage subcategories (Owner manages his own)
 owner_only = RoleChecker(["OWNER", "ADMIN"])

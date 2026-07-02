@@ -4,7 +4,7 @@ from src.core.dependencies import get_category_repository, get_uow, get_current_
 from src.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
 from src.services import category_service
 
-router = APIRouter(prefix="/categories", tags=["Categories"])
+router = APIRouter(prefix="/categories", tags=["AI - Menu Data"])
 
 # Admin dependencies
 admin_only = RoleChecker(["ADMIN"])
