@@ -297,20 +297,32 @@ def social_login(uow: UnitOfWork, data: Any):
         raise APIException(f"Firebase authentication failed: {str(e)}", code=status.HTTP_401_UNAUTHORIZED)
         
     with uow:
-        # 1. Check if user exists by firebase_uid
-        user = uow.user_repository.get_by_firebase_uid(firebase_uid)
-        
-        # 2. If not found by firebase_uid, check by email (Account linking)
+        from src.models.user import User as UserModel
+
+        # 1. Check if user exists by firebase_uid (including soft-deleted)
+        user = uow.session.query(UserModel).filter(
+            UserModel.firebase_uid == firebase_uid
+        ).first()
+
+        # 2. If not found by firebase_uid, check by email (including soft-deleted)
         if not user and email:
-            user = uow.user_repository.get_by_email(email)
+            user = uow.session.query(UserModel).filter(
+                UserModel.email == email.lower()
+            ).first()
             if user:
                 user.firebase_uid = firebase_uid
                 user.provider = provider
-        
-        # 3. If still not found, create new user
+
+        # 3. If soft-deleted, reactivate the account
+        if user and user.is_deleted:
+            user.is_deleted = False
+            user.is_active = True
+            user.deleted_at = None
+            user.full_name = name
+
+        # 4. If still not found, create new user
         if not user:
-            from src.models.user import User
-            user = User(
+            user = UserModel(
                 email=email,
                 full_name=name,
                 firebase_uid=firebase_uid,
@@ -319,7 +331,7 @@ def social_login(uow: UnitOfWork, data: Any):
             )
             uow.user_repository.add(user)
             uow.session.flush()
-            
+
         if not user.is_active:
             raise APIException("Account is deactivated", code=status.HTTP_403_FORBIDDEN)
                 
