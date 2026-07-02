@@ -148,7 +148,7 @@ def send_password_reset_email(email: str, token: str, user_name: str) -> bool:
     Returns:
         True if email sent successfully
     """
-    reset_link = f"aroundu://reset-password?token={token}"
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
     html_body = f"""
     <!DOCTYPE html>
