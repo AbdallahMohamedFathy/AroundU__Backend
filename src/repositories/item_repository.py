@@ -84,14 +84,14 @@ class ItemRepository(BaseRepository[Item]):
             self.session.query(self.model)
             .options(joinedload(self.model.subcategory))
             .join(SubCategory, self.model.sub_category_id == SubCategory.id)
-            .outerjoin(order_counts, self.model.id == order_counts.c.item_id)
+            .join(order_counts, self.model.id == order_counts.c.item_id)
             .filter(
                 SubCategory.place_id == place_id,
                 SubCategory.is_deleted == False,
                 self.model.is_deleted == False,
                 self.model.is_available == True,
             )
-            .order_by(func.coalesce(order_counts.c.total_ordered, 0).desc())
+            .order_by(order_counts.c.total_ordered.desc())
             .limit(limit)
             .all()
         )
