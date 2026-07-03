@@ -5,7 +5,7 @@ from pydantic import Field, validator
 
 class Settings(BaseSettings):
     # Application
-    PROJECT_NAME: str = "AroundU API"
+    PROJECT_NAME: str = "7waleek API"
     API_V1_STR: str = "/api"
     ENVIRONMENT: str = "production"
 
