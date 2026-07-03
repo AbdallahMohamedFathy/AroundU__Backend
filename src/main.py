@@ -58,7 +58,7 @@ from src.core.exceptions import (
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="AroundU – location-based place discovery API",
+    description="7waleek – location-based place discovery API",
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
