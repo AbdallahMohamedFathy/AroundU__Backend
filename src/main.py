@@ -667,6 +667,40 @@ app.include_router(user_cart.router, prefix="/api/user/cart", tags=["Mobile - Ca
 app.include_router(admin_orders.router, prefix="/api/admin/orders", tags=["Dashboard - Admin"])
 
 # ─────────────────────────────────────────────
+# UNIVERSAL / APP LINKS
+# ─────────────────────────────────────────────
+
+@app.get("/.well-known/assetlinks.json", include_in_schema=False)
+async def assetlinks():
+    return JSONResponse(content=[{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "com.aroundu.app",
+            "sha256_cert_fingerprints": [
+                "46:36:DE:80:D6:5A:DB:85:7A:5F:E5:6F:DF:94:9E:A7:96:54:AC:B7:F5:9E:2E:35:B9:E6:93:F4:84:CF:72:08"
+            ]
+        }
+    }])
+
+
+@app.get("/.well-known/apple-app-site-association", include_in_schema=False)
+async def apple_app_site_association():
+    return JSONResponse(
+        content={
+            "applinks": {
+                "apps": [],
+                "details": [{
+                    "appID": "REPLACE_WITH_TEAM_ID.REPLACE_WITH_BUNDLE_ID",
+                    "paths": ["/reset-password", "/verify-email"]
+                }]
+            }
+        },
+        media_type="application/json"
+    )
+
+
+# ─────────────────────────────────────────────
 # HEALTH CHECK
 # ─────────────────────────────────────────────
 
